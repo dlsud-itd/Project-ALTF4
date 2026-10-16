@@ -1,0 +1,176 @@
+// ClinicQueue Prisma Schema
+// Aligned with ALTF4 Database Specification & Supabase PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ClinicAffiliation {
+  STUDENT
+  FACULTY
+  STAFF
+}
+
+enum AccessRole {
+  PATIENT
+  STAFF
+  ADMIN
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_SERVICE
+  SERVED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueuePriority {
+  NORMAL
+  EMERGENCY
+}
+
+enum NotificationType {
+  QUEUE_CALL
+  APPOINTMENT_REMINDER
+  GENERAL
+}
+
+model User {
+  id           Int               @id @default(autoincrement())
+  fullName     String            @map("full_name") @db.VarChar(150)
+  email        String            @unique @map("email") @db.VarChar(254)
+  passwordHash String            @map("password_hash") @db.VarChar(255)
+  affiliation  ClinicAffiliation @map("affiliation")
+  role         AccessRole        @default(PATIENT) @map("role")
+  isActive     Boolean           @default(true) @map("is_active")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  appointments  Appointment[]
+  queueEntries  QueueEntry[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@map("app_user")
+}
+
+model DailyQueue {
+  id                     Int          @id @default(autoincrement())
+  clinicDate             DateTime     @unique @map("clinic_date") @db.Date
+  nextNumber             Int          @default(1) @map("next_number")
+  isOpen                 Boolean      @default(true) @map("is_open")
+  fallbackServiceMinutes Int          @default(15) @map("fallback_service_minutes")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  queueEntries QueueEntry[]
+
+  @@map("daily_queue")
+}
+
+model ClinicSlot {
+  id         Int           @id @default(autoincrement())
+  clinicDate DateTime      @map("clinic_date") @db.Date
+  startTime  String        @map("start_time") @db.VarChar(10)
+  endTime    String        @map("end_time") @db.VarChar(10)
+  capacity   Int           @default(1)
+  isBookable Boolean       @default(true) @map("is_bookable")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  appointments Appointment[]
+
+  @@map("clinic_slot")
+}
+
+model Appointment {
+  id        Int               @id @default(autoincrement())
+  patientId Int               @map("patient_id")
+  slotId    Int               @map("slot_id")
+  status    AppointmentStatus @default(BOOKED)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  patient      User           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  slot         ClinicSlot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  queueEntries QueueEntry[]
+  notifications Notification[]
+
+  @@map("appointment")
+}
+
+model QueueEntry {
+  id             Int           @id @default(autoincrement())
+  dailyQueueId   Int           @map("daily_queue_id")
+  patientId      Int?          @map("patient_id")
+  appointmentId  Int?          @map("appointment_id")
+  queueNumber    Int           @map("queue_number")
+  ticketNumber   String        @map("ticket_number") @db.VarChar(20)
+  status         QueueStatus   @default(WAITING)
+  priority       QueuePriority @default(NORMAL)
+  trackingToken  String?       @map("tracking_token") @db.VarChar(64)
+  firstName      String?       @map("first_name") @db.VarChar(100)
+  lastName       String?       @map("last_name") @db.VarChar(100)
+  phoneNumber    String?       @map("phone_number") @db.VarChar(30)
+  reasonForVisit String?       @map("reason_for_visit") @db.Text
+  roomNumber     String?       @map("room_number") @db.VarChar(50)
+  notes          String?       @db.Text
+  joinedAt       DateTime      @default(now()) @map("joined_at")
+  calledAt       DateTime?     @map("called_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  dailyQueue   DailyQueue   @relation(fields: [dailyQueueId], references: [id], onDelete: Cascade)
+  patient      User?        @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@map("queue_entry")
+}
+
+model Notification {
+  id            Int              @id @default(autoincrement())
+  recipientId   Int              @map("recipient_id")
+  type          NotificationType
+  message       String           @db.Text
+  appointmentId Int?             @map("appointment_id")
+  queueEntryId  Int?             @map("queue_entry_id")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  readAt        DateTime?        @map("read_at")
+
+  recipient   User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  queueEntry  QueueEntry?  @relation(fields: [queueEntryId], references: [id], onDelete: SetNull)
+
+  @@map("notification")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actorId     Int?     @map("actor_id")
+  action      String   @db.VarChar(100)
+  entityTable String   @map("entity_table") @db.VarChar(64)
+  entityId    Int?     @map("entity_id")
+  description String?  @db.Text
+  oldValues   Json?    @map("old_values")
+  newValues   Json?    @map("new_values")
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("audit_log")
+}
