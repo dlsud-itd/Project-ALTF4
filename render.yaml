@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: clinicqueue-api
+    runtime: node
+    plan: starter
+    region: singapore
+    rootDir: .
+    buildCommand: npm install && npm run prisma:generate && npm run build:api
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
