@@ -1,0 +1,108 @@
+.auth-page {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label,
+  .field-label { font-size: 0.875rem; font-weight: 500; color: var(--text-main); }
+}
+
+.field-error { font-size: 0.8125rem; color: var(--danger-color); }
+
+.auth-footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+
+  a { color: var(--auth-primary); font-weight: 600; text-decoration: none; }
+}
+
+.forgot-link {
+  align-self: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--auth-primary);
+  text-decoration: none;
+}
+
+.auth-page {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label,
+  .field-label { font-size: 0.875rem; font-weight: 500; color: var(--text-main); }
+}
+
+.field-error { font-size: 0.8125rem; color: var(--danger-color); }
+
+.auth-footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+
+  a { color: var(--auth-primary); font-weight: 600; text-decoration: none; }
+}
+
+.forgot-link {
+  align-self: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--auth-primary);
+  text-decoration: none;
+}
+
+:host ::ng-deep {
+  .p-password,
+  .p-password-input,
+  .p-button { width: 100%; }
+
+  input.p-inputtext,
+  .p-password-input { background: var(--auth-input-bg); }
+
+  .auth-submit.p-button {
+    background: var(--auth-primary);
+    border-color: var(--auth-primary);
+  }
+}
+
+p-message {
+  display: block;
+  margin-bottom: 14px;
+}
+
+:host ::ng-deep {
+  .p-password,
+  .p-password-input,
+  .p-button { width: 100%; }
+
+  input.p-inputtext,
+  .p-password-input { background: var(--auth-input-bg); }
+
+  .auth-submit.p-button {
+    background: var(--auth-primary);
+    border-color: var(--auth-primary);
+  }
+}

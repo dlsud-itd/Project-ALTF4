@@ -1,0 +1,41 @@
+<div class="auth-page">
+  <app-auth-brand />
+
+  <app-auth-card title="Sign in">
+    @if (justRegistered) {
+      <p-message severity="success" text="Account created. You can sign in now." />
+    }
+    @if (errorMessage(); as message) {
+      <p-message severity="error" [text]="message" />
+    }
+
+    <form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" pInputText formControlName="email" placeholder="you@university.edu" />
+        @if (showError('email')) {
+          <small class="field-error">Enter a valid email address.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <p-password inputId="password" formControlName="password" [feedback]="false" [toggleMask]="true" />
+        @if (showError('password')) {
+          <small class="field-error">Password is required.</small>
+        }
+      </div>
+
+      <div class="field">
+        <span class="field-label">Select campus affiliation</span>
+        <app-affiliation-selector [control]="form.controls.affiliation" />
+      </div>
+
+      <p-button type="submit" label="Sign in" styleClass="auth-submit" [loading]="loading()" [disabled]="loading()" />
+    </form>
+
+    <p class="auth-footer">New to ClinicQueue? <a routerLink="/register">Create account</a></p>
+  </app-auth-card>
+
+  <a class="forgot-link" routerLink="/forgot-password">Forgot password?</a>
+</div>
