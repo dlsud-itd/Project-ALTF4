@@ -10,7 +10,7 @@ This document lists all configuration variables required by the ClinicQueue mono
 | `PORT` | Backend (`api`) | Local & Render | No | Server port. Defaults to `3000` locally. Automatically provided by Render (`10000`). |
 | `DATABASE_URL` | Backend (`api`), Prisma | Local & Render | **YES** | Supabase pooled connection string (port 6543 with `?pgbouncer=true`). |
 | `DIRECT_URL` | Backend (`api`), Prisma | Local & Render | **YES** | Supabase direct connection string (port 5432) for running migrations. |
-| `JWT_SECRET` | Backend (`api`) | Local & Render | **YES** | Cryptographic key used to sign and verify JSON Web Tokens. |
+| `JWT_SECRET` | Backend (`api`) | Local & Render | **YES** | Required cryptographic key used to sign and verify JSON Web Tokens; the API does not use a built-in fallback. |
 | `JWT_EXPIRES_IN`| Backend (`api`) | Local & Render | No | Token lifetime window. Default: `1d`. |
 | `CORS_ORIGINS` | Backend (`api`) | Local & Render | No | Comma-separated allowed frontend origins (e.g. `http://localhost:4200,https://clinicqueue.vercel.app`). |
 | `PUBLIC_API_URL`| Frontend (`web`) | Local & Vercel | No | Publicly accessible base URL of the NestJS REST API (`/api/v1`). |

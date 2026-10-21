@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './common/api-exception.filter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -21,9 +22,11 @@ async function bootstrap() {
       forbidNonWhitelisted: false,
     }),
   );
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   // CORS Configuration
-  const rawOrigins = process.env.CORS_ORIGINS || 'http://localhost:4200,http://127.0.0.1:4200';
+  const rawOrigins =
+    process.env.CORS_ORIGINS || 'http://localhost:4200,http://127.0.0.1:4200';
   const allowedOrigins = rawOrigins
     .split(',')
     .map((origin) => origin.trim())

@@ -69,6 +69,15 @@ model User {
   @@map("app_user")
 }
 
+model RevokedToken {
+  tokenId   String   @id @map("token_id") @db.VarChar(36)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("revoked_token")
+}
+
 model DailyQueue {
   id                     Int          @id @default(autoincrement())
   clinicDate             DateTime     @unique @map("clinic_date") @db.Date
