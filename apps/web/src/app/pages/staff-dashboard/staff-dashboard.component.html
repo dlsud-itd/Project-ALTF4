@@ -15,15 +15,14 @@
         <span>{{ staffName() }}</span>
         <span class="role-pill">STAFF</span>
       </div>
-      <a routerLink="/patient" class="switch-link">
-        <p-button
-          label="Patient View"
-          icon="pi pi-arrow-left"
-          severity="secondary"
-          [outlined]="true"
-          size="small"
-        />
-      </a>
+      <p-button
+        label="Sign Out"
+        icon="pi pi-sign-out"
+        severity="danger"
+        [outlined]="true"
+        size="small"
+        (onClick)="onLogout()"
+      />
     </div>
   </header>
 
