@@ -15,9 +15,9 @@
     "lint": "npm --workspace=api run lint",
     "test": "npm --workspace=api run test",
     "test:e2e": "playwright test",
-    "prisma:generate": "npm --workspace=api run prisma:generate",
-    "prisma:migrate:dev": "npm --workspace=api run prisma:migrate:dev",
-    "prisma:migrate:deploy": "npm --workspace=api run prisma:migrate:deploy",
+    "prisma:generate": "prisma generate --schema=apps/api/prisma/schema.prisma",
+    "prisma:migrate:dev": "prisma migrate dev --schema=apps/api/prisma/schema.prisma",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema=apps/api/prisma/schema.prisma",
     "prisma:seed": "npm --workspace=api run prisma:seed"
   },
   "devDependencies": {

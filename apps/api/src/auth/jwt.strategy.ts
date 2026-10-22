@@ -8,6 +8,19 @@ export interface JwtPayload {
   sub: number;
   email: string;
   role: string;
+  jti: string;
+  exp: number;
+}
+
+export interface AuthenticatedUser {
+  id: number;
+  fullName: string;
+  email: string;
+  affiliation: string;
+  role: string;
+  isActive: boolean;
+  tokenId: string;
+  tokenExpiresAt: Date;
 }
 
 @Injectable()
@@ -19,11 +32,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'development-secret-change-in-production',
+      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });
   }
 
   async validate(payload: JwtPayload) {
+    if (
+      !Number.isInteger(payload.sub) ||
+      typeof payload.jti !== 'string' ||
+      !payload.jti ||
+      !Number.isFinite(payload.exp)
+    ) {
+      throw new UnauthorizedException('Unauthorized: invalid or expired token');
+    }
+
+    const revokedToken = await this.prisma.revokedToken.findUnique({
+      where: { tokenId: payload.jti },
+    });
+    if (revokedToken) {
+      throw new UnauthorizedException('Unauthorized: invalid or expired token');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -37,9 +66,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('User account is inactive or not found');
+      throw new UnauthorizedException('Unauthorized: invalid or expired token');
     }
 
-    return user;
+    return {
+      ...user,
+      tokenId: payload.jti,
+      tokenExpiresAt: new Date(payload.exp * 1000),
+    };
   }
 }
