@@ -124,7 +124,7 @@ npm run dev:web
 ## 6. Key Endpoints
 
 - **Frontend App**: `http://localhost:4200`
-  - `/display` — Live Queue Display Board
+  - `/login` — Live Queue Display Board
   - `/patient` — Walk-In Queue Registration Portal
   - `/staff` — Clinic Staff Console
 - **Backend API**: `http://localhost:3000/api/v1`

@@ -47,7 +47,9 @@ export class RegisterComponent {
 
   readonly form = this.fb.nonNullable.group(
     {
-      fullName: ['', { validators: [Validators.required, Validators.maxLength(100)] }],
+      firstName: ['', { validators: [Validators.required, Validators.maxLength(50)] }],
+      middleName: ['', { validators: [Validators.maxLength(50)] }],
+      lastName: ['', { validators: [Validators.required, Validators.maxLength(50)] }],
       email: ['', { validators: [Validators.required, Validators.email] }],
       password: ['', { validators: [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)] }],
       confirmPassword: ['', { validators: [Validators.required] }],
@@ -56,7 +58,15 @@ export class RegisterComponent {
     { validators: [passwordsMatch] },
   );
 
-  showError(controlName: 'fullName' | 'email' | 'password' | 'confirmPassword'): boolean {
+  showError(
+    controlName:
+      | 'firstName'
+      | 'middleName'
+      | 'lastName'
+      | 'email'
+      | 'password'
+      | 'confirmPassword',
+  ): boolean {
     const control = this.form.controls[controlName];
     return control.invalid && (control.touched || control.dirty);
   }
@@ -71,7 +81,11 @@ export class RegisterComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const { fullName, email, password, affiliation } = this.form.getRawValue();
+    const { firstName, middleName, lastName, email, password, affiliation } = this.form.getRawValue();
+    const fullName = [firstName.trim(), middleName.trim(), lastName.trim()]
+      .filter(Boolean)
+      .join(' ');
+
     this.loading.set(true);
     this.errorMessage.set(null);
 
