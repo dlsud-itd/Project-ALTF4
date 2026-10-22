@@ -3,8 +3,11 @@
 ## 1. Overview
 ClinicQueue is a real-time clinic queue management and consultation calling system designed for university clinics (such as De La Salle University - Dasmariñas). The system provides seamless queue status visibility, patient walk-in registration, consultation slot booking, and staff queue calling.
 
-## 2. Monorepo Organization
-The repository uses an `npm-workspaces` monorepo structure:
+## 2. File Structure Organization
+
+> **Monorepo-Inspired ≠ Monorepo**: This repository co-locates two self-contained apps under one Git root for developer convenience. It does **not** use a unified build graph (Turborepo/Nx), shared package workspace, or cross-app TypeScript references. Each app is built and deployed independently.
+
+The repository layout:
 
 ```
 Project-ALTF4/
@@ -22,7 +25,7 @@ Project-ALTF4/
 │   │   ├── angular.json        # Angular CLI workspace manifest
 │   │   └── package.json        # Frontend dependencies
 │   │
-│   └── api/                    # NestJS 11 Backend (REST API & Socket.IO)
+│   └── api/                    # NestJS 11 Backend (REST API & SSE)
 │       ├── prisma/             # Database schema, migrations, seed script
 │       │   ├── schema.prisma
 │       │   └── seed.ts
@@ -59,10 +62,10 @@ Project-ALTF4/
 
 | Tier | Technology | Platform / Host | Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **Frontend** | Angular 19, SCSS, PrimeNG 19, RxJS | Vercel | Patient walk-in portal, live display board, staff dashboard, reactive forms, real-time Socket.IO client. |
-| **Backend** | NestJS 11, TypeScript, Socket.IO, Passport JWT, Argon2 | Render (Web Service) | RESTful APIs (`/api/v1`), Swagger documentation (`/api/docs`), WebSocket gateway (`queue:called`, `queue:updated`), database access. |
+| **Frontend** | Angular 19, SCSS, PrimeNG 19, RxJS | Vercel | Patient walk-in portal, live display board, staff dashboard, reactive forms, native `EventSource` SSE client. |
+| **Backend** | NestJS 11, TypeScript, `@nestjs/sse`, Passport JWT, Argon2 | Render (Web Service) | RESTful APIs (`/api/v1`), Swagger documentation (`/api/docs`), SSE push endpoint (`queue:called`, `queue:updated`), database access. |
 | **Database** | PostgreSQL 15+, Prisma ORM 6 | Supabase | Relational data persistence, transaction pooling via PgBouncer, direct connection for migrations. |
-| **DevOps & E2E**| Git, npm workspaces, Playwright | GitHub | Source control, unified scripts, CI/CD deployment pipelines. |
+| **DevOps & E2E**| Git, npm scripts, Playwright | GitHub | Source control, shared root scripts, CI/CD deployment pipelines. |
 
 ## 4. Communication & Data Flow
 
@@ -72,21 +75,24 @@ sequenceDiagram
     actor Patient
     actor Staff
     participant Vercel as Vercel (Angular 19)
-    participant Render as Render (NestJS API & Gateway)
+    participant Render as Render (NestJS API)
     participant Supabase as Supabase (PostgreSQL)
+
+    Vercel->>Render: GET /api/v1/queues/:id/events (EventSource open)
+    Note over Vercel,Render: SSE connection held open — no WebSocket handshake
 
     Patient->>Vercel: Registers for Walk-In Queue
     Vercel->>Render: POST /api/v1/queues/:id/walk-in
     Render->>Supabase: Inserts queue_entry & increments next_number
     Supabase-->>Render: Returns created entry & ticket number
-    Render-->>Vercel: Emits queue:updated (Socket.IO)
+    Render-->>Vercel: SSE push: queue:updated event
     Render-->>Patient: 201 Created (Ticket A-042, Position 5)
 
     Staff->>Vercel: Clicks "Call Next Patient"
     Vercel->>Render: POST /api/v1/queues/:id/call-next (JWT Bearer)
     Render->>Supabase: Updates queue_entry status to CALLED
     Supabase-->>Render: Confirmed updated record
-    Render-->>Vercel: Emits queue:called (Socket.IO broadcast)
+    Render-->>Vercel: SSE push: queue:called event
     Vercel->>Vercel: Live display updates now-serving banner
 ```
 

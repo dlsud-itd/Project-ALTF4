@@ -6,7 +6,7 @@ This guide describes the sequential procedure for deploying ClinicQueue across *
 
 ## Deployment Architecture Overview
 - **Database**: PostgreSQL hosted on **Supabase** (Southeast Asia / Singapore region recommended).
-- **Backend**: NestJS 11 REST API + Socket.IO server hosted on **Render** as a long-running Web Service.
+- **Backend**: NestJS 11 REST API + SSE endpoint hosted on **Render** as a long-running Web Service.
 - **Frontend**: Angular 19 SPA hosted on **Vercel**.
 
 ---
@@ -126,7 +126,6 @@ git push origin main
    export const environment = {
      production: true,
      apiUrl: 'https://clinicqueue-api.onrender.com/api/v1',
-     wsUrl: 'https://clinicqueue-api.onrender.com',
    };
    ```
 
@@ -154,7 +153,7 @@ git push origin main
 Perform these checks on the live deployment:
 - [ ] Direct navigation to `https://clinicqueue.vercel.app/display` loads the Queue Board.
 - [ ] Browser refresh on `/display`, `/patient`, and `/staff` does not throw 404 (rewrites working).
-- [ ] Connection badge in header indicates `Online` (Socket.IO WebSocket connected to Render).
+- [ ] Connection badge in header indicates `Online` (SSE stream connected to Render).
 - [ ] Submitting a patient walk-in generates a sequential ticket number.
 - [ ] Staff station can authenticate and call next patient.
 - [ ] Live display updates dynamically without full-page refresh.
