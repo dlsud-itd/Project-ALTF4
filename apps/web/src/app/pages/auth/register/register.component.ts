@@ -9,12 +9,14 @@ import { Button } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
-import { ClinicAffiliation, RegisterResponse } from '../../../core/models/auth.models';
-import { AuthService } from '../../../core/services/auth.service';
-import { getErrorMessage } from '../../../core/utils/http-error.util';
-import { AffiliationSelectorComponent } from '../../../shared/ui/affiliation-selector/affiliation-selector.component';
-import { AuthBrandComponent } from '../../../shared/ui/auth-brand/auth-brand.component';
-import { AuthCardComponent } from '../../../shared/ui/auth-card/auth-card.component';
+import { ClinicAffiliation, RegisterResponse } from '@core/models';
+import { AuthService } from '@core/services';
+import { getErrorMessage } from '@core/utils';
+import {
+  AffiliationSelectorComponent,
+  AuthBrandComponent,
+  AuthCardComponent,
+} from '@shared/ui';
 
 // TODO(Lim, Jereign): confirm the final password rules with the team (API only requires 6+)
 const MIN_PASSWORD_LENGTH = 6;

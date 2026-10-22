@@ -6,13 +6,14 @@ import { Button } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
-import { ClinicAffiliation, LoginResponse } from '../../../core/models/auth.models';
-import { AuthService } from '../../../core/services/auth.service';
-import { getErrorMessage } from '../../../core/utils/http-error.util';
-import { getHomeRoute } from '../../../core/utils/role-route.util';
-import { AffiliationSelectorComponent } from '../../../shared/ui/affiliation-selector/affiliation-selector.component';
-import { AuthBrandComponent } from '../../../shared/ui/auth-brand/auth-brand.component';
-import { AuthCardComponent } from '../../../shared/ui/auth-card/auth-card.component';
+import { ClinicAffiliation, LoginResponse } from '@core/models';
+import { AuthService } from '@core/services';
+import { getErrorMessage, getHomeRoute } from '@core/utils';
+import {
+  AffiliationSelectorComponent,
+  AuthBrandComponent,
+  AuthCardComponent,
+} from '@shared/ui';
 
 @Component({
   selector: 'app-login',
