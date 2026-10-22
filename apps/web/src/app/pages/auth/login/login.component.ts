@@ -20,7 +20,7 @@ import {
   standalone: true,
   imports: [
     ReactiveFormsModule, RouterLink, Button, InputText, Message, Password,
-    AuthBrandComponent, AuthCardComponent, AffiliationSelectorComponent,
+    AuthBrandComponent, AuthCardComponent,
   ],
   templateUrl: './login.component.html',
   styleUrls: ['../auth-form.scss'],
