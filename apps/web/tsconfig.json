@@ -26,7 +26,6 @@
       "@layouts/*": ["src/app/layouts/*"],
       "@pages": ["src/app/pages/index.ts"],
       "@pages/*": ["src/app/pages/*"],
-      "@features/*": ["src/app/pages/*"],
       "@shared": ["src/app/shared/index.ts"],
       "@shared/*": ["src/app/shared/*"],
       "@environments/*": ["src/environments/*"],
