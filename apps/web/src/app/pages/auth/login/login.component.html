@@ -5,6 +5,9 @@
     @if (justRegistered) {
       <p-message severity="success" text="Account created. You can sign in now." />
     }
+    @if (accountInactive) {
+      <p-message severity="warn" text="Your account is currently inactive. Please contact clinic administration." />
+    }
     @if (errorMessage(); as message) {
       <p-message severity="error" [text]="message" />
     }
@@ -30,6 +33,6 @@
       <p-button type="submit" label="Sign in" styleClass="auth-submit" [loading]="loading()" [disabled]="loading()" />
     </form>
 
-    <p class="auth-footer">Dont have an account? please contact &#64;dlsud.edu.ph to receive a registration link</p>
+    <p class="auth-footer">Don't have an account? <a routerLink="/register">Create an account</a></p>
   </app-auth-card>
 </div>

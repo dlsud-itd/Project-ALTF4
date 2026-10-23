@@ -14,17 +14,50 @@
         <i class="pi pi-user"></i>
         <span>{{ patientName() }}</span>
       </div>
-      <a routerLink="/staff" class="switch-link">
-        <p-button
-          label="Staff View"
-          icon="pi pi-arrow-right"
-          severity="secondary"
-          [outlined]="true"
-          size="small"
-        />
-      </a>
+      <p-button
+        label="Sign Out"
+        icon="pi pi-sign-out"
+        severity="danger"
+        [outlined]="true"
+        size="small"
+        (onClick)="onLogout()"
+      />
     </div>
   </header>
+
+  <!-- Section Navigation -->
+  <nav class="dashboard-nav" aria-label="Patient portal sections">
+    <button
+      type="button"
+      class="nav-item"
+      [class.active]="activeSection() === 'queue-operations'"
+      [attr.aria-current]="activeSection() === 'queue-operations' ? 'page' : null"
+      (click)="scrollToSection('queue-operations')"
+    >
+      <i class="pi pi-ticket"></i>
+      <span>Queue Operations</span>
+    </button>
+    <button
+      type="button"
+      class="nav-item"
+      [class.active]="activeSection() === 'schedules'"
+      [attr.aria-current]="activeSection() === 'schedules' ? 'page' : null"
+      (click)="scrollToSection('schedules')"
+    >
+      <i class="pi pi-calendar-clock"></i>
+      <span>Schedules</span>
+    </button>
+    <button
+      type="button"
+      class="nav-item"
+      [class.active]="activeSection() === 'appointments'"
+      [attr.aria-current]="activeSection() === 'appointments' ? 'page' : null"
+      (click)="scrollToSection('appointments')"
+    >
+      <i class="pi pi-calendar"></i>
+      <span>Appointments</span>
+    </button>
+  </nav>
 
   <!-- Main Content -->
   <main class="dashboard-main">
@@ -34,7 +67,7 @@
     </div>
 
     <!-- Quick Status / Cards Grid -->
-    <div class="cards-grid">
+    <div class="cards-grid" id="queue-operations">
       <!-- Active Ticket Card -->
       <div class="dashboard-card status-card">
         <div class="card-icon">
@@ -83,7 +116,7 @@
       </div>
 
       <!-- Clinic Hours Card -->
-      <div class="dashboard-card">
+      <div class="dashboard-card" id="schedules">
         <div class="card-icon time-icon">
           <i class="pi pi-clock"></i>
         </div>
@@ -94,5 +127,27 @@
         </div>
       </div>
     </div>
+
+    <!-- Appointments -->
+    <section class="placeholder-panel" id="appointments" aria-labelledby="appointments-title">
+      <div class="placeholder-header">
+        <h3 id="appointments-title">
+          <i class="pi pi-calendar"></i>
+          Appointments
+        </h3>
+        <p-button
+          label="Book Appointment"
+          icon="pi pi-plus"
+          size="small"
+          [outlined]="true"
+          [disabled]="true"
+        />
+      </div>
+
+      <div class="placeholder-body">
+        <i class="pi pi-calendar-plus placeholder-icon"></i>
+        <p class="placeholder-title">No upcoming appointments</p>
+      </div>
+    </section>
   </main>
 </div>

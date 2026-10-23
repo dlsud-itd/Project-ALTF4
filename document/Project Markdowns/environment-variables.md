@@ -14,7 +14,7 @@ This document lists all configuration variables required by the ClinicQueue mono
 | `JWT_EXPIRES_IN`| Backend (`api`) | Local & Render | No | Token lifetime window. Default: `1d`. |
 | `CORS_ORIGINS` | Backend (`api`) | Local & Render | No | Comma-separated allowed frontend origins (e.g. `http://localhost:4200,https://clinicqueue.vercel.app`). |
 | `PUBLIC_API_URL`| Frontend (`web`) | Local & Vercel | No | Publicly accessible base URL of the NestJS REST API (`/api/v1`). |
-| `PUBLIC_WS_URL` | Frontend (`web`) | Local & Vercel | No | Publicly accessible URL of the Socket.IO WebSocket server. |
+| `PUBLIC_SSE_URL` | Frontend (`web`) | Local & Vercel | No | Publicly accessible base URL of the NestJS API used to open the SSE event stream (e.g. `https://clinicqueue-api.onrender.com/api/v1/queues/:id/events`). |
 
 ---
 
@@ -44,7 +44,6 @@ Angular browser code executes on the client device and cannot securely consume s
    export const environment = {
      production: true,
      apiUrl: 'https://clinicqueue-api.onrender.com/api/v1',
-     wsUrl: 'https://clinicqueue-api.onrender.com',
    };
    ```
 2. **Optional Runtime Injection**: Set a script variable in `index.html` or configure Vercel rewrite rules if dynamic domain changes are required without recompiling.

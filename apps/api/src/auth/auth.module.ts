@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { RolesGuard } from './roles.guard';
 
 @Module({
   imports: [
@@ -13,7 +14,9 @@ import { JwtStrategy } from './jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
+        secret:
+          config.get<string>('JWT_SECRET') ||
+          'clinicqueue-dev-secret-key-change-in-production',
         signOptions: {
           expiresIn:
             (config.get<string>(
@@ -24,7 +27,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule, PassportModule],
+  providers: [AuthService, JwtStrategy, RolesGuard],
+  exports: [AuthService, JwtModule, PassportModule, RolesGuard],
 })
 export class AuthModule {}

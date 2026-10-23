@@ -1,18 +1,40 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, MessageEvent } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { QueueGateway } from './queue.gateway';
 import { WalkInDto } from './dto/walk-in.dto';
 import { CallNextDto } from './dto/call-next.dto';
 import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
 import { QueueStatus, QueuePriority } from '@prisma/client';
+import { Observable, Subject, filter, map } from 'rxjs';
 
+// Internal payload contract for in-process queue event broadcasting.
+export type QueueEventPayload = {
+  queueId: number;
+  event: string;
+  data: unknown;
+};
+
+// Service coordinating queue ticket allocation, real-time event broadcasting, and state transitions.
 @Injectable()
 export class QueueService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly queueGateway: QueueGateway,
-  ) {}
+  private readonly queueEvents$ = new Subject<QueueEventPayload>();
 
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Filters and maps the internal queue event bus to an SSE MessageEvent observable for a specific queue.
+  getQueueEvents(queueId: number): Observable<MessageEvent> {
+    return this.queueEvents$.pipe(
+      filter((ev: QueueEventPayload) => ev.queueId === queueId),
+      map(
+        (ev: QueueEventPayload) =>
+          ({
+            data: ev.data,
+            type: ev.event,
+          }) as MessageEvent,
+      ),
+    );
+  }
+
+  // Allocates the next sequential ticket, persists the queue entry in a transaction, and emits an update event.
   async joinWalkIn(queueId: number, dto: WalkInDto) {
     const queue = await this.prisma.dailyQueue.findUnique({
       where: { id: queueId },
@@ -62,13 +84,17 @@ export class QueueService {
       }),
     ]);
 
-    this.queueGateway.emitQueueUpdated({
+    this.queueEvents$.next({
       queueId,
-      queueEntryId: createdEntry.id,
-      ticketNumber,
-      status: QueueStatus.WAITING,
-      totalWaiting: positionInQueue,
-      timestamp: createdEntry.joinedAt.toISOString(),
+      event: 'queue:updated',
+      data: {
+        queueId,
+        queueEntryId: createdEntry.id,
+        ticketNumber,
+        status: QueueStatus.WAITING,
+        totalWaiting: positionInQueue,
+        timestamp: createdEntry.joinedAt.toISOString(),
+      },
     });
 
     return {
@@ -84,6 +110,7 @@ export class QueueService {
     };
   }
 
+  // Aggregates real-time metrics including currently serving ticket, waiting counts, and estimated wait times.
   async getQueueStatus(queueId: number) {
     const queue = await this.prisma.dailyQueue.findUnique({
       where: { id: queueId },
@@ -135,6 +162,7 @@ export class QueueService {
     return statusData;
   }
 
+  // Advances the queue and assigns the next waiting patient to a designated counter.
   async callNext(queueId: number, dto: CallNextDto) {
     const queue = await this.prisma.dailyQueue.findUnique({
       where: { id: queueId },
@@ -172,13 +200,17 @@ export class QueueService {
 
     const patientName = `${updatedEntry.firstName || ''} ${updatedEntry.lastName || ''}`.trim() || 'Patient';
 
-    this.queueGateway.emitQueueCalled({
+    this.queueEvents$.next({
       queueId,
-      queueEntryId: updatedEntry.id,
-      ticketNumber: updatedEntry.ticketNumber,
-      patientName,
-      roomNumber: dto.roomNumber,
-      calledAt: calledAt.toISOString(),
+      event: 'queue:called',
+      data: {
+        queueId,
+        queueEntryId: updatedEntry.id,
+        ticketNumber: updatedEntry.ticketNumber,
+        patientName,
+        roomNumber: dto.roomNumber,
+        calledAt: calledAt.toISOString(),
+      },
     });
 
     return {
@@ -191,6 +223,7 @@ export class QueueService {
     };
   }
 
+  // Updates the status and clinical notes of an entry and broadcasts the resulting queue state.
   async updateEntryStatus(queueId: number, entryId: number, dto: UpdateEntryStatusDto) {
     const entry = await this.prisma.queueEntry.findFirst({
       where: {
@@ -218,13 +251,17 @@ export class QueueService {
       },
     });
 
-    this.queueGateway.emitQueueUpdated({
+    this.queueEvents$.next({
       queueId,
-      queueEntryId: updated.id,
-      ticketNumber: updated.ticketNumber,
-      status: updated.status,
-      totalWaiting,
-      timestamp: updated.updatedAt.toISOString(),
+      event: 'queue:updated',
+      data: {
+        queueId,
+        queueEntryId: updated.id,
+        ticketNumber: updated.ticketNumber,
+        status: updated.status,
+        totalWaiting,
+        timestamp: updated.updatedAt.toISOString(),
+      },
     });
 
     return {

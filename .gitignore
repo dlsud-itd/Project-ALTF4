@@ -40,6 +40,10 @@ yarn-error.log*
 lerna-debug.log*
 *.log
 
+# Personal Sprint Notes (Matthew Ryan Sabino)
+sprint2-retro-sabino.md
+sprint2-summary-sabino.md
+
 # Operating System Files
 .DS_Store
 Thumbs.db
