@@ -1,6 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Button } from 'primeng/button';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-staff-dashboard',
@@ -10,7 +11,11 @@ import { Button } from 'primeng/button';
   styleUrl: './staff-dashboard.component.scss',
 })
 export class StaffDashboardComponent {
-  readonly staffName = signal<string>('Staff Nurse');
+  private readonly authService = inject(AuthService);
+
+  readonly staffName = computed(() => this.authService.currentUser()?.fullName ?? 'Staff Nurse');
+  readonly staffEmail = computed(() => this.authService.currentUser()?.email ?? 'staff@dlsud.edu.ph');
+  readonly staffRole = computed(() => this.authService.currentUser()?.role ?? 'STAFF');
   readonly counterNumber = signal<number>(1);
   readonly servingTicket = signal<string>('A-104');
   readonly waitingCount = signal<number>(5);

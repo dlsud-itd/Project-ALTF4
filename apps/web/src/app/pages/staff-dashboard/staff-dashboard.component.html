@@ -34,6 +34,36 @@
       <p>Manage patient queueing, consultations, and calling</p>
     </div>
 
+    <!-- Profile Summary -->
+    <section class="profile-card" aria-labelledby="profile-title">
+      <div class="profile-avatar" aria-hidden="true">
+        <i class="pi pi-user-edit"></i>
+      </div>
+
+      <div class="profile-details">
+        <div class="profile-heading">
+          <h3 id="profile-title">{{ staffName() }}</h3>
+          <span class="role-pill">{{ staffRole() }}</span>
+        </div>
+        <p class="profile-subtitle">{{ staffEmail() }}</p>
+
+        <dl class="profile-meta">
+          <div>
+            <dt>Assigned Station</dt>
+            <dd>Counter {{ counterNumber() }}</dd>
+          </div>
+          <div>
+            <dt>Shift</dt>
+            <dd>8:00 AM – 5:00 PM</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd class="status-online">On Duty</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
     <!-- Quick Stats Grid -->
     <div class="stats-grid">
       <div class="stat-card">
@@ -80,5 +110,24 @@
         />
       </div>
     </div>
+
+    <!-- Upcoming Events -->
+    <section class="placeholder-panel" aria-labelledby="events-title">
+      <div class="placeholder-header">
+        <h3 id="events-title">
+          <i class="pi pi-calendar"></i>
+          Upcoming Events
+        </h3>
+        <span class="coming-soon-tag">Coming soon</span>
+      </div>
+
+      <div class="placeholder-body">
+        <i class="pi pi-calendar-plus placeholder-icon"></i>
+        <p class="placeholder-title">No scheduled events</p>
+        <p class="placeholder-hint">
+          Clinic events will appear here.
+        </p>
+      </div>
+    </section>
   </main>
 </div>
