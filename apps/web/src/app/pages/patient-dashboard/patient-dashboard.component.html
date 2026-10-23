@@ -14,15 +14,14 @@
         <i class="pi pi-user"></i>
         <span>{{ patientName() }}</span>
       </div>
-      <a routerLink="/staff" class="switch-link">
-        <p-button
-          label="Staff View"
-          icon="pi pi-arrow-right"
-          severity="secondary"
-          [outlined]="true"
-          size="small"
-        />
-      </a>
+      <p-button
+        label="Sign Out"
+        icon="pi pi-sign-out"
+        severity="danger"
+        [outlined]="true"
+        size="small"
+        (onClick)="onLogout()"
+      />
     </div>
   </header>
 

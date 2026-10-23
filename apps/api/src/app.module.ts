@@ -11,7 +11,7 @@ import { QueueModule } from './queue/queue.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '../../.env'],
+      envFilePath: ['.env', '../.env', '../../.env'],
     }),
     PrismaModule,
     HealthModule,

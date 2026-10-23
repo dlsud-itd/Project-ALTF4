@@ -6,25 +6,46 @@ import {
   PatientDashboardComponent,
   StaffDashboardComponent,
 } from '@pages';
+import { authGuard, guestGuard, roleGuard } from '@core/guards';
 
 export const routes: Routes = [
   // Default landing page
   { path: '', redirectTo: 'login', pathMatch: 'full' },
 
-  // Sign In & Register pages
+  // Sign In & Register pages (only accessible for unauthenticated guests)
   {
     path: '',
     component: AuthLayoutComponent,
     children: [
-      { path: 'login', component: LoginComponent },
-      { path: 'register', component: RegisterComponent },
+      {
+        path: 'login',
+        component: LoginComponent,
+        canActivate: [guestGuard],
+      },
+      {
+        path: 'register',
+        component: RegisterComponent,
+        canActivate: [guestGuard],
+      },
     ],
   },
 
-  //Direct access to dashboards (no login required)
-  { path: 'patient', component: PatientDashboardComponent },
-  { path: 'staff', component: StaffDashboardComponent },
+  // Protected Patient Dashboard (requires authentication & PATIENT role)
+  {
+    path: 'patient',
+    component: PatientDashboardComponent,
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PATIENT'] },
+  },
 
-  //Fallback for unknown URLs
+  // Protected Staff Dashboard (requires authentication & STAFF or ADMIN role)
+  {
+    path: 'staff',
+    component: StaffDashboardComponent,
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['STAFF', 'ADMIN'] },
+  },
+
+  // Fallback for unknown URLs
   { path: '**', redirectTo: 'login' },
 ];
