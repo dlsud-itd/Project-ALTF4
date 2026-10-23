@@ -27,7 +27,7 @@ datasource db {
 Edit `apps/api/prisma/schema.prisma` to add or modify models, relations, or enums.
 
 ### Step 2: Create and Apply Migration
-Run the development migration command from the repository root:
+Run the development migration command from the repository root. Root-level Prisma commands use the root `.env` file:
 ```bash
 npm run prisma:migrate:dev -- --name add_feature_name
 ```

@@ -1,0 +1,52 @@
+<div class="auth-page auth-page--split">
+  <app-auth-brand />
+
+  <app-auth-card title="Create account">
+    @if (errorMessage(); as message) {
+      <p-message severity="error" [text]="message" />
+    }
+
+    <form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="field">
+        <label for="fullName">Full name</label>
+        <input id="fullName" type="text" pInputText formControlName="fullName" placeholder="John Doe" />
+        @if (showError('fullName')) {
+          <small class="field-error">Full name is required.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="email">University email</label>
+        <input id="email" type="email" pInputText formControlName="email" placeholder="you@university.edu" />
+        @if (showError('email')) {
+          <small class="field-error">Enter a valid email address.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <p-password inputId="password" formControlName="password" [feedback]="false" [toggleMask]="true" />
+        @if (showError('password')) {
+          <small class="field-error">Password must be at least 6 characters.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="confirmPassword">Confirm password</label>
+        <p-password inputId="confirmPassword" formControlName="confirmPassword" [feedback]="false" [toggleMask]="true" />
+        @if (showMismatch()) {
+          <small class="field-error">Passwords do not match.</small>
+        }
+      </div>
+
+      <div class="field">
+        <span class="field-label">Affiliation</span>
+        <app-affiliation-selector [control]="form.controls.affiliation" />
+      </div>
+
+      <p-button type="submit" label="Create account" styleClass="auth-submit" [loading]="loading()" [disabled]="loading()" />
+    </form>
+
+    <p class="auth-footer">Already registered? <a routerLink="/login">Sign in</a></p>
+  </app-auth-card>
+</div>

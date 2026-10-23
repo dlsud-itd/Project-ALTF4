@@ -1,0 +1,11 @@
+@media (min-width: 1024px) {
+  .auth-page--split {
+    max-width: 960px;
+    flex-direction: row;
+    align-items: center;
+    gap: 64px;
+
+    app-auth-brand { flex: 1; }
+    app-auth-card { flex: 0 0 440px; }
+  }
+}
