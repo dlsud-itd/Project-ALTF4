@@ -24,18 +24,12 @@
         @if (showError('password')) {
           <small class="field-error">Password is required.</small>
         }
-      </div>
-
-      <div class="field">
-        <span class="field-label">Select campus affiliation</span>
-        <app-affiliation-selector [control]="form.controls.affiliation" />
+        <a class="forgot-link" routerLink="/forgot-password">Forgot password?</a>
       </div>
 
       <p-button type="submit" label="Sign in" styleClass="auth-submit" [loading]="loading()" [disabled]="loading()" />
     </form>
 
-    <p class="auth-footer">New to ClinicQueue? <a routerLink="/register">Create account</a></p>
+    <p class="auth-footer">Dont have an account? please contact &#64;dlsud.edu.ph to receive a registration link</p>
   </app-auth-card>
-
-  <a class="forgot-link" routerLink="/forgot-password">Forgot password?</a>
 </div>

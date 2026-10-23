@@ -1,1 +1,84 @@
-<p>staff-dashboard works!</p>
+<div class="dashboard-container">
+  <!-- Top Navigation Header -->
+  <header class="dashboard-header">
+    <div class="brand">
+      <i class="pi pi-shield brand-icon"></i>
+      <div>
+        <h1>ClinicQueue</h1>
+        <span class="sub-brand">Staff Operations Console</span>
+      </div>
+    </div>
+
+    <div class="user-actions">
+      <div class="user-badge">
+        <i class="pi pi-user-edit"></i>
+        <span>{{ staffName() }}</span>
+        <span class="role-pill">STAFF</span>
+      </div>
+      <a routerLink="/patient" class="switch-link">
+        <p-button
+          label="Patient View"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          [outlined]="true"
+          size="small"
+        />
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+    <div class="welcome-banner">
+      <h2>Station Console • Counter {{ counterNumber() }}</h2>
+      <p>Manage patient queueing, consultations, and calling</p>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Currently Serving</span>
+        <span class="stat-number primary">#{{ servingTicket() }}</span>
+        <span class="stat-sub">Active Consultation</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Patients Waiting</span>
+        <span class="stat-number warning">{{ waitingCount() }}</span>
+        <span class="stat-sub">In queue line</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Completed Today</span>
+        <span class="stat-number success">{{ completedCount() }}</span>
+        <span class="stat-sub">Consultations done</span>
+      </div>
+    </div>
+
+    <!-- Operations Panel -->
+    <div class="action-panel">
+      <h3>Counter Queue Controls</h3>
+      <div class="button-row">
+        <p-button
+          label="Call Next Patient"
+          icon="pi pi-bell"
+          severity="primary"
+          (onClick)="onCallNext()"
+        />
+        <p-button
+          label="Recall Current"
+          icon="pi pi-replay"
+          severity="secondary"
+          [outlined]="true"
+        />
+        <p-button
+          label="Complete Consultation"
+          icon="pi pi-check"
+          severity="success"
+          [outlined]="true"
+          (onClick)="onComplete()"
+        />
+      </div>
+    </div>
+  </main>
+</div>

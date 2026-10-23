@@ -1,1 +1,98 @@
-<p>patient-dashboard works!</p>
+<div class="dashboard-container">
+  <!-- Top Navigation Header -->
+  <header class="dashboard-header">
+    <div class="brand">
+      <i class="pi pi-heart-fill brand-icon"></i>
+      <div>
+        <h1>ClinicQueue</h1>
+        <span class="sub-brand">Patient Portal</span>
+      </div>
+    </div>
+
+    <div class="user-actions">
+      <div class="user-badge">
+        <i class="pi pi-user"></i>
+        <span>{{ patientName() }}</span>
+      </div>
+      <a routerLink="/staff" class="switch-link">
+        <p-button
+          label="Staff View"
+          icon="pi pi-arrow-right"
+          severity="secondary"
+          [outlined]="true"
+          size="small"
+        />
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="dashboard-main">
+    <div class="welcome-banner">
+      <h2>Welcome, {{ patientName() }}! 👋</h2>
+      <p>DLSU-D Health Services Clinic Queue & Consultation Portal</p>
+    </div>
+
+    <!-- Quick Status / Cards Grid -->
+    <div class="cards-grid">
+      <!-- Active Ticket Card -->
+      <div class="dashboard-card status-card">
+        <div class="card-icon">
+          <i class="pi pi-ticket"></i>
+        </div>
+        <div class="card-content">
+          <h3>Your Queue Status</h3>
+          @if (currentTicket()) {
+            <p class="status-highlight">Ticket #{{ currentTicket() }}</p>
+            <span class="status-hint">You are in queue. Estimated wait: 10 mins</span>
+          } @else {
+            <p class="status-value">No Active Ticket</p>
+            <span class="status-hint">You are not currently in the clinic queue.</span>
+          }
+        </div>
+
+        @if (currentTicket()) {
+          <p-button
+            label="Cancel Ticket"
+            icon="pi pi-times"
+            severity="danger"
+            [outlined]="true"
+            size="small"
+            (onClick)="onLeaveQueue()"
+          />
+        } @else {
+          <p-button
+            label="Join Clinic Queue"
+            icon="pi pi-plus"
+            size="small"
+            (onClick)="onJoinQueue()"
+          />
+        }
+      </div>
+
+      <!-- Current Serving Card -->
+      <div class="dashboard-card">
+        <div class="card-icon info-icon">
+          <i class="pi pi-megaphone"></i>
+        </div>
+        <div class="card-content">
+          <h3>Now Serving</h3>
+          <p class="status-highlight">Ticket #{{ nowServingTicket() }}</p>
+          <span class="status-hint">Counter 1 • General Consultation</span>
+        </div>
+      </div>
+
+      <!-- Clinic Hours Card -->
+      <div class="dashboard-card">
+        <div class="card-icon time-icon">
+          <i class="pi pi-clock"></i>
+        </div>
+        <div class="card-content">
+          <h3>Clinic Schedule</h3>
+          <p class="schedule-text">Mon - Fri: 8:00 AM - 5:00 PM</p>
+          <span class="status-hint">University Health Clinic, Ground Floor</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
