@@ -1,9 +1,12 @@
 import { Controller, Get, Post, Patch, Delete, Param, Query, Body, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { AccessRole } from '@prisma/client';
 import { SlotsService } from './slots.service';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 
 @ApiTags('Clinic Slots')
 @Controller('slots')
@@ -23,7 +26,8 @@ export class SlotsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new clinic slot (Staff/Admin)' })
   @ApiResponse({ status: 201, description: 'Slot created successfully' })
@@ -32,7 +36,8 @@ export class SlotsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a clinic slot (Staff/Admin)' })
   @ApiResponse({ status: 200, description: 'Slot updated successfully' })
@@ -44,7 +49,8 @@ export class SlotsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an unused clinic slot (Staff/Admin)' })
   @ApiResponse({ status: 200, description: 'Slot deleted successfully' })

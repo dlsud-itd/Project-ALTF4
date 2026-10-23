@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { AccessRole } from '@prisma/client';
 import { Request } from 'express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -49,9 +50,13 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Req() request: Request & { user: AuthenticatedUser },
   ) {
-    if (id !== request.user.id) {
+    const isSelf = id === request.user.id;
+    const isAdmin = request.user.role === AccessRole.ADMIN;
+
+    if (!isSelf && !isAdmin) {
       throw new ForbiddenException('Cannot retrieve another user profile');
     }
-    return this.usersService.findById(request.user.id);
+
+    return this.usersService.findById(id);
   }
 }

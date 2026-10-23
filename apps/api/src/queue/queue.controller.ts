@@ -12,11 +12,14 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AccessRole } from '@prisma/client';
 import { QueueService } from './queue.service';
 import { WalkInDto } from './dto/walk-in.dto';
 import { CallNextDto } from './dto/call-next.dto';
 import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 
 // Controller exposing HTTP and Server-Sent Events endpoints for clinic queue management.
 @ApiTags('Queue Management')
@@ -58,7 +61,8 @@ export class QueueController {
 
   // Advances the queue and assigns the next waiting patient to a designated counter.
   @Post(':queueId/call-next')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Advance queue and call next patient (Staff/Admin)' })
   @ApiResponse({ status: 200, description: 'Next patient called successfully' })
@@ -72,7 +76,8 @@ export class QueueController {
 
   // Updates the lifecycle status or notes of a specific patient queue entry.
   @Patch(':queueId/entries/:entryId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update status of specific queue entry (Staff/Admin)' })
   @ApiResponse({ status: 200, description: 'Queue entry updated successfully' })
