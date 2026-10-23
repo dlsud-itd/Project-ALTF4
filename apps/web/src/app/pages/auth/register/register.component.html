@@ -8,10 +8,23 @@
 
     <form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <div class="field">
-        <label for="fullName">Full name</label>
-        <input id="fullName" type="text" pInputText formControlName="fullName" placeholder="John Doe" />
-        @if (showError('fullName')) {
-          <small class="field-error">Full name is required.</small>
+        <label for="firstName">First name</label>
+        <input id="firstName" type="text" pInputText formControlName="firstName" placeholder="Juan" />
+        @if (showError('firstName')) {
+          <small class="field-error">First name is required.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="middleName">Middle name</label>
+        <input id="middleName" type="text" pInputText formControlName="middleName" placeholder="Protacio (optional)" />
+      </div>
+
+      <div class="field">
+        <label for="lastName">Last name</label>
+        <input id="lastName" type="text" pInputText formControlName="lastName" placeholder="Dela Cruz" />
+        @if (showError('lastName')) {
+          <small class="field-error">Last name is required.</small>
         }
       </div>
 

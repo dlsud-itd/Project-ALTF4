@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { SelectButton } from 'primeng/selectbutton';
-import { ClinicAffiliation } from '../../../core/models/auth.models';
+import { ClinicAffiliation } from '@core/models';
 
 type AffiliationOption = { label: string; value: ClinicAffiliation };
 

@@ -4,6 +4,9 @@ import { Observable, tap } from 'rxjs';
 import { ApiConfigService } from './api-config.service';
 import { AuthUser, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse } from '../models/auth.models';
 
+// AuthService manages user authentication (login, registration, logout),
+// session tokens, and the currently logged-in user state.
+
 @Injectable({
   providedIn: 'root',
 })
@@ -17,6 +20,7 @@ export class AuthService {
     private readonly http: HttpClient,
     private readonly apiConfig: ApiConfigService,
   ) {}
+
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
     return this.http

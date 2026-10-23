@@ -1,3 +1,6 @@
+// Defines the data types and enums for authentication, including user roles,
+// user profile structures, and API request/response payloads for login and registration.
+
 export enum AccessRole {
   PATIENT = 'PATIENT',
   STAFF = 'STAFF',
