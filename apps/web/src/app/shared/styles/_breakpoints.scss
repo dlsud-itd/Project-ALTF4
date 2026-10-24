@@ -12,3 +12,9 @@ $breakpoint-desktop: 1024px;
     @content;
   }
 }
+
+@mixin below-tablet {
+  @media (max-width: $breakpoint-tablet - 1px) {
+    @content;
+  }
+}

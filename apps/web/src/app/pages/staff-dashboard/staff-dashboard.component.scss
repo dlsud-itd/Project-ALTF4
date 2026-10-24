@@ -1,3 +1,5 @@
+@use '../../shared/styles/breakpoints' as bp;
+
 .dashboard-container {
   min-height: 100vh;
   background-color: var(--surface-50);
@@ -303,3 +305,36 @@
   }
 }
 
+@include bp.below-tablet {
+  .dashboard-header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .dashboard-main {
+    padding: 1.25rem 1rem;
+
+    .welcome-banner {
+      margin-bottom: 1.25rem;
+
+      h2 {
+        font-size: 1.35rem;
+      }
+    }
+
+    .action-panel .button-row {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+
+  .profile-card {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  :host ::ng-deep .button-row .p-button {
+    width: 100%;
+  }
+}

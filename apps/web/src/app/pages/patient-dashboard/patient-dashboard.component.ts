@@ -1,12 +1,22 @@
 import { Component, DestroyRef, afterNextRender, computed, inject, signal } from '@angular/core';
 import { Button } from 'primeng/button';
 import { AuthService } from '@core/services';
+import {
+  EmptyStateComponent,
+  ErrorStateComponent,
+  LoadingSkeletonComponent,
+} from '@shared/ui';
 
 // Patient portal component presenting ticket status, clinic schedules, and navigation.
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
-  imports: [Button],
+  imports: [ 
+    Button, 
+    EmptyStateComponent, 
+    ErrorStateComponent, 
+    LoadingSkeletonComponent,
+  ],
   templateUrl: './patient-dashboard.component.html',
   styleUrl: './patient-dashboard.component.scss',
 })
@@ -20,6 +30,10 @@ export class PatientDashboardComponent {
   readonly currentTicket = signal<string | null>(null);
   readonly nowServingTicket = signal<string>('A-104');
   readonly activeSection = signal<string>('queue-operations');
+
+  // TODO(Lim, Jereign): drive these from the queue API once it is connected
+  readonly isQueueLoading = signal<boolean>(false);
+  readonly hasQueueError = signal<boolean>(false);
 
   // Triggers safe user session invalidation and redirects to the sign-in page.
   onLogout(): void {
@@ -38,6 +52,11 @@ export class PatientDashboardComponent {
   // Cancels the current queue ticket and resets active patient queue state.
   onLeaveQueue(): void {
     this.currentTicket.set(null);
+  }
+
+  // Clears the queue error so the status card can load again.
+  onRetryQueue(): void {
+    this.hasQueueError.set(false);
   }
 
   // Smoothly navigates the viewport to the target portal section and updates window URL hash.
