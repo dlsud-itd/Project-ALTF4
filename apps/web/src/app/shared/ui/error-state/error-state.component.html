@@ -1,0 +1,11 @@
+<div class="state" role="alert">
+  <i class="pi pi-exclamation-triangle state-icon" aria-hidden="true"></i>
+  <h3 class="state-title">{{ title() }}</h3>
+  <p class="state-message">{{ message() }}</p>
+  <p-button
+    label="Try again"
+    severity="secondary"
+    [outlined]="true"
+    (onClick)="onRetry()"
+  />
+</div>

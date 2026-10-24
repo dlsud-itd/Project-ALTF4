@@ -1,0 +1,8 @@
+<div class="state" role="status">
+  <i class="pi state-icon" [class]="icon()" aria-hidden="true"></i>
+  <h3 class="state-title">{{ title() }}</h3>
+  @if (message()) {
+    <p class="state-message">{{ message() }}</p>
+  }
+  <ng-content></ng-content>
+</div>

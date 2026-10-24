@@ -1,0 +1,9 @@
+$list-gap: 12px;
+$list-padding: 16px;
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: $list-gap;
+  padding: $list-padding;
+}
