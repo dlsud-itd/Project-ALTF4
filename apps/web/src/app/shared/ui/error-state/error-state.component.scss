@@ -1,0 +1,39 @@
+@use '../../styles/breakpoints' as bp;
+
+$state-gap: 8px;
+$state-padding: 24px 16px;
+$state-padding-tablet: 40px 24px;
+$icon-size: 2rem;
+$title-size: 1rem;
+$message-size: 0.875rem;
+$message-max-width: 36ch;
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $state-gap;
+  padding: $state-padding;
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: $state-padding-tablet;
+  }
+}
+
+.state-icon {
+  font-size: $icon-size;
+  color: var(--danger-color);
+}
+
+.state-title {
+  font-size: $title-size;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.state-message {
+  max-width: $message-max-width;
+  font-size: $message-size;
+  color: var(--text-muted);
+}
