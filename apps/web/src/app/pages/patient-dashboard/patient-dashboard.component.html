@@ -14,46 +14,27 @@
         <i class="pi pi-user"></i>
         <span>{{ patientName() }}</span>
       </div>
-      <p-button
-        label="Sign Out"
-        icon="pi pi-sign-out"
-        severity="danger"
-        [outlined]="true"
-        size="small"
-        (onClick)="onLogout()"
-      />
+      <p-button label="Sign Out" icon="pi pi-sign-out" severity="danger" [outlined]="true" size="small"
+        (onClick)="onLogout()" />
     </div>
   </header>
 
   <!-- Section Navigation -->
   <nav class="dashboard-nav" aria-label="Patient portal sections">
-    <button
-      type="button"
-      class="nav-item"
-      [class.active]="activeSection() === 'queue-operations'"
+    <button type="button" class="nav-item" [class.active]="activeSection() === 'queue-operations'"
       [attr.aria-current]="activeSection() === 'queue-operations' ? 'page' : null"
-      (click)="scrollToSection('queue-operations')"
-    >
+      (click)="scrollToSection('queue-operations')">
       <i class="pi pi-ticket"></i>
       <span>Queue Operations</span>
     </button>
-    <button
-      type="button"
-      class="nav-item"
-      [class.active]="activeSection() === 'schedules'"
-      [attr.aria-current]="activeSection() === 'schedules' ? 'page' : null"
-      (click)="scrollToSection('schedules')"
-    >
+    <button type="button" class="nav-item" [class.active]="activeSection() === 'schedules'"
+      [attr.aria-current]="activeSection() === 'schedules' ? 'page' : null" (click)="scrollToSection('schedules')">
       <i class="pi pi-calendar-clock"></i>
       <span>Schedules</span>
     </button>
-    <button
-      type="button"
-      class="nav-item"
-      [class.active]="activeSection() === 'appointments'"
+    <button type="button" class="nav-item" [class.active]="activeSection() === 'appointments'"
       [attr.aria-current]="activeSection() === 'appointments' ? 'page' : null"
-      (click)="scrollToSection('appointments')"
-    >
+      (click)="scrollToSection('appointments')">
       <i class="pi pi-calendar"></i>
       <span>Appointments</span>
     </button>
@@ -70,36 +51,32 @@
     <div class="cards-grid" id="queue-operations">
       <!-- Active Ticket Card -->
       <div class="dashboard-card status-card">
+        @if (isQueueLoading()) {
+        <app-loading-skeleton [lines]="4" />
+        } @else if (hasQueueError()) {
+        <app-error-state title="Could not load your queue status" message="Check your connection and try again."
+          (retry)="onRetryQueue()" />
+        } @else {
         <div class="card-icon">
           <i class="pi pi-ticket"></i>
         </div>
         <div class="card-content">
           <h3>Your Queue Status</h3>
           @if (currentTicket()) {
-            <p class="status-highlight">Ticket #{{ currentTicket() }}</p>
-            <span class="status-hint">You are in queue. Estimated wait: 10 mins</span>
+          <p class="status-highlight">Ticket #{{ currentTicket() }}</p>
+          <span class="status-hint">You are in queue. Estimated wait: 10 mins</span>
           } @else {
-            <p class="status-value">No Active Ticket</p>
-            <span class="status-hint">You are not currently in the clinic queue.</span>
+          <p class="status-value">No Active Ticket</p>
+          <span class="status-hint">You are not currently in the clinic queue.</span>
           }
         </div>
 
         @if (currentTicket()) {
-          <p-button
-            label="Cancel Ticket"
-            icon="pi pi-times"
-            severity="danger"
-            [outlined]="true"
-            size="small"
-            (onClick)="onLeaveQueue()"
-          />
+        <p-button label="Cancel Ticket" icon="pi pi-times" severity="danger" [outlined]="true" size="small"
+          (onClick)="onLeaveQueue()" />
         } @else {
-          <p-button
-            label="Join Clinic Queue"
-            icon="pi pi-plus"
-            size="small"
-            (onClick)="onJoinQueue()"
-          />
+        <p-button label="Join Clinic Queue" icon="pi pi-plus" size="small" (onClick)="onJoinQueue()" />
+        }
         }
       </div>
 
@@ -135,19 +112,11 @@
           <i class="pi pi-calendar"></i>
           Appointments
         </h3>
-        <p-button
-          label="Book Appointment"
-          icon="pi pi-plus"
-          size="small"
-          [outlined]="true"
-          [disabled]="true"
-        />
+        <p-button label="Book Appointment" icon="pi pi-plus" size="small" [outlined]="true" [disabled]="true" />
       </div>
 
-      <div class="placeholder-body">
-        <i class="pi pi-calendar-plus placeholder-icon"></i>
-        <p class="placeholder-title">No upcoming appointments</p>
-      </div>
+      <app-empty-state icon="pi-calendar-plus" title="No upcoming appointments"
+        message="Booked appointments will appear here." />
     </section>
   </main>
 </div>

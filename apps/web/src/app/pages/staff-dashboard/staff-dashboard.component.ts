@@ -1,12 +1,22 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Button } from 'primeng/button';
 import { AuthService } from '@core/services';
+import {
+  EmptyStateComponent,
+  ErrorStateComponent,
+  LoadingSkeletonComponent,
+} from '@shared/ui';
 
 // Staff console component for managing counter assignments, queue progression, and consultation records.
 @Component({
   selector: 'app-staff-dashboard',
   standalone: true,
-  imports: [Button],
+  imports: [
+    Button,
+    EmptyStateComponent,
+    ErrorStateComponent,
+    LoadingSkeletonComponent,
+  ],
   templateUrl: './staff-dashboard.component.html',
   styleUrl: './staff-dashboard.component.scss',
 })
@@ -20,6 +30,9 @@ export class StaffDashboardComponent {
   readonly servingTicket = signal<string>('A-104');
   readonly waitingCount = signal<number>(5);
   readonly completedCount = signal<number>(18);
+  // TODO(Lim, Jereign): drive these from the queue API once it is connected
+  readonly isStatsLoading = signal<boolean>(false);
+  readonly hasStatsError = signal<boolean>(false);
 
   // Signs out the staff session, invalidates the server-side token, and redirects to login.
   onLogout(): void {
@@ -33,6 +46,11 @@ export class StaffDashboardComponent {
       const nextNum = parseInt(this.servingTicket().replace('A-', ''), 10) + 1;
       this.servingTicket.set(`A-${nextNum}`);
     }
+  }
+
+  // Clears the stats error so the queue numbers can load again.
+  onRetryStats(): void {
+    this.hasStatsError.set(false);
   }
 
   // Increments the counter for completed consultations for the day.
