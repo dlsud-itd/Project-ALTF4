@@ -8,7 +8,11 @@ import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
 import { ClinicAffiliation, LoginResponse } from '@core/models';
 import { AuthService } from '@core/services';
-import { getErrorMessage, getHomeRoute } from '@core/utils';
+import {
+  getErrorMessage,
+  getHomeRoute,
+  getSafeReturnUrl,
+} from '@core/utils';
 import {
   AuthBrandComponent,
   AuthCardComponent,
@@ -67,12 +71,12 @@ export class LoginComponent {
     this.authService.login({ email, password }).subscribe({
       next: (response: LoginResponse): void => {
         this.loading.set(false);
-        const returnUrl: string | null = this.route.snapshot.queryParamMap.get('returnUrl');
-        if (returnUrl) {
-          void this.router.navigateByUrl(returnUrl);
-        } else {
-          void this.router.navigateByUrl(getHomeRoute(response.role));
-        }
+                const returnUrl: string | null = getSafeReturnUrl(
+          this.route.snapshot.queryParamMap.get('returnUrl'),
+        );
+        void this.router.navigateByUrl(
+          returnUrl ?? getHomeRoute(response.role),
+        );
       },
       error: (error: HttpErrorResponse): void => {
         this.loading.set(false);

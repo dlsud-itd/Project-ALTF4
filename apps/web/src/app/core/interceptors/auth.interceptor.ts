@@ -10,6 +10,16 @@ import { Router } from '@angular/router';
 import { Observable, catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
+const HTTP_UNAUTHORIZED = 401;
+const SESSION_EXEMPT_PATHS: string[] = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/logout',
+];
+
+const isSessionExempt = (url: string): boolean =>
+  SESSION_EXEMPT_PATHS.some((path: string): boolean => url.includes(path));
+
 // Injects the JWT bearer token into outbound HTTP requests and handles unexpected 401 unauthorized responses.
 export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
@@ -28,11 +38,7 @@ export const authInterceptor: HttpInterceptorFn = (
 
   return next(modifiedReq).pipe(
     catchError((error: HttpErrorResponse): Observable<HttpEvent<unknown>> => {
-      if (
-        error.status === 401 &&
-        !req.url.includes('/auth/login') &&
-        !req.url.includes('/auth/register')
-      ) {
+      if (error.status === HTTP_UNAUTHORIZED && !isSessionExempt(req.url)) {
         authService.clearSession();
         void router.navigate(['/login'], {
           queryParams: { returnUrl: router.url },
