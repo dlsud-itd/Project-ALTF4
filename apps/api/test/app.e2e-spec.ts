@@ -15,7 +15,7 @@ describe('HealthController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication<Server>();
+    app = moduleFixture.createNestApplication<INestApplication<Server>>();
     await app.init();
   });
 
