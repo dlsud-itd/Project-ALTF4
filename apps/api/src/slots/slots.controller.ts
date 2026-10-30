@@ -43,10 +43,21 @@ export class SlotsController {
     description:
       'Inclusive end date (YYYY-MM-DD); defaults to 7 days after from',
   })
+  @ApiQuery({
+    name: 'availableOnly',
+    required: false,
+    description:
+      'Filter out non-bookable and full slots (for patients); defaults to false',
+  })
   @ApiResponse({ status: 200, description: 'List of clinic slots' })
   @ApiResponse({ status: 400, description: 'Invalid date or date range' })
-  async getSlots(@Query('from') from?: string, @Query('to') to?: string) {
-    return this.slotsService.findSlots(from, to);
+  async getSlots(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('availableOnly') availableOnly?: string,
+  ) {
+    const isAvailableOnly = availableOnly === 'true' || availableOnly === '1';
+    return this.slotsService.findSlots(from, to, isAvailableOnly);
   }
 
   @Post()

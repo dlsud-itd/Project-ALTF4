@@ -1,4 +1,6 @@
 <div class="dashboard-page">
+  <p-confirmdialog />
+
   <div class="welcome-banner">
     <h2>Welcome, {{ patientName() }}! 👋</h2>
     <p>DLSU-D Health Services Clinic Queue & Consultation Portal</p>
@@ -82,7 +84,7 @@
       <div>
         <h3 id="appointments-title">
           <i class="pi pi-calendar"></i>
-          Appointments
+          Your Appointments
         </h3>
         <p class="section-desc">Manage upcoming consultations and view available doctor slots</p>
       </div>
@@ -95,11 +97,125 @@
       </a>
     </div>
 
-    <app-empty-state
-      icon="pi-calendar-plus"
-      title="No upcoming appointments"
-      message="Browse available slots to book your next consultation."
-    />
+    @if (actionSuccess()) {
+      <div class="action-alert">
+        <p-message severity="success" [text]="actionSuccess()!" />
+      </div>
+    }
+
+    @if (actionError()) {
+      <div class="action-alert">
+        <p-message severity="error" [text]="actionError()!" />
+      </div>
+    }
+
+    @if (isAppointmentsLoading()) {
+      <app-loading-skeleton [lines]="4" />
+    } @else if (appointmentsError()) {
+      <app-error-state
+        title="Could not load your appointments"
+        [message]="appointmentsError()!"
+        (retry)="loadAppointments()"
+      />
+    } @else if (appointments().length === 0) {
+      <app-empty-state
+        icon="pi-calendar-plus"
+        title="No upcoming appointments"
+        message="Browse available slots to book your next consultation."
+      />
+    } @else {
+      <!-- Active / Upcoming Consultations -->
+      @if (upcomingAppointments().length > 0) {
+        <div class="appointments-list">
+          @for (appt of upcomingAppointments(); track appt.id) {
+            <div class="appointment-card">
+              <div class="appointment-header">
+                <div class="date-badge">
+                  <i class="pi pi-calendar"></i>
+                  <span>{{ formatClinicDate(appt.slot.clinicDate) }}</span>
+                </div>
+                <p-tag
+                  [value]="statusLabel(appt.status)"
+                  [severity]="statusSeverity(appt.status)"
+                />
+              </div>
+
+              <div class="appointment-body">
+                <div class="info-row">
+                  <i class="pi pi-clock"></i>
+                  <span class="time-text">{{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
+                </div>
+                <div class="info-row">
+                  <i class="pi pi-user"></i>
+                  <span>Dr. Maria Santos, MD • University Physician</span>
+                </div>
+                <div class="info-row">
+                  <i class="pi pi-map-marker"></i>
+                  <span>DLSU-D University Health Services Clinic</span>
+                </div>
+              </div>
+
+              <div class="appointment-footer">
+                <div class="management-actions">
+                  <a routerLink="/patient/bookings">
+                    <p-button
+                      label="Reschedule"
+                      icon="pi pi-calendar"
+                      [outlined]="true"
+                      size="small"
+                    />
+                  </a>
+                  <p-button
+                    label="Cancel Appointment"
+                    icon="pi pi-times"
+                    severity="danger"
+                    [outlined]="true"
+                    size="small"
+                    [loading]="cancellingId() === appt.id"
+                    (onClick)="onCancelAppointment(appt)"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Past / Inactive Appointments -->
+      @if (pastAppointments().length > 0) {
+        <div class="past-appointments-block">
+          <h4 class="past-title">
+            <i class="pi pi-history"></i>
+            Past Consultations
+          </h4>
+          <div class="appointments-list past-list">
+            @for (appt of pastAppointments(); track appt.id) {
+              <div class="appointment-card past-card">
+                <div class="appointment-header">
+                  <div class="date-badge">
+                    <i class="pi pi-calendar"></i>
+                    <span>{{ formatClinicDate(appt.slot.clinicDate) }}</span>
+                  </div>
+                  <p-tag
+                    [value]="statusLabel(appt.status)"
+                    [severity]="statusSeverity(appt.status)"
+                  />
+                </div>
+                <div class="appointment-body">
+                  <div class="info-row">
+                    <i class="pi pi-clock"></i>
+                    <span>{{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
+                  </div>
+                  <div class="info-row">
+                    <i class="pi pi-user"></i>
+                    <span>Dr. Maria Santos, MD</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    }
   </section>
 </div>
-
