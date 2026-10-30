@@ -1,0 +1,40 @@
+<!-- TODO(Lim, Jereign): Integrate staff profile management, duty shifts, and credentials -->
+<div class="profile-page">
+  <div class="profile-banner">
+    <h2>Staff Profile</h2>
+    <p>Manage clinic staff credentials, duty assignments, and station preferences</p>
+  </div>
+
+  <div class="profile-card">
+    <div class="avatar-box">
+      <i class="pi pi-user-edit"></i>
+    </div>
+
+    <div class="profile-info">
+      <h3>{{ fullName() }}</h3>
+      <p class="email">{{ email() }}</p>
+      <span class="role-badge">{{ role() }}</span>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <span class="meta-label">Station Assignment</span>
+        <span class="meta-value">Counter 1</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Shift Schedule</span>
+        <span class="meta-value">8:00 AM - 5:00 PM</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Department</span>
+        <span class="meta-value">Health Services</span>
+      </div>
+    </div>
+
+    <div class="placeholder-notice">
+      <i class="pi pi-info-circle"></i>
+      <p>Staff credential management and duty shift scheduling will be available in the next release.</p>
+    </div>
+  </div>
+</div>
+

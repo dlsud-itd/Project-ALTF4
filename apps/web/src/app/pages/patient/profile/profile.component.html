@@ -1,0 +1,25 @@
+<!-- TODO(Lim, Jereign): Integrate patient profile editing, avatar upload, and medical records -->
+<div class="profile-page">
+  <div class="profile-banner">
+    <h2>User Profile</h2>
+    <p>Manage your university health identification and account preferences</p>
+  </div>
+
+  <div class="profile-card">
+    <div class="avatar-box">
+      <i class="pi pi-user"></i>
+    </div>
+
+    <div class="profile-info">
+      <h3>{{ fullName() }}</h3>
+      <p class="email">{{ email() }}</p>
+      <span class="badge">{{ affiliation() }}</span>
+    </div>
+
+    <div class="placeholder-notice">
+      <i class="pi pi-info-circle"></i>
+      <p>Profile information and medical history editing will be available in the next release.</p>
+    </div>
+  </div>
+</div>
+

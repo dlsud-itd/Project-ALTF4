@@ -1,0 +1,243 @@
+@use '../../../shared/styles/breakpoints' as bp;
+
+:host {
+  display: block;
+}
+
+.dashboard-page {
+  padding: 2rem 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.welcome-banner {
+  margin-bottom: 2rem;
+
+  h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    color: var(--text-muted);
+    font-size: 1rem;
+  }
+}
+
+.profile-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  margin-bottom: 2rem;
+
+  .profile-avatar {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .profile-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .profile-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0;
+    }
+
+    .role-pill {
+      font-size: 0.7rem;
+      background: var(--primary-light);
+      color: var(--primary-color);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+  }
+
+  .profile-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+  }
+
+  .profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 1rem;
+
+    dt {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+
+    dd {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin: 0;
+
+      &.status-online {
+        color: var(--success-color);
+      }
+    }
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+
+  .stat-card {
+    background: var(--surface-0);
+    border: 1px solid var(--surface-200);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--box-shadow);
+    display: flex;
+    flex-direction: column;
+
+    .stat-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-number {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 0.25rem;
+
+      &.primary { color: var(--primary-color); }
+      &.warning { color: var(--warning-color); }
+      &.success { color: var(--success-color); }
+    }
+
+    .stat-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  }
+}
+
+.action-panel {
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  margin-bottom: 2rem;
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 1.25rem;
+  }
+
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}
+
+.placeholder-panel {
+  background: var(--surface-0);
+  border: 1px dashed var(--surface-300);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+
+  .placeholder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin: 0;
+
+      i {
+        color: var(--primary-color);
+      }
+    }
+
+    .coming-soon-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      background: var(--surface-100);
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+    }
+  }
+}
+
+@include bp.below-tablet {
+  .dashboard-page {
+    padding: 1.25rem 1rem;
+
+    .welcome-banner {
+      margin-bottom: 1.25rem;
+
+      h2 {
+        font-size: 1.35rem;
+      }
+    }
+
+    .action-panel .button-row {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+
+  .profile-card {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  :host ::ng-deep .button-row .p-button {
+    width: 100%;
+  }
+}

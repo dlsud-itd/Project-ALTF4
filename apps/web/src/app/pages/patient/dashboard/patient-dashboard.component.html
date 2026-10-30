@@ -1,0 +1,105 @@
+<div class="dashboard-page">
+  <div class="welcome-banner">
+    <h2>Welcome, {{ patientName() }}! 👋</h2>
+    <p>DLSU-D Health Services Clinic Queue & Consultation Portal</p>
+  </div>
+
+  <!-- Quick Status / Cards Grid -->
+  <div class="cards-grid">
+    <!-- Active Ticket Card -->
+    <div class="dashboard-card status-card">
+      @if (isQueueLoading()) {
+        <app-loading-skeleton [lines]="4" />
+      } @else if (hasQueueError()) {
+        <app-error-state
+          title="Could not load your queue status"
+          message="Check your connection and try again."
+          (retry)="onRetryQueue()"
+        />
+      } @else {
+        <div class="card-icon">
+          <i class="pi pi-ticket"></i>
+        </div>
+        <div class="card-content">
+          <h3>Your Queue Status</h3>
+          @if (currentTicket()) {
+            <p class="status-highlight">Ticket #{{ currentTicket() }}</p>
+            <span class="status-hint">You are in queue. Estimated wait: 10 mins</span>
+          } @else {
+            <p class="status-value">No Active Ticket</p>
+            <span class="status-hint">You are not currently in the clinic queue.</span>
+          }
+        </div>
+
+        @if (currentTicket()) {
+          <p-button
+            label="Cancel Ticket"
+            icon="pi pi-times"
+            severity="danger"
+            [outlined]="true"
+            size="small"
+            (onClick)="onLeaveQueue()"
+          />
+        } @else {
+          <p-button
+            label="Join Clinic Queue"
+            icon="pi pi-plus"
+            size="small"
+            (onClick)="onJoinQueue()"
+          />
+        }
+      }
+    </div>
+
+    <!-- Current Serving Card -->
+    <div class="dashboard-card">
+      <div class="card-icon info-icon">
+        <i class="pi pi-megaphone"></i>
+      </div>
+      <div class="card-content">
+        <h3>Now Serving</h3>
+        <p class="status-highlight">Ticket #{{ nowServingTicket() }}</p>
+        <span class="status-hint">Counter 1 • General Consultation</span>
+      </div>
+    </div>
+
+    <!-- Clinic Hours Card -->
+    <div class="dashboard-card">
+      <div class="card-icon time-icon">
+        <i class="pi pi-clock"></i>
+      </div>
+      <div class="card-content">
+        <h3>Clinic Schedule</h3>
+        <p class="schedule-text">Mon - Fri: 8:00 AM - 5:00 PM</p>
+        <span class="status-hint">University Health Clinic, Ground Floor</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appointments Overview Section -->
+  <section class="appointments-section" aria-labelledby="appointments-title">
+    <div class="section-header">
+      <div>
+        <h3 id="appointments-title">
+          <i class="pi pi-calendar"></i>
+          Appointments
+        </h3>
+        <p class="section-desc">Manage upcoming consultations and view available doctor slots</p>
+      </div>
+      <a routerLink="/patient/bookings">
+        <p-button
+          label="Book Appointment"
+          icon="pi pi-calendar-plus"
+          size="small"
+        />
+      </a>
+    </div>
+
+    <app-empty-state
+      icon="pi-calendar-plus"
+      title="No upcoming appointments"
+      message="Browse available slots to book your next consultation."
+    />
+  </section>
+</div>
+

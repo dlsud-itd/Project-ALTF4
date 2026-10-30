@@ -23,27 +23,29 @@ import {
 export class StaffDashboardComponent {
   private readonly authService = inject(AuthService);
 
-  readonly staffName = computed((): string => this.authService.currentUser()?.fullName ?? 'Staff Nurse');
-  readonly staffEmail = computed((): string => this.authService.currentUser()?.email ?? 'staff@dlsud.edu.ph');
-  readonly staffRole = computed((): string => this.authService.currentUser()?.role ?? 'STAFF');
+  readonly staffName = computed(
+    (): string => this.authService.currentUser()?.fullName ?? 'Staff Nurse',
+  );
+  readonly staffEmail = computed(
+    (): string => this.authService.currentUser()?.email ?? 'staff@dlsud.edu.ph',
+  );
+  readonly staffRole = computed(
+    (): string => this.authService.currentUser()?.role ?? 'STAFF',
+  );
   readonly counterNumber = signal<number>(1);
   readonly servingTicket = signal<string>('A-104');
   readonly waitingCount = signal<number>(5);
   readonly completedCount = signal<number>(18);
+
   // TODO(Lim, Jereign): drive these from the queue API once it is connected
   readonly isStatsLoading = signal<boolean>(false);
   readonly hasStatsError = signal<boolean>(false);
 
-  // Signs out the staff session, invalidates the server-side token, and redirects to login.
-  onLogout(): void {
-    this.authService.performLogout();
-  }
-
   // Increments the serving ticket number and reduces the waiting patient count.
   onCallNext(): void {
     if (this.waitingCount() > 0) {
-      this.waitingCount.update((count) => count - 1);
-      const nextNum = parseInt(this.servingTicket().replace('A-', ''), 10) + 1;
+      this.waitingCount.update((count: number): number => count - 1);
+      const nextNum: number = parseInt(this.servingTicket().replace('A-', ''), 10) + 1;
       this.servingTicket.set(`A-${nextNum}`);
     }
   }
@@ -55,6 +57,7 @@ export class StaffDashboardComponent {
 
   // Increments the counter for completed consultations for the day.
   onComplete(): void {
-    this.completedCount.update((c) => c + 1);
+    this.completedCount.update((c: number): number => c + 1);
   }
 }
+

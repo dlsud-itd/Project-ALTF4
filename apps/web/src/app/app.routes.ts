@@ -1,10 +1,17 @@
 import { Routes } from '@angular/router';
-import { AuthLayoutComponent } from '@layouts/auth-layout/auth-layout.component';
+import {
+  AuthLayoutComponent,
+  PatientLayoutComponent,
+  StaffLayoutComponent,
+} from '@layouts';
 import {
   LoginComponent,
   RegisterComponent,
   PatientDashboardComponent,
+  BookingsComponent,
+  PatientProfileComponent,
   StaffDashboardComponent,
+  StaffProfileComponent,
 } from '@pages';
 import { authGuard, guestGuard, roleGuard } from '@core/guards';
 
@@ -30,20 +37,31 @@ export const routes: Routes = [
     ],
   },
 
-  // Protected Patient Dashboard (requires authentication & PATIENT role)
+  // Protected Patient Portal (requires authentication & PATIENT role)
   {
     path: 'patient',
-    component: PatientDashboardComponent,
+    component: PatientLayoutComponent,
     canActivate: [authGuard, roleGuard],
     data: { roles: ['PATIENT'] },
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', component: PatientDashboardComponent },
+      { path: 'bookings', component: BookingsComponent },
+      { path: 'profile', component: PatientProfileComponent },
+    ],
   },
 
-  // Protected Staff Dashboard (requires authentication & STAFF or ADMIN role)
+  // Protected Staff Operations Console (requires authentication & STAFF or ADMIN role)
   {
     path: 'staff',
-    component: StaffDashboardComponent,
+    component: StaffLayoutComponent,
     canActivate: [authGuard, roleGuard],
     data: { roles: ['STAFF', 'ADMIN'] },
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', component: StaffDashboardComponent },
+      { path: 'profile', component: StaffProfileComponent },
+    ],
   },
 
   // Fallback for unknown URLs

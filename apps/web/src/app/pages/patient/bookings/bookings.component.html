@@ -1,0 +1,270 @@
+<div class="bookings-page">
+  <!-- Top Banner -->
+  <div class="bookings-banner">
+    <div class="banner-text">
+      <h2>Appointment Booking</h2>
+      <p>Schedule your clinic visit with our university physician</p>
+    </div>
+    <div class="banner-badge">
+      <i class="pi pi-calendar-clock"></i>
+      <span>{{ activeDate().fullDate }}</span>
+    </div>
+  </div>
+
+  <!-- Dedicated Clinic Doctor Card -->
+  <section class="doctor-banner-card" aria-label="Attending clinic physician">
+    <div class="doctor-avatar">
+      <i class="pi pi-user"></i>
+    </div>
+    <div class="doctor-info">
+      <div class="doctor-title-row">
+        <h3>{{ clinicDoctor }}</h3>
+        <span class="physician-tag">Attending Physician</span>
+      </div>
+      <p class="doctor-sub">{{ doctorSpecialty }} • {{ clinicLocation }}</p>
+    </div>
+  </section>
+
+  <!-- Date Selection Strip -->
+  <section class="date-selector-section" aria-label="Available appointment dates">
+    <div class="section-title">
+      <i class="pi pi-calendar"></i>
+      <span>Select Clinic Date</span>
+    </div>
+
+    <div class="date-strip">
+      @for (day of availableDates; track day.id) {
+        <button
+          type="button"
+          class="date-card"
+          [class.active]="selectedDateId() === day.id"
+          (click)="onSelectDate(day.id)"
+        >
+          <span class="day-name">{{ day.dayName }}</span>
+          <span class="day-number">{{ day.dateNumber }}</span>
+          <span class="month-name">{{ day.monthName }}</span>
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- Filter Controls: Morning vs Afternoon vs All -->
+  <section class="filter-bar" aria-label="Slot session filter">
+    <div class="filter-chips">
+      <button
+        type="button"
+        class="chip-button"
+        [class.active]="selectedSession() === 'ALL'"
+        (click)="onFilterSession('ALL')"
+      >
+        <i class="pi pi-clock"></i>
+        <span>All Shifts ({{ mockSlots.length }})</span>
+      </button>
+
+      <button
+        type="button"
+        class="chip-button"
+        [class.active]="selectedSession() === 'Morning'"
+        (click)="onFilterSession('Morning')"
+      >
+        <i class="pi pi-sun"></i>
+        <span>Morning Session (08:00 AM - 12:00 PM)</span>
+      </button>
+
+      <button
+        type="button"
+        class="chip-button"
+        [class.active]="selectedSession() === 'Afternoon'"
+        (click)="onFilterSession('Afternoon')"
+      >
+        <i class="pi pi-cloud"></i>
+        <span>Afternoon Session (01:00 PM - 05:00 PM)</span>
+      </button>
+    </div>
+
+    <div class="slot-summary-count">
+      <span>Showing <strong>{{ availableCount() }}</strong> available slots</span>
+    </div>
+  </section>
+
+  <!-- Main Grid: Slots Listing + Selection Details Panel -->
+  <div class="bookings-layout">
+    <!-- Slot Cards Grid -->
+    <section class="slots-grid-container" aria-label="Available consultation slots">
+      @if (filteredSlots().length === 0) {
+        <div class="no-slots-box">
+          <i class="pi pi-info-circle"></i>
+          <h4>No slots available for this filter</h4>
+          <p>Please choose a different shift or clinic date.</p>
+        </div>
+      } @else {
+        <div class="slots-grid">
+          @for (slot of filteredSlots(); track slot.id) {
+            <div
+              class="slot-card"
+              [class.selected]="selectedSlotId() === slot.id"
+              [class.disabled]="!slot.isBookable"
+              tabindex="0"
+              role="button"
+              (click)="onSelectSlot(slot)"
+              (keydown.enter)="onSelectSlot(slot)"
+            >
+              <div class="slot-header">
+                <span class="slot-time">
+                  <i class="pi pi-clock"></i>
+                  {{ slot.timeRange }}
+                </span>
+
+                @if (!slot.isBookable) {
+                  <p-tag value="Full" severity="secondary" />
+                } @else if (slot.remainingCapacity <= 2) {
+                  <p-tag
+                    [value]="slot.remainingCapacity + ' left'"
+                    severity="warn"
+                  />
+                } @else {
+                  <p-tag value="Available" severity="success" />
+                }
+              </div>
+
+              <div class="slot-body">
+                <h4 class="dept-name">{{ slot.consultationType }}</h4>
+                <div class="slot-meta">
+                  <span class="physician">
+                    <i class="pi pi-user"></i>
+                    {{ clinicDoctor }}
+                  </span>
+                  <span class="shift-info">
+                    <i class="pi pi-sun"></i>
+                    {{ slot.session }} Shift
+                  </span>
+                </div>
+              </div>
+
+              <div class="slot-footer">
+                <div class="capacity-indicator">
+                  <div class="capacity-dots">
+                    @for (dot of [1, 2, 3, 4, 5]; track dot) {
+                      <span
+                        class="dot"
+                        [class.filled]="dot <= slot.remainingCapacity"
+                      ></span>
+                    }
+                  </div>
+                  <span class="capacity-text">
+                    {{ slot.remainingCapacity }}/{{ slot.totalCapacity }} slots left
+                  </span>
+                </div>
+
+                <div class="slot-action-indicator">
+                  @if (selectedSlotId() === slot.id) {
+                    <span class="selected-pill">
+                      <i class="pi pi-check"></i> Selected
+                    </span>
+                  } @else if (slot.isBookable) {
+                    <span class="select-hint">Select Slot</span>
+                  } @else {
+                    <span class="unavailable-hint">Unavailable</span>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Appointment Summary / Booking Sidebar -->
+    <aside class="booking-sidebar">
+      <div class="summary-card">
+        <div class="summary-header">
+          <h3>
+            <i class="pi pi-ticket"></i>
+            Booking Summary
+          </h3>
+          @if (selectedSlot()) {
+            <button
+              type="button"
+              class="clear-button"
+              (click)="onClearSelection()"
+            >
+              Clear
+            </button>
+          }
+        </div>
+
+        @if (selectedSlot(); as slot) {
+          <div class="selected-details">
+            <div class="detail-row">
+              <span class="label">Date:</span>
+              <span class="value">{{ activeDate().fullDate }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Time:</span>
+              <span class="value highlight">{{ slot.timeRange }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Doctor:</span>
+              <span class="value">{{ clinicDoctor }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Type:</span>
+              <span class="value">{{ slot.consultationType }}</span>
+            </div>
+
+            <div class="detail-row">
+              <span class="label">Location:</span>
+              <span class="value">{{ clinicLocation }}</span>
+            </div>
+
+            <!-- Template Appointment Reason (Placeholder) -->
+            <div class="reason-preview">
+              <label for="consultation-reason">Reason for Consultation (Optional):</label>
+              <textarea
+                id="consultation-reason"
+                class="reason-textarea"
+                rows="2"
+                placeholder="e.g. Routine checkup, cold symptoms, medical requirement..."
+                disabled
+              ></textarea>
+            </div>
+
+            <div class="action-box">
+              <p-button
+                label="Confirm Appointment (Template)"
+                icon="pi pi-check"
+                severity="primary"
+                [fluid]="true"
+              />
+              <span class="template-note">
+                Template Preview • Booking submission will be integrated with the appointment API
+              </span>
+            </div>
+          </div>
+        } @else {
+          <div class="empty-selection">
+            <i class="pi pi-hand-pointer"></i>
+            <h4>No Slot Selected</h4>
+            <p>Click on any available consultation slot card above to view appointment details and confirm.</p>
+          </div>
+        }
+      </div>
+
+      <!-- Clinic Visit Guidelines -->
+      <div class="guidelines-card">
+        <h4>
+          <i class="pi pi-shield"></i>
+          Clinic Guidelines
+        </h4>
+        <ul>
+          <li>Arrive at least 10 minutes prior to your time slot.</li>
+          <li>Bring your valid DLSU-D University ID Card.</li>
+          <li>Masks are recommended inside the consultation room.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
