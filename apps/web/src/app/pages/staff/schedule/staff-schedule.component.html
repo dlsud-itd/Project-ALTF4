@@ -1,0 +1,95 @@
+<div class="schedule-page">
+  <div class="page-header">
+    <div>
+      <h2>Slot Schedule</h2>
+      <p>Clinic slots for the next two weeks</p>
+    </div>
+    <p-button label="Add slot" icon="pi pi-plus" (onClick)="onAddSlot()" />
+  </div>
+
+  @if (deleteError(); as message) {
+    <p-message
+      class="delete-error"
+      severity="error"
+      [text]="message"
+      [closable]="true"
+      (onClose)="deleteError.set(null)"
+    />
+  }
+
+  @if (isLoading()) {
+    <app-loading-skeleton [lines]="5" />
+  } @else if (errorMessage() !== null) {
+    <app-error-state
+      title="Could not load slots"
+      [message]="errorMessage() ?? ''"
+      (retry)="loadSlots()"
+    />
+  } @else if (slots().length === 0) {
+    <app-empty-state
+      icon="pi-calendar"
+      title="No slots scheduled"
+      message="There are no clinic slots in this period."
+    />
+  } @else {
+    <div class="table-wrapper">
+      <table class="slot-table">
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Time</th>
+            <th scope="col">Capacity</th>
+            <th scope="col">Remaining</th>
+            <th scope="col">Status</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (slot of slots(); track slot.id) {
+            <tr>
+              <td>{{ slot.clinicDate }}</td>
+              <td>{{ slot.startTime }} - {{ slot.endTime }}</td>
+              <td>{{ slot.capacity }}</td>
+              <td>{{ slot.remainingCapacity }}</td>
+              <td>
+                <p-tag
+                  [value]="statusLabel(slot)"
+                  [severity]="statusSeverity(slot)"
+                />
+              </td>
+              <td>
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  size="small"
+                  [ariaLabel]="'Edit slot on ' + slot.clinicDate"
+                  (onClick)="onEditSlot(slot)"
+                />
+                <p-button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [text]="true"
+                  size="small"
+                  [ariaLabel]="'Delete slot on ' + slot.clinicDate"
+                  (onClick)="onDeleteSlot(slot)"
+                />
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <p-confirmdialog />
+
+  <app-slot-form
+    [isVisible]="isFormOpen()"
+    [slot]="editingSlot()"
+    [isSaving]="isSaving()"
+    [errorMessage]="saveError()"
+    (save)="onFormSave($event)"
+    (cancel)="onFormCancel()"
+  />
+</div>
