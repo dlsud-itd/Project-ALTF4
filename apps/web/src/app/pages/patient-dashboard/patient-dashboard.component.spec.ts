@@ -1,3 +1,4 @@
+import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { PatientDashboardComponent } from './patient-dashboard.component';
@@ -9,7 +10,7 @@ describe('PatientDashboardComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PatientDashboardComponent],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient()],
     })
     .compileComponents();
 
@@ -43,5 +44,37 @@ describe('PatientDashboardComponent', () => {
     expect(component.activeSection()).toBe('appointments');
     const active = (fixture.nativeElement as HTMLElement).querySelector('.nav-item.active');
     expect(active?.textContent).toContain('Appointments');
+  });
+
+  it('should show a loading skeleton while the queue status loads', () => {
+    component.isQueueLoading.set(true);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('app-loading-skeleton')).toBeTruthy();
+    expect(element.querySelector('.status-card .card-content')).toBeNull();
+  });
+
+  it('should show an error state and retry when the queue fails to load', () => {
+    component.hasQueueError.set(true);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('app-error-state')).toBeTruthy();
+
+    element.querySelector<HTMLButtonElement>('app-error-state button')?.click();
+    fixture.detectChanges();
+
+    expect(component.hasQueueError()).toBeFalse();
+    expect(element.querySelector('app-error-state')).toBeNull();
+    expect(element.querySelector('.status-card .card-content')).toBeTruthy();
+  });
+
+  it('should show an empty state when there are no appointments', () => {
+    const empty = (fixture.nativeElement as HTMLElement).querySelector(
+      '#appointments app-empty-state',
+    );
+
+    expect(empty?.textContent).toContain('No upcoming appointments');
   });
 });

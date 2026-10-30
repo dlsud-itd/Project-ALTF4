@@ -64,25 +64,35 @@
     </section>
 
     <!-- Quick Stats Grid -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-label">Currently Serving</span>
-        <span class="stat-number primary">#{{ servingTicket() }}</span>
-        <span class="stat-sub">Active Consultation</span>
-      </div>
+    @if (isStatsLoading()) {
+      <app-loading-skeleton [lines]="3" />
+    } @else if (hasStatsError()) {
+      <app-error-state
+        title="Could not load queue stats"
+        message="Check your connection and try again."
+        (retry)="onRetryStats()"
+      />
+    } @else {
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Currently Serving</span>
+          <span class="stat-number primary">#{{ servingTicket() }}</span>
+          <span class="stat-sub">Active Consultation</span>
+        </div>
 
-      <div class="stat-card">
-        <span class="stat-label">Patients Waiting</span>
-        <span class="stat-number warning">{{ waitingCount() }}</span>
-        <span class="stat-sub">In queue line</span>
-      </div>
+        <div class="stat-card">
+          <span class="stat-label">Patients Waiting</span>
+          <span class="stat-number warning">{{ waitingCount() }}</span>
+          <span class="stat-sub">In queue line</span>
+        </div>
 
-      <div class="stat-card">
-        <span class="stat-label">Completed Today</span>
-        <span class="stat-number success">{{ completedCount() }}</span>
-        <span class="stat-sub">Consultations done</span>
+        <div class="stat-card">
+          <span class="stat-label">Completed Today</span>
+          <span class="stat-number success">{{ completedCount() }}</span>
+          <span class="stat-sub">Consultations done</span>
+        </div>
       </div>
-    </div>
+    }
 
     <!-- Operations Panel -->
     <div class="action-panel">
@@ -120,13 +130,11 @@
         <span class="coming-soon-tag">Coming soon</span>
       </div>
 
-      <div class="placeholder-body">
-        <i class="pi pi-calendar-plus placeholder-icon"></i>
-        <p class="placeholder-title">No scheduled events</p>
-        <p class="placeholder-hint">
-          Clinic events will appear here.
-        </p>
-      </div>
+      <app-empty-state
+        icon="pi-calendar-plus"
+        title="No scheduled events"
+        message="Clinic events will appear here."
+      />
     </section>
   </main>
 </div>
