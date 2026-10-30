@@ -11,6 +11,7 @@ import {
   BookingsComponent,
   PatientProfileComponent,
   StaffDashboardComponent,
+  StaffScheduleComponent,
   StaffProfileComponent,
 } from '@pages';
 import { authGuard, guestGuard, roleGuard } from '@core/guards';
@@ -60,6 +61,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: StaffDashboardComponent },
+      { path: 'schedule', component: StaffScheduleComponent },
       { path: 'profile', component: StaffProfileComponent },
     ],
   },

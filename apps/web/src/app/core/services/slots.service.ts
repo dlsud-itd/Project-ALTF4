@@ -2,7 +2,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiConfigService } from './api-config.service';
-import { SlotsResponse } from '../models/slot.models';
+import {
+  SlotFormValue,
+  SlotMutationResponse,
+  SlotsResponse,
+} from '../models/slot.models';
 
 @Injectable({
   providedIn: 'root',
@@ -19,5 +23,25 @@ export class SlotsService {
     if (to) params = params.set('to', to);
 
     return this.http.get<SlotsResponse>(`${this.apiConfig.apiUrl}/slots`, { params });
+  }
+
+  createSlot(value: SlotFormValue): Observable<SlotMutationResponse> {
+    return this.http.post<SlotMutationResponse>(
+      `${this.apiConfig.apiUrl}/slots`,
+      value,
+    );
+  }
+
+  deleteSlot(id: number): Observable<SlotMutationResponse> {
+    return this.http.delete<SlotMutationResponse>(
+      `${this.apiConfig.apiUrl}/slots/${id}`,
+    );
+  }
+
+  updateSlot(id: number, value: SlotFormValue): Observable<SlotMutationResponse> {
+    return this.http.patch<SlotMutationResponse>(
+      `${this.apiConfig.apiUrl}/slots/${id}`,
+      value,
+    );
   }
 }

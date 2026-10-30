@@ -1,0 +1,101 @@
+<p-dialog
+  [header]="isEditing() ? 'Edit slot' : 'Add slot'"
+  [visible]="isVisible()"
+  [modal]="true"
+  [closable]="!isSaving()"
+  [draggable]="false"
+  [style]="{ width: '28rem', maxWidth: '95vw' }"
+  (visibleChange)="onVisibleChange($event)"
+>
+  <form class="slot-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    @if (errorMessage(); as message) {
+      <p-message severity="error" [text]="message" />
+    }
+
+    @if (isScheduleLocked()) {
+      <p-message
+        severity="info"
+        [text]="bookedCount() + ' patient(s) booked. Date and time are locked.'"
+      />
+    }
+
+    <div class="field">
+      <label for="slot-date">Date</label>
+      <p-datepicker
+        inputId="slot-date"
+        formControlName="clinicDate"
+        dateFormat="yy-mm-dd"
+        placeholder="YYYY-MM-DD"
+        [minDate]="minDate"
+        [showIcon]="true"
+        [fluid]="true"
+      />
+      @if (hasPastDateError()) {
+        <small class="field-error">Date cannot be in the past.</small>
+      } @else if (showError('clinicDate')) {
+        <small class="field-error">Pick a date.</small>
+      }
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="slot-start">Start time</label>
+        <input id="slot-start" type="time" pInputText formControlName="startTime" />
+        @if (showError('startTime')) {
+          <small class="field-error">Required.</small>
+        }
+      </div>
+      <div class="field">
+        <label for="slot-end">End time</label>
+        <input id="slot-end" type="time" pInputText formControlName="endTime" />
+        @if (showError('endTime')) {
+          <small class="field-error">Required.</small>
+        }
+      </div>
+    </div>
+    @if (hasTimeOrderError()) {
+      <small class="field-error">End time must be after start time.</small>
+    }
+    @if (hasPastTimeError()) {
+      <small class="field-error">Start time has already passed today.</small>
+    }
+
+    <div class="field">
+      <label for="slot-capacity">Capacity</label>
+      <input
+        id="slot-capacity"
+        type="number"
+        pInputText
+        formControlName="capacity"
+        [min]="minCapacity()"
+        step="1"
+      />
+      @if (hasCapacityError()) {
+        <small class="field-error">
+          Capacity must be at least {{ minCapacity() }}.
+        </small>
+      }
+    </div>
+
+    <div class="toggle-field">
+      <p-toggleswitch inputId="slot-bookable" formControlName="isBookable" />
+      <label for="slot-bookable">Open for booking</label>
+    </div>
+
+    <div class="form-actions">
+      <p-button
+        label="Cancel"
+        severity="secondary"
+        [outlined]="true"
+        type="button"
+        [disabled]="isSaving()"
+        (onClick)="onCancel()"
+      />
+      <p-button
+        [label]="isEditing() ? 'Save changes' : 'Add slot'"
+        type="submit"
+        [loading]="isSaving()"
+      />
+    </div>
+  </form>
+</p-dialog>
