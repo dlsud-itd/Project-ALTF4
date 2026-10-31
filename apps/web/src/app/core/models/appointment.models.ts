@@ -18,6 +18,10 @@ export type CreateAppointmentRequest = {
   reasonForVisit?: string;
 };
 
+export type RescheduleAppointmentRequest = {
+  slotId: number;
+};
+
 export type AppointmentBookingResponse = {
   message: string;
   appointment: PatientAppointment;

@@ -18,6 +18,7 @@ import {
 import { AccessRole } from '@prisma/client';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -100,5 +101,33 @@ export class AppointmentsController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.appointmentsService.cancelAppointment(req.user.id, id);
+  }
+
+  @Patch(':id/reschedule')
+  @Roles(AccessRole.PATIENT)
+  @ApiOperation({ summary: 'Reschedule an active appointment (Patient)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Appointment rescheduled successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Appointment cannot be rescheduled',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden: not your appointment' })
+  @ApiResponse({
+    status: 404,
+    description: 'Appointment or clinic slot not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Slot is full, closed, or duplicate booking',
+  })
+  async rescheduleAppointment(
+    @Request() req: { user: AuthenticatedUser },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RescheduleAppointmentDto,
+  ) {
+    return this.appointmentsService.rescheduleAppointment(req.user.id, id, dto);
   }
 }

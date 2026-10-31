@@ -7,6 +7,7 @@ import {
   AppointmentMutationResponse,
   AppointmentsResponse,
   CreateAppointmentRequest,
+  RescheduleAppointmentRequest,
 } from '../models/appointment.models';
 
 @Injectable({
@@ -37,6 +38,16 @@ export class AppointmentsService {
     return this.http.patch<AppointmentMutationResponse>(
       `${this.apiConfig.apiUrl}/appointments/${id}/cancel`,
       {},
+    );
+  }
+
+  rescheduleAppointment(
+    id: number,
+    dto: RescheduleAppointmentRequest,
+  ): Observable<AppointmentBookingResponse> {
+    return this.http.patch<AppointmentBookingResponse>(
+      `${this.apiConfig.apiUrl}/appointments/${id}/reschedule`,
+      dto,
     );
   }
 }

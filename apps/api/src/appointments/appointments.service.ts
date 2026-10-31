@@ -8,6 +8,7 @@ import {
 import { AccessRole, AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
 @Injectable()
 export class AppointmentsService {
@@ -278,6 +279,146 @@ export class AppointmentsService {
 
     return {
       message: 'Appointment cancelled successfully',
+    };
+  }
+
+  async rescheduleAppointment(
+    patientId: number,
+    appointmentId: number,
+    dto: RescheduleAppointmentDto,
+  ) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        slot: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (appointment.patientId !== patientId) {
+      throw new ForbiddenException(
+        'You are not authorized to reschedule this appointment',
+      );
+    }
+
+    if (appointment.status !== AppointmentStatus.BOOKED) {
+      throw new BadRequestException(
+        'Only active booked appointments can be rescheduled',
+      );
+    }
+
+    if (dto.slotId === appointment.slotId) {
+      throw new BadRequestException(
+        'Appointment is already booked into this slot',
+      );
+    }
+
+    const slot = await this.prisma.clinicSlot.findUnique({
+      where: { id: dto.slotId },
+      include: {
+        appointments: {
+          where: { status: AppointmentStatus.BOOKED },
+        },
+      },
+    });
+
+    if (!slot) {
+      throw new NotFoundException('Clinic slot not found');
+    }
+
+    if (!slot.isBookable) {
+      throw new ConflictException(
+        'This clinic slot is closed and not accepting bookings',
+      );
+    }
+
+    if (slot.appointments.length >= slot.capacity) {
+      throw new ConflictException(
+        'This slot is now fully booked. Please select another slot.',
+      );
+    }
+
+    const hasSlotBooking = slot.appointments.some(
+      (appt) => appt.patientId === patientId,
+    );
+    if (hasSlotBooking) {
+      throw new ConflictException(
+        'You already have an active appointment booked for this slot',
+      );
+    }
+
+    const duplicateTime = await this.prisma.appointment.findFirst({
+      where: {
+        id: { not: appointmentId },
+        patientId,
+        status: AppointmentStatus.BOOKED,
+        slot: {
+          clinicDate: slot.clinicDate,
+          startTime: slot.startTime,
+        },
+      },
+    });
+
+    if (duplicateTime) {
+      throw new ConflictException(
+        'You already have an appointment booked at this date and time',
+      );
+    }
+
+    await this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        slotId: slot.id,
+      },
+    });
+
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          actorId: patientId,
+          action: 'APPOINTMENT_RESCHEDULED',
+          entityTable: 'appointment',
+          entityId: appointmentId,
+          description: 'Patient rescheduled consultation appointment',
+          oldValues: {
+            slotId: appointment.slotId,
+            clinicDate: appointment.slot.clinicDate.toISOString().slice(0, 10),
+            startTime: appointment.slot.startTime,
+            endTime: appointment.slot.endTime,
+          },
+          newValues: {
+            slotId: slot.id,
+            clinicDate: slot.clinicDate.toISOString().slice(0, 10),
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+          },
+        },
+      });
+    } catch {
+      // Audit log non-blocking
+    }
+
+    return {
+      message: 'Appointment rescheduled successfully',
+      appointment: {
+        id: appointmentId,
+        status: appointment.status,
+        slot: {
+          id: slot.id,
+          clinicDate: slot.clinicDate.toISOString().slice(0, 10),
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          capacity: slot.capacity,
+          remainingCapacity: Math.max(
+            0,
+            slot.capacity - slot.appointments.length - 1,
+          ),
+          isBookable: slot.isBookable,
+        },
+      },
     };
   }
 }
