@@ -31,9 +31,15 @@ describe('AppointmentsService', () => {
   };
 
   beforeEach(async () => {
-    Object.values(mockPrismaService.clinicSlot).forEach((mock) => mock.mockReset());
-    Object.values(mockPrismaService.appointment).forEach((mock) => mock.mockReset());
-    Object.values(mockPrismaService.auditLog).forEach((mock) => mock.mockReset());
+    Object.values(mockPrismaService.clinicSlot).forEach((mock) =>
+      mock.mockReset(),
+    );
+    Object.values(mockPrismaService.appointment).forEach((mock) =>
+      mock.mockReset(),
+    );
+    Object.values(mockPrismaService.auditLog).forEach((mock) =>
+      mock.mockReset(),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -113,7 +119,9 @@ describe('AppointmentsService', () => {
         id: 10,
         capacity: 1,
         isBookable: true,
-        appointments: [{ id: 1, patientId: 99, status: AppointmentStatus.BOOKED }],
+        appointments: [
+          { id: 1, patientId: 99, status: AppointmentStatus.BOOKED },
+        ],
       });
 
       await expect(service.bookAppointment(patientId, dto)).rejects.toThrow(
@@ -163,6 +171,11 @@ describe('AppointmentsService', () => {
           id: 1,
           status: AppointmentStatus.BOOKED,
           createdAt: new Date('2026-10-31T00:00:00.000Z'),
+          patient: {
+            id: 101,
+            fullName: 'Patient One',
+            affiliation: 'STUDENT',
+          },
           slot: {
             id: 10,
             clinicDate: new Date('2026-11-12T00:00:00.000Z'),
@@ -178,6 +191,109 @@ describe('AppointmentsService', () => {
       expect(result.appointments).toHaveLength(1);
       expect(result.appointments[0].id).toBe(1);
       expect(result.appointments[0].slot.clinicDate).toBe('2026-11-12');
+    });
+  });
+
+  describe('findAppointments', () => {
+    it('limits patient results to the authenticated patient', async () => {
+      mockPrismaService.appointment.findMany.mockResolvedValue([]);
+
+      await service.findAppointments(101, 'PATIENT');
+
+      expect(mockPrismaService.appointment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { patientId: 101 } }),
+      );
+    });
+
+    it('allows staff to list appointments and returns limited patient data', async () => {
+      mockPrismaService.appointment.findMany.mockResolvedValue([
+        {
+          id: 1,
+          status: AppointmentStatus.BOOKED,
+          createdAt: new Date('2026-10-31T00:00:00.000Z'),
+          patient: {
+            id: 101,
+            fullName: 'Patient One',
+            affiliation: 'STUDENT',
+          },
+          slot: {
+            id: 10,
+            clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+            startTime: '10:00',
+            endTime: '10:30',
+            capacity: 2,
+            isBookable: true,
+          },
+        },
+      ]);
+
+      const result = await service.findAppointments(202, 'STAFF');
+
+      expect(mockPrismaService.appointment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+      expect(result.appointments[0].patient).toEqual({
+        id: 101,
+        fullName: 'Patient One',
+        affiliation: 'STUDENT',
+      });
+    });
+  });
+
+  describe('findAppointment', () => {
+    const appointment = {
+      id: 1,
+      patientId: 101,
+      status: AppointmentStatus.BOOKED,
+      createdAt: new Date('2026-10-31T00:00:00.000Z'),
+      patient: {
+        id: 101,
+        fullName: 'Patient One',
+        affiliation: 'STUDENT',
+      },
+      slot: {
+        id: 10,
+        clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+        startTime: '10:00',
+        endTime: '10:30',
+        capacity: 2,
+        isBookable: true,
+      },
+    };
+
+    it('returns details for the owning patient', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue(appointment);
+
+      const result = await service.findAppointment(101, 'PATIENT', 1);
+
+      expect(result.appointment.id).toBe(1);
+      expect(result.appointment.slot.clinicDate).toBe('2026-11-12');
+    });
+
+    it('allows staff to view appointment details', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue(appointment);
+
+      await expect(
+        service.findAppointment(202, 'STAFF', 1),
+      ).resolves.toMatchObject({
+        appointment: { id: 1 },
+      });
+    });
+
+    it('rejects patients viewing another patient appointment', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue(appointment);
+
+      await expect(service.findAppointment(202, 'PATIENT', 1)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('returns not found for a missing appointment', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.findAppointment(101, 'PATIENT', 999),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -236,4 +352,3 @@ describe('AppointmentsService', () => {
     });
   });
 });
-
