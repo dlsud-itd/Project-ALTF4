@@ -205,6 +205,7 @@ describe('Authentication and profile API (e2e)', () => {
       .expect(201);
 
     expect(response.body).toEqual({
+
       message: 'User registered successfully',
       userId: 102,
     });
@@ -275,7 +276,8 @@ describe('Authentication and profile API (e2e)', () => {
       .send({ ...validRegistration, email: ' PATIENT@EXAMPLE.COM ' })
       .expect(409);
 
-    expect(response.body).toEqual({ error: 'Email is already registered' });
+    expect(response.body).toEqual({
+ error: 'Email is already registered' });
     expect(users.size).toBe(1);
   });
 
@@ -311,7 +313,8 @@ describe('Authentication and profile API (e2e)', () => {
         .send({ email, password })
         .expect(401);
 
-      expect(response.body).toEqual({ error: 'Invalid email or password' });
+      expect(response.body).toEqual({
+ error: 'Invalid email or password' });
     },
   );
 
@@ -342,6 +345,8 @@ describe('Authentication and profile API (e2e)', () => {
       .expect(200);
 
     expect(response.body).toEqual({
+
+      message: 'User profile retrieved successfully',
       id: seedUser.id,
       fullName: seedUser.fullName,
       email: seedUser.email,
@@ -369,6 +374,7 @@ describe('Authentication and profile API (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
     expect(response.body).toEqual({
+
       error: 'Cannot retrieve another user profile',
     });
   });

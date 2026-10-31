@@ -157,7 +157,7 @@
 
               <div class="appointment-footer">
                 <div class="management-actions">
-                  <a routerLink="/patient/bookings">
+                  <a routerLink="/patient/bookings" [queryParams]="{ reschedule: appt.id }">
                     <p-button
                       label="Reschedule"
                       icon="pi pi-calendar"

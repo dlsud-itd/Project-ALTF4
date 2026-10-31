@@ -106,9 +106,9 @@ describe('PatientDashboardComponent', () => {
   });
 
   it('should prompt confirmation when cancelling an appointment', () => {
-    spyOn(confirmationService, 'confirm');
+    const confirmSpy = spyOn((component as any).confirmationService, 'confirm');
     component.onCancelAppointment(mockAppointments[0]);
 
-    expect(confirmationService.confirm).toHaveBeenCalled();
+    expect(confirmSpy).toHaveBeenCalled();
   });
 });

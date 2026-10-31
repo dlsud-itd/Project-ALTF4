@@ -351,4 +351,178 @@ describe('AppointmentsService', () => {
       );
     });
   });
+
+  describe('rescheduleAppointment', () => {
+    const currentSlot = {
+      id: 10,
+      clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+      startTime: '08:00',
+      endTime: '08:30',
+    };
+
+    const targetSlot = {
+      id: 20,
+      clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+      startTime: '09:00',
+      endTime: '09:30',
+      capacity: 2,
+      isBookable: true,
+      appointments: [],
+    };
+
+    it('moves a booked appointment to the target slot', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue(targetSlot);
+      mockPrismaService.appointment.findFirst.mockResolvedValue(null);
+      mockPrismaService.appointment.update.mockResolvedValue({ id: 1 });
+      mockPrismaService.auditLog.create.mockResolvedValue({ id: 3 });
+
+      const result = await service.rescheduleAppointment(101, 1, {
+        slotId: 20,
+      });
+
+      expect(result.message).toBe('Appointment rescheduled successfully');
+      expect(mockPrismaService.appointment.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { slotId: 20 },
+      });
+      expect(result.appointment.slot.id).toBe(20);
+    });
+
+    it('rejects rescheduling to the slot the appointment already occupies', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 20,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects rescheduling another patient appointment', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 999,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rejects rescheduling a cancelled appointment', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.CANCELLED,
+        slot: currentSlot,
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects rescheduling into a slot that does not exist', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 99 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects rescheduling into a closed slot', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue({
+        ...targetSlot,
+        isBookable: false,
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects rescheduling into a slot at full capacity', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue({
+        ...targetSlot,
+        appointments: [{ patientId: 102 }, { patientId: 103 }],
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects rescheduling into a slot the patient already holds', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue({
+        ...targetSlot,
+        appointments: [{ patientId: 101 }],
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects rescheduling onto a time the patient already holds', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        slot: currentSlot,
+      });
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue(targetSlot);
+      mockPrismaService.appointment.findFirst.mockResolvedValue({
+        id: 2,
+        patientId: 101,
+      });
+
+      await expect(
+        service.rescheduleAppointment(101, 1, { slotId: 20 }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
 });
