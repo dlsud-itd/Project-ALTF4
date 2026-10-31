@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { BookingsComponent } from './bookings.component';
@@ -65,6 +66,7 @@ describe('BookingsComponent', () => {
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideNoopAnimations(),
         { provide: SlotsService, useValue: slotsServiceSpy },
         { provide: AppointmentsService, useValue: appointmentsServiceSpy },
       ],
