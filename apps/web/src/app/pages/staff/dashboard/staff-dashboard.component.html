@@ -1,0 +1,111 @@
+<div class="dashboard-page">
+  <div class="welcome-banner">
+    <h2>Station Console • Counter {{ counterNumber() }}</h2>
+    <p>Manage patient queueing, consultations, and calling</p>
+  </div>
+
+  <!-- Profile Summary -->
+  <section class="profile-card" aria-labelledby="profile-title">
+    <div class="profile-avatar" aria-hidden="true">
+      <i class="pi pi-user-edit"></i>
+    </div>
+
+    <div class="profile-details">
+      <div class="profile-heading">
+        <h3 id="profile-title">{{ staffName() }}</h3>
+        <span class="role-pill">{{ staffRole() }}</span>
+      </div>
+      <p class="profile-subtitle">{{ staffEmail() }}</p>
+
+      <dl class="profile-meta">
+        <div>
+          <dt>Assigned Station</dt>
+          <dd>Counter {{ counterNumber() }}</dd>
+        </div>
+        <div>
+          <dt>Shift</dt>
+          <dd>8:00 AM – 5:00 PM</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd class="status-online">On Duty</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- Quick Stats Grid -->
+  @if (isStatsLoading()) {
+    <app-loading-skeleton [lines]="3" />
+  } @else if (hasStatsError()) {
+    <app-error-state
+      title="Could not load queue stats"
+      message="Check your connection and try again."
+      (retry)="onRetryStats()"
+    />
+  } @else {
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Currently Serving</span>
+        <span class="stat-number primary">#{{ servingTicket() }}</span>
+        <span class="stat-sub">Active Consultation</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Patients Waiting</span>
+        <span class="stat-number warning">{{ waitingCount() }}</span>
+        <span class="stat-sub">In queue line</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Completed Today</span>
+        <span class="stat-number success">{{ completedCount() }}</span>
+        <span class="stat-sub">Consultations done</span>
+      </div>
+    </div>
+  }
+
+  <!-- Operations Panel -->
+  <div class="action-panel">
+    <h3>Counter Queue Controls</h3>
+    <div class="button-row">
+      <p-button
+        label="Call Next Patient"
+        icon="pi pi-bell"
+        severity="primary"
+        (onClick)="onCallNext()"
+      />
+      <p-button
+        label="Recall Current"
+        icon="pi pi-replay"
+        severity="secondary"
+        [outlined]="true"
+      />
+      <p-button
+        label="Complete Consultation"
+        icon="pi pi-check"
+        severity="success"
+        [outlined]="true"
+        (onClick)="onComplete()"
+      />
+    </div>
+  </div>
+
+  <!-- Upcoming Events -->
+  <section class="placeholder-panel" aria-labelledby="events-title">
+    <div class="placeholder-header">
+      <h3 id="events-title">
+        <i class="pi pi-calendar"></i>
+        Upcoming Events
+      </h3>
+      <span class="coming-soon-tag">Coming soon</span>
+    </div>
+
+    <app-empty-state
+      icon="pi-calendar-plus"
+      title="No scheduled events"
+      message="Clinic events will appear here."
+    />
+  </section>
+</div>
+

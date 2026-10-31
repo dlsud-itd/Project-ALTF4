@@ -45,6 +45,7 @@ Project-ALTF4/
 ├── document/
 │   └── Project Markdowns/      # Architecture, deployment, database docs
 │       ├── architecture.md
+│       ├── clinic-slots.md     # Clinic slot API rules and validation
 │       ├── database-migrations.md
 │       ├── deployment-vercel-render.md
 │       └── environment-variables.md

@@ -1,0 +1,108 @@
+<div class="portal-wrapper">
+  <!-- Mobile Header Bar -->
+  <header class="mobile-topbar">
+    <div class="mobile-brand">
+      <i class="pi pi-shield brand-icon"></i>
+      <span class="brand-title">ClinicQueue</span>
+    </div>
+    <button
+      type="button"
+      class="mobile-menu-toggle"
+      (click)="toggleMobileMenu()"
+      aria-label="Toggle navigation menu"
+    >
+      <i [class]="isMobileMenuOpen() ? 'pi pi-times' : 'pi pi-bars'"></i>
+    </button>
+  </header>
+
+  <!-- Sidebar Backdrop (Mobile Only) -->
+  @if (isMobileMenuOpen()) {
+    <div
+      class="sidebar-backdrop"
+      (click)="closeMobileMenu()"
+      tabindex="-1"
+      aria-hidden="true"
+    ></div>
+  }
+
+  <!-- Sidebar Navigation -->
+  <aside
+    class="portal-sidebar"
+    [class.open]="isMobileMenuOpen()"
+    aria-label="Staff portal navigation"
+  >
+    <!-- Brand Header -->
+    <div class="sidebar-brand">
+      <div class="brand-icon-wrapper">
+        <i class="pi pi-shield brand-icon"></i>
+      </div>
+      <div class="brand-info">
+        <h1 class="brand-name">ClinicQueue</h1>
+        <span class="brand-subtitle">Staff Operations</span>
+      </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Menu</div>
+
+      <a
+        routerLink="/staff/dashboard"
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="closeMobileMenu()"
+      >
+        <i class="pi pi-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+
+      <a
+        routerLink="/staff/schedule"
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="closeMobileMenu()"
+      >
+        <i class="pi pi-calendar"></i>
+        <span>Schedule</span>
+      </a>
+
+      <a
+        routerLink="/staff/profile"
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="closeMobileMenu()"
+      >
+        <i class="pi pi-user"></i>
+        <span>Profile</span>
+      </a>
+    </nav>
+
+    <!-- Sidebar Footer / Staff Profile & Sign Out -->
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar">
+          <i class="pi pi-user-edit"></i>
+        </div>
+        <div class="user-details">
+          <span class="user-name">{{ staffName() }}</span>
+          <span class="user-badge">{{ staffRole() }}</span>
+        </div>
+      </div>
+
+      <p-button
+        label="Sign Out"
+        icon="pi pi-sign-out"
+        severity="danger"
+        [outlined]="true"
+        size="small"
+        [fluid]="true"
+        (onClick)="onLogout()"
+      />
+    </div>
+  </aside>
+
+  <!-- Routed Page View -->
+  <main class="portal-main">
+    <router-outlet></router-outlet>
+  </main>
+</div>

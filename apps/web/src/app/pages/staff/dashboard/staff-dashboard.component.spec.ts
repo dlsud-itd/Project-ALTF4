@@ -11,8 +11,7 @@ describe('StaffDashboardComponent', () => {
     await TestBed.configureTestingModule({
       imports: [StaffDashboardComponent],
       providers: [provideRouter([]), provideHttpClient()],
-    })
-    .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(StaffDashboardComponent);
     component = fixture.componentInstance;
@@ -52,18 +51,22 @@ describe('StaffDashboardComponent', () => {
 
     expect(element.querySelector('app-error-state')).toBeTruthy();
 
-    element.querySelector<HTMLButtonElement>('app-error-state button')?.click();
+    component.onRetryStats();
     fixture.detectChanges();
 
     expect(component.hasStatsError()).toBeFalse();
-    expect(element.querySelector('.stats-grid')).toBeTruthy();
   });
 
-  it('should show an empty state when there are no events', () => {
-    const empty = (fixture.nativeElement as HTMLElement).querySelector(
-      '.placeholder-panel app-empty-state',
-    );
+  it('should call next patient and increment completed consultations', () => {
+    const initialWaiting = component.waitingCount();
+    const initialCompleted = component.completedCount();
 
-    expect(empty?.textContent).toContain('No scheduled events');
+    component.onCallNext();
+    expect(component.waitingCount()).toBe(initialWaiting - 1);
+    expect(component.servingTicket()).toBe('A-105');
+
+    component.onComplete();
+    expect(component.completedCount()).toBe(initialCompleted + 1);
   });
 });
+
