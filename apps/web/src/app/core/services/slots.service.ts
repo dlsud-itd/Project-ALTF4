@@ -17,12 +17,21 @@ export class SlotsService {
     private readonly apiConfig: ApiConfigService,
   ) {}
 
-  getSlots(from?: string, to?: string): Observable<SlotsResponse> {
+  getSlots(
+    from?: string,
+    to?: string,
+    availableOnly?: boolean,
+  ): Observable<SlotsResponse> {
     let params = new HttpParams();
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
+    if (availableOnly !== undefined) {
+      params = params.set('availableOnly', String(availableOnly));
+    }
 
-    return this.http.get<SlotsResponse>(`${this.apiConfig.apiUrl}/slots`, { params });
+    return this.http.get<SlotsResponse>(`${this.apiConfig.apiUrl}/slots`, {
+      params,
+    });
   }
 
   createSlot(value: SlotFormValue): Observable<SlotMutationResponse> {
