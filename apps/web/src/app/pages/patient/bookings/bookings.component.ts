@@ -8,7 +8,7 @@ import { ClinicSlot, PatientAppointment } from '@core/models';
 import { SlotsService, AppointmentsService } from '@core/services';
 import { getErrorMessage, toDateParam } from '@core/utils';
 import {
-  EmptyStateComponent,
+
   ErrorStateComponent,
   LoadingSkeletonComponent,
 } from '@shared/ui';
@@ -69,7 +69,7 @@ function parseCalendarDay(dateStr: string): CalendarDay {
     Button,
     Message,
     Tag,
-    EmptyStateComponent,
+  
     ErrorStateComponent,
     LoadingSkeletonComponent,
   ],
