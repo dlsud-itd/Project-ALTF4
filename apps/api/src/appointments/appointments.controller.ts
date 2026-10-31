@@ -30,13 +30,29 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
+  @Get()
+  @Roles(AccessRole.PATIENT, AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiOperation({ summary: 'List permitted appointments for the current user' })
+  @ApiResponse({ status: 200, description: 'List of permitted appointments' })
+  async getAppointments(@Request() req: { user: AuthenticatedUser }) {
+    return this.appointmentsService.findAppointments(
+      req.user.id,
+      req.user.role,
+    );
+  }
+
   @Post()
   @Roles(AccessRole.PATIENT)
-  @ApiOperation({ summary: 'Book a clinic appointment into an available slot (Patient)' })
+  @ApiOperation({
+    summary: 'Book a clinic appointment into an available slot (Patient)',
+  })
   @ApiResponse({ status: 201, description: 'Appointment booked successfully' })
   @ApiResponse({ status: 400, description: 'Invalid booking data' })
   @ApiResponse({ status: 404, description: 'Clinic slot not found' })
-  @ApiResponse({ status: 409, description: 'Slot is full, closed, or duplicate booking' })
+  @ApiResponse({
+    status: 409,
+    description: 'Slot is full, closed, or duplicate booking',
+  })
   async bookAppointment(
     @Request() req: { user: AuthenticatedUser },
     @Body() dto: CreateAppointmentDto,
@@ -52,10 +68,30 @@ export class AppointmentsController {
     return this.appointmentsService.findPatientAppointments(req.user.id);
   }
 
+  @Get(':id')
+  @Roles(AccessRole.PATIENT, AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiOperation({ summary: 'Get an appointment available to the current user' })
+  @ApiResponse({ status: 200, description: 'Appointment details' })
+  @ApiResponse({ status: 403, description: 'Forbidden: not your appointment' })
+  @ApiResponse({ status: 404, description: 'Appointment not found' })
+  async getAppointment(
+    @Request() req: { user: AuthenticatedUser },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.appointmentsService.findAppointment(
+      req.user.id,
+      req.user.role,
+      id,
+    );
+  }
+
   @Patch(':id/cancel')
   @Roles(AccessRole.PATIENT)
   @ApiOperation({ summary: 'Cancel an active appointment (Patient)' })
-  @ApiResponse({ status: 200, description: 'Appointment cancelled successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Appointment cancelled successfully',
+  })
   @ApiResponse({ status: 400, description: 'Appointment cannot be cancelled' })
   @ApiResponse({ status: 403, description: 'Forbidden: not your appointment' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
@@ -66,4 +102,3 @@ export class AppointmentsController {
     return this.appointmentsService.cancelAppointment(req.user.id, id);
   }
 }
-
