@@ -38,7 +38,7 @@ const todayAsUtcDate = (): Date => {
 export class SlotsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findSlots(from?: string, to?: string) {
+  async findSlots(from?: string, to?: string, availableOnly = false) {
     const fromDate =
       from !== undefined ? toUtcDate(from, 'from') : todayAsUtcDate();
     const toDate =
@@ -57,6 +57,7 @@ export class SlotsService {
           gte: fromDate,
           lte: toDate,
         },
+        ...(availableOnly ? { isBookable: true } : {}),
       },
       include: {
         appointments: {
@@ -68,23 +69,27 @@ export class SlotsService {
       orderBy: [{ clinicDate: 'asc' }, { startTime: 'asc' }],
     });
 
-    return {
-      slots: slots.map((slot) => {
-        const remainingCapacity = Math.max(
-          0,
-          slot.capacity - slot.appointments.length,
-        );
+    const mapped = slots.map((slot) => {
+      const remainingCapacity = Math.max(
+        0,
+        slot.capacity - slot.appointments.length,
+      );
 
-        return {
-          id: slot.id,
-          clinicDate: slot.clinicDate.toISOString().slice(0, 10),
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          capacity: slot.capacity,
-          remainingCapacity,
-          isBookable: slot.isBookable && remainingCapacity > 0,
-        };
-      }),
+      return {
+        id: slot.id,
+        clinicDate: slot.clinicDate.toISOString().slice(0, 10),
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        capacity: slot.capacity,
+        remainingCapacity,
+        isBookable: slot.isBookable && remainingCapacity > 0,
+      };
+    });
+
+    return {
+      slots: availableOnly
+        ? mapped.filter((slot) => slot.isBookable && slot.remainingCapacity > 0)
+        : mapped,
     };
   }
 

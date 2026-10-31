@@ -149,6 +149,44 @@ describe('SlotsService', () => {
     );
   });
 
+  it('filters out non-bookable and full slots when availableOnly is true', async () => {
+    mockPrismaService.clinicSlot.findMany.mockResolvedValue([
+      {
+        id: 1,
+        clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+        startTime: '10:15',
+        endTime: '10:45',
+        capacity: 2,
+        isBookable: true,
+        appointments: [{ status: AppointmentStatus.BOOKED }],
+      },
+      {
+        id: 2,
+        clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+        startTime: '11:00',
+        endTime: '11:30',
+        capacity: 1,
+        isBookable: true,
+        appointments: [{ status: AppointmentStatus.BOOKED }],
+      },
+      {
+        id: 3,
+        clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+        startTime: '11:30',
+        endTime: '12:00',
+        capacity: 1,
+        isBookable: false,
+        appointments: [],
+      },
+    ]);
+
+    const result = await service.findSlots('2026-11-12', '2026-11-12', true);
+    expect(result.slots).toHaveLength(1);
+    expect(result.slots[0].id).toBe(1);
+    expect(result.slots[0].isBookable).toBe(true);
+    expect(result.slots[0].remainingCapacity).toBe(1);
+  });
+
   it('rejects invalid dates and reversed ranges before querying', async () => {
     await expect(service.findSlots('2026-02-30', '2026-03-01')).rejects.toThrow(
       BadRequestException,
