@@ -3,6 +3,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./dist/out-tsc",
     "types": ["jasmine"],
     "strict": true,
@@ -18,18 +19,17 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
-    "baseUrl": "./",
     "paths": {
-      "@core": ["src/app/core/index.ts"],
-      "@core/*": ["src/app/core/*"],
-      "@layouts": ["src/app/layouts/index.ts"],
-      "@layouts/*": ["src/app/layouts/*"],
-      "@pages": ["src/app/pages/index.ts"],
-      "@pages/*": ["src/app/pages/*"],
-      "@shared": ["src/app/shared/index.ts"],
-      "@shared/*": ["src/app/shared/*"],
-      "@environments/*": ["src/environments/*"],
-      "@env": ["src/environments/environment.ts"],
+      "@core": ["./src/app/core/index.ts"],
+      "@core/*": ["./src/app/core/*"],
+      "@layouts": ["./src/app/layouts/index.ts"],
+      "@layouts/*": ["./src/app/layouts/*"],
+      "@pages": ["./src/app/pages/index.ts"],
+      "@pages/*": ["./src/app/pages/*"],
+      "@shared": ["./src/app/shared/index.ts"],
+      "@shared/*": ["./src/app/shared/*"],
+      "@environments/*": ["./src/environments/*"],
+      "@env": ["./src/environments/environment.ts"],
       "rxjs": ["../../node_modules/rxjs"],
       "rxjs/*": ["../../node_modules/rxjs/*"]
     }
