@@ -22,12 +22,12 @@ describe('StaffLayoutComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render sidebar navigation links for Dashboard and Profile', () => {
+  it('should render sidebar navigation links for Dashboard, Schedule and Profile', () => {
     const navItems = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll('.sidebar-nav .nav-link'),
     ).map((item) => item.textContent?.trim());
 
-    expect(navItems).toEqual(['Dashboard', 'Profile']);
+    expect(navItems).toEqual(['Dashboard', 'Schedule', 'Profile']);
   });
 
   it('should display brand title in the sidebar', () => {
