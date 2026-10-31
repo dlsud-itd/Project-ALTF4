@@ -7,9 +7,9 @@
           <div class="success-icon">
             <i class="pi pi-check"></i>
           </div>
-          <h2>Appointment Confirmed!</h2>
+          <h2>{{ rescheduleSuccess() ? 'Appointment Rescheduled!' : 'Appointment Confirmed!' }}</h2>
           <p class="confirmation-subtitle">
-            Your clinic consultation has been successfully scheduled.
+            {{ rescheduleSuccess() ? 'Your clinic consultation has been moved to the new schedule.' : 'Your clinic consultation has been successfully scheduled.' }}
           </p>
         </div>
 
@@ -242,7 +242,11 @@
           <div class="summary-header">
             <h3>
               <i class="pi pi-ticket"></i>
-              Booking Summary
+              @if (isRescheduling()) {
+                Reschedule Summary
+              } @else {
+                Booking Summary
+              }
             </h3>
             @if (selectedSlot()) {
               <button
@@ -283,17 +287,19 @@
               </div>
 
               <!-- Appointment Reason Input -->
-              <div class="reason-preview">
-                <label for="consultation-reason">Reason for Consultation (Optional):</label>
-                <textarea
-                  id="consultation-reason"
-                  class="reason-textarea"
-                  rows="2"
-                  placeholder="e.g. Routine checkup, cold symptoms, medical requirement..."
-                  [value]="reasonForVisit()"
-                  (input)="onReasonInput($event)"
-                ></textarea>
-              </div>
+              @if (!isRescheduling()) {
+                <div class="reason-preview">
+                  <label for="consultation-reason">Reason for Consultation (Optional):</label>
+                  <textarea
+                    id="consultation-reason"
+                    class="reason-textarea"
+                    rows="2"
+                    placeholder="e.g. Routine checkup, cold symptoms, medical requirement..."
+                    [value]="reasonForVisit()"
+                    (input)="onReasonInput($event)"
+                  ></textarea>
+                </div>
+              }
 
               <!-- Error Messages for Conflict or Submission Failure -->
               @if (bookingConflictError()) {
@@ -316,7 +322,7 @@
 
               <div class="action-box">
                 <p-button
-                  label="Confirm Appointment"
+                  [label]="isRescheduling() ? 'Confirm Reschedule' : 'Confirm Appointment'"
                   icon="pi pi-check"
                   severity="primary"
                   [fluid]="true"

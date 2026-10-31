@@ -1,5 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Button } from 'primeng/button';
 import { Message } from 'primeng/message';
@@ -79,6 +79,7 @@ function parseCalendarDay(dateStr: string): CalendarDay {
 export class BookingsComponent implements OnInit {
   private readonly slotsService = inject(SlotsService);
   private readonly appointmentsService = inject(AppointmentsService);
+  private readonly route = inject(ActivatedRoute);
 
   // Single clinic doctor profile
   readonly clinicDoctor = 'Dr. Maria Santos, MD';
@@ -104,6 +105,11 @@ export class BookingsComponent implements OnInit {
   } | null>(null);
   readonly bookingConflictError = signal<string | null>(null);
   readonly bookingGeneralError = signal<string | null>(null);
+
+  // Appointment being moved when the page is opened with ?reschedule=<id>.
+  readonly rescheduleId = signal<number | null>(null);
+  readonly rescheduleSuccess = signal<boolean>(false);
+  readonly isRescheduling = computed((): boolean => this.rescheduleId() !== null);
 
   // Only bookable slots with available capacity are shown to patients
   readonly availableSlots = computed((): ClinicSlot[] => {
@@ -182,6 +188,11 @@ export class BookingsComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    const rescheduleParam = this.route.snapshot.queryParamMap.get('reschedule');
+    const rescheduleId = Number(rescheduleParam);
+    if (rescheduleParam && Number.isInteger(rescheduleId) && rescheduleId > 0) {
+      this.rescheduleId.set(rescheduleId);
+    }
     this.loadSlots();
   }
 
@@ -244,6 +255,12 @@ export class BookingsComponent implements OnInit {
     const slot = this.selectedSlot();
     if (!slot) return;
 
+    const rescheduleId = this.rescheduleId();
+    if (rescheduleId !== null) {
+      this.onConfirmReschedule(rescheduleId, slot);
+      return;
+    }
+
     this.isBooking.set(true);
     this.clearErrors();
 
@@ -282,10 +299,46 @@ export class BookingsComponent implements OnInit {
 
   onBookAnother(): void {
     this.bookingSuccess.set(null);
+    this.rescheduleSuccess.set(false);
     this.selectedSlotId.set(null);
     this.reasonForVisit.set('');
     this.clearErrors();
     this.loadSlots();
+  }
+
+  // Moves the appointment from the query parameter into the chosen slot.
+  private onConfirmReschedule(appointmentId: number, slot: DisplaySlotItem): void {
+    this.isBooking.set(true);
+    this.clearErrors();
+
+    this.appointmentsService
+      .rescheduleAppointment(appointmentId, { slotId: slot.id })
+      .subscribe({
+        next: (response): void => {
+          this.isBooking.set(false);
+          this.rescheduleSuccess.set(true);
+          this.bookingSuccess.set(response);
+          this.selectedSlotId.set(null);
+          this.rescheduleId.set(null);
+          this.loadSlots();
+        },
+        error: (err: HttpErrorResponse): void => {
+          this.isBooking.set(false);
+          if (err.status === 409) {
+            this.bookingConflictError.set(
+              getErrorMessage(
+                err,
+                'This slot is no longer available. Please select another slot.',
+              ),
+            );
+            this.loadSlots();
+          } else {
+            this.bookingGeneralError.set(
+              getErrorMessage(err, 'Failed to reschedule appointment. Please try again.'),
+            );
+          }
+        },
+      });
   }
 
   private clearErrors(): void {
