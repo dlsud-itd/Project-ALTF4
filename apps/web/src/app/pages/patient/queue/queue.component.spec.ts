@@ -432,10 +432,10 @@ describe('PatientQueueComponent', () => {
       flushStatus();
 
       tick(POLL_INTERVAL_MS);
-      flushStatus();
+      expect(http.match(statusUrl).length).toBe(1);
 
       tick(POLL_INTERVAL_MS);
-      flushStatus();
+      expect(http.match(statusUrl).length).toBe(1);
 
       fixture.destroy();
       discardPeriodicTasks();
@@ -447,7 +447,7 @@ describe('PatientQueueComponent', () => {
       flushStatus();
 
       tick(POLL_INTERVAL_MS * 3);
-      http.expectNone(statusUrl);
+      expect(http.match(statusUrl).length).toBe(0);
     }));
 
     it('should stop polling once SSE reconnects', fakeAsync(() => {
@@ -455,11 +455,11 @@ describe('PatientQueueComponent', () => {
       flushStatus();
 
       tick(POLL_INTERVAL_MS);
-      flushStatus();
+      expect(http.match(statusUrl).length).toBe(1);
 
       sse.connected.next(true);
       tick(POLL_INTERVAL_MS * 3);
-      http.expectNone(statusUrl);
+      expect(http.match(statusUrl).length).toBe(0);
     }));
   });
 
