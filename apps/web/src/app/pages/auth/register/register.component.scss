@@ -1,11 +1,55 @@
-@media (min-width: 1024px) {
-  .auth-page--split {
-    max-width: 960px;
-    flex-direction: row;
-    align-items: center;
-    gap: 64px;
+// The split layout lives in ../auth-form.scss.
+// Register is longer, so related fields share a row.
+.auth-page--split {
+  .auth-form {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
 
-    app-auth-brand { flex: 1; }
-    app-auth-card { flex: 0 0 440px; }
+    > * {
+      grid-column: span 6;
+    }
+
+    // First, middle and last name on one row.
+    > .field:nth-child(-n + 3) {
+      grid-column: span 2;
+    }
+
+    // Password and confirm password on one row.
+    > .field:nth-child(5),
+    > .field:nth-child(6) {
+      grid-column: span 3;
+    }
   }
+}
+
+// The register card is wider than the login card.
+.auth-page--split {
+  max-width: 920px;
+}
+
+:host ::ng-deep .auth-page--split app-auth-card .card {
+  max-width: 500px;
+}
+
+@media (max-width: 767px) {
+  .auth-page--split .auth-form {
+    grid-template-columns: minmax(0, 1fr);
+
+    > *,
+    > .field:nth-child(-n + 3),
+    > .field:nth-child(5),
+    > .field:nth-child(6) {
+      grid-column: span 1;
+    }
+  }
+}
+
+// Keep the register card short enough to fit without page scroll.
+:host ::ng-deep .auth-page--split app-auth-card .card .card-title {
+  font-size: 1.4rem;
+}
+
+.auth-page--split .auth-form {
+  gap: 10px 12px;
 }

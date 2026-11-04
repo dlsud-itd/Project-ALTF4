@@ -1,8 +1,69 @@
-<div class="dashboard-page">
+<!-- Header bar: title on the left, queue controls on the right -->
+<header class="page-top">
   <div class="welcome-banner">
-    <h2>Station Console • Counter {{ counterNumber() }}</h2>
-    <p>Manage patient queueing, consultations, and calling</p>
+    <h2>Station {{ counterNumber() }}</h2>
   </div>
+
+  <div class="button-row" role="group" aria-label="Counter queue controls">
+    <p-button
+      label="Call Next Patient"
+      icon="pi pi-bell"
+      severity="primary"
+      (onClick)="onCallNext()"
+    />
+    <p-button
+      label="Recall Current"
+      icon="pi pi-replay"
+      severity="secondary"
+      [outlined]="true"
+    />
+    <p-button
+      label="Complete Consultation"
+      icon="pi pi-check"
+      severity="success"
+      [outlined]="true"
+      (onClick)="onComplete()"
+    />
+  </div>
+</header>
+
+<div class="dashboard-page">
+  <!-- Quick Stats Grid -->
+  @if (isStatsLoading()) {
+    <app-loading-skeleton [lines]="3" />
+  } @else if (hasStatsError()) {
+    <app-error-state
+      title="Could not load queue stats"
+      message="Check your connection and try again."
+      (retry)="onRetryStats()"
+    />
+  } @else {
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon primary" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <div class="stat-body">
+          <span class="stat-label">Currently Serving</span>
+          <span class="stat-number primary">#{{ servingTicket() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon warning" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <div class="stat-body">
+          <span class="stat-label">Patients Waiting</span>
+          <span class="stat-number warning">{{ waitingCount() }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-icon success" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span>
+        <div class="stat-body">
+          <span class="stat-label">Completed Today</span>
+          <span class="stat-number success">{{ completedCount() }}</span>
+        </div>
+      </div>
+    </div>
+  }
 
   <!-- Profile Summary -->
   <section class="profile-card" aria-labelledby="profile-title">
@@ -24,7 +85,7 @@
         </div>
         <div>
           <dt>Shift</dt>
-          <dd>8:00 AM – 5:00 PM</dd>
+          <dd>8:00 AM &ndash; 5:00 PM</dd>
         </div>
         <div>
           <dt>Status</dt>
@@ -33,63 +94,6 @@
       </dl>
     </div>
   </section>
-
-  <!-- Quick Stats Grid -->
-  @if (isStatsLoading()) {
-    <app-loading-skeleton [lines]="3" />
-  } @else if (hasStatsError()) {
-    <app-error-state
-      title="Could not load queue stats"
-      message="Check your connection and try again."
-      (retry)="onRetryStats()"
-    />
-  } @else {
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-label">Currently Serving</span>
-        <span class="stat-number primary">#{{ servingTicket() }}</span>
-        <span class="stat-sub">Active Consultation</span>
-      </div>
-
-      <div class="stat-card">
-        <span class="stat-label">Patients Waiting</span>
-        <span class="stat-number warning">{{ waitingCount() }}</span>
-        <span class="stat-sub">In queue line</span>
-      </div>
-
-      <div class="stat-card">
-        <span class="stat-label">Completed Today</span>
-        <span class="stat-number success">{{ completedCount() }}</span>
-        <span class="stat-sub">Consultations done</span>
-      </div>
-    </div>
-  }
-
-  <!-- Operations Panel -->
-  <div class="action-panel">
-    <h3>Counter Queue Controls</h3>
-    <div class="button-row">
-      <p-button
-        label="Call Next Patient"
-        icon="pi pi-bell"
-        severity="primary"
-        (onClick)="onCallNext()"
-      />
-      <p-button
-        label="Recall Current"
-        icon="pi pi-replay"
-        severity="secondary"
-        [outlined]="true"
-      />
-      <p-button
-        label="Complete Consultation"
-        icon="pi pi-check"
-        severity="success"
-        [outlined]="true"
-        (onClick)="onComplete()"
-      />
-    </div>
-  </div>
 
   <!-- Upcoming Events -->
   <section class="placeholder-panel" aria-labelledby="events-title">
@@ -108,4 +112,3 @@
     />
   </section>
 </div>
-

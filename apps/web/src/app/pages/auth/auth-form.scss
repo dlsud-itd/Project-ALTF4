@@ -1,12 +1,134 @@
-.auth-page {
+// Shared by the login and register pages.
+// Full-screen split: teal brand panel on the left (logo only),
+// white form panel on the right.
+
+$petrol: #075a5b;
+$petrol-deep: #043536;
+$field-bg: #f3f6f5;
+
+:host {
+  display: block;
   width: 100%;
-  max-width: 440px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
-.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.auth-page {
+  width: 100%;
+  max-width: 920px;
+  min-height: 545px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+  margin: 0 auto;
+  background: transparent;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow:
+    0 30px 70px rgb(0 0 0 / 0.38),
+    0 8px 20px rgb(0 0 0 / 0.22);
+}
+
+// ---------- Left brand panel: logo only, top center ----------
+.auth-aside {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2rem 1rem;
+  min-height: 0;
+  background: transparent;
+
+  // Teal gradient with a soft highlight, like the reference.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      circle at 50% 8%,
+      rgb(21 155 154 / 0.5) 0%,
+      rgb(11 119 119 / 0.5) 42%,
+      rgb(7 90 91 / 0.5) 75%,
+      rgb(4 53 54 / 0.5) 100%
+    );
+    backdrop-filter: blur(6px);
+  }
+}
+
+// The brand component is inline-styled, so it is restyled from here.
+:host ::ng-deep .auth-aside .brand {
+  align-items: center;
+  text-align: center;
+
+  .brand-logo {
+    width: 96px;
+    height: 96px;
+    border-radius: 0;
+    background: url('/Logo-white.png') center / contain no-repeat;
+    box-shadow: none;
+
+    i {
+      display: none;
+    }
+  }
+
+  .brand-name {
+    margin: 0.5rem 0 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-align: center;
+    text-transform: uppercase;
+    color: #ffffff;
+  }
+
+  .brand-tagline {
+    display: none !important;
+  }
+}
+
+// ---------- Right form panel ----------
+app-auth-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 2rem 2rem;
+}
+
+:host ::ng-deep app-auth-card .card {
+  width: 100%;
+  max-width: 400px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  .card-title {
+    margin-bottom: 0.35rem;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: $petrol-deep;
+  }
+}
+
+.auth-subtitle {
+  margin-bottom: 1.1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 .field {
   display: flex;
@@ -14,41 +136,16 @@
   gap: 6px;
 
   label,
-  .field-label { font-size: 0.875rem; font-weight: 500; color: var(--text-main); }
-}
-
-.field-error { font-size: 0.8125rem; color: var(--danger-color); }
-
-.auth-footer {
-  margin-top: 14px;
-  text-align: center;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-
-  a { color: var(--auth-primary); font-weight: 600; text-decoration: none; }
-}
-
-.forgot-link {
-  align-self: center;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--auth-primary);
-  text-decoration: none;
-}
-
-
-:host ::ng-deep {
-  .p-password,
-  .p-password-input,
-  .p-button { width: 100%; }
-
-  input.p-inputtext,
-  .p-password-input { background: var(--auth-input-bg); }
-
-  .auth-submit.p-button {
-    background: var(--auth-primary);
-    border-color: var(--auth-primary);
+  .field-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: $petrol-deep;
   }
+}
+
+.field-error {
+  font-size: 0.8125rem;
+  color: var(--danger-color);
 }
 
 p-message {
@@ -56,16 +153,175 @@ p-message {
   margin-bottom: 14px;
 }
 
+.forgot-link {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $petrol-deep;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-footer {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+
+  a {
+    color: $petrol-deep;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+// Soft grey rounded inputs and a big petrol pill button.
 :host ::ng-deep {
   .p-password,
   .p-password-input,
-  .p-button { width: 100%; }
+  .p-button {
+    width: 100%;
+  }
 
   input.p-inputtext,
-  .p-password-input { background: var(--auth-input-bg); }
+  .p-password-input {
+    padding: 0.65rem 0.9rem;
+    background: $field-bg;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    box-shadow: none;
+    color: $petrol-deep;
+
+    &::placeholder {
+      color: #8aa3a3;
+    }
+
+    &:focus {
+      border-color: var(--auth-primary);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgb(11 119 119 / 0.14);
+    }
+
+    // Keep browser autofill neutral instead of blue.
+    &:-webkit-autofill {
+      -webkit-box-shadow: 0 0 0 1000px $field-bg inset;
+      -webkit-text-fill-color: $petrol-deep;
+    }
+  }
 
   .auth-submit.p-button {
-    background: var(--auth-primary);
-    border-color: var(--auth-primary);
+    margin-top: 4px;
+    padding: 0.75rem 1.25rem;
+    border-radius: 999px;
+    background: $petrol;
+    border-color: $petrol;
+    font-weight: 600;
+    box-shadow: 0 8px 18px rgb(7 90 91 / 0.28);
+
+    &:hover {
+      background: $petrol-deep;
+      border-color: $petrol-deep;
+    }
+  }
+
+  // Affiliation toggle on the register page: teal instead of blue.
+  app-affiliation-selector {
+    --p-togglebutton-checked-background: #e4f2ef;
+    --p-togglebutton-hover-background: #f3f6f5;
+  }
+}
+
+// ---------- Narrow screens: logo banner on top, form below ----------
+@media (max-width: 767px) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr);
+    border-radius: 20px;
+  }
+
+  .auth-aside {
+    min-height: 0;
+    padding: 1.75rem 1.5rem;
+  }
+
+  :host ::ng-deep .auth-aside .brand .brand-logo {
+    width: 72px;
+    height: 72px;
+  }
+
+  app-auth-card {
+    padding: 2rem 1.25rem 2.5rem;
+  }
+}
+
+// ---------- Left panel: logo and title centered, with room to breathe ----------
+.auth-aside {
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+:host ::ng-deep .auth-aside .brand {
+  gap: 0.5rem;
+
+  .brand-logo {
+    width: 112px;
+    height: 112px;
+  }
+
+  .brand-name {
+    margin-top: 0.75rem;
+    font-size: 1.2rem;
+  }
+}
+
+// ---------- Login form: larger (the longer register form keeps its size) ----------
+:host ::ng-deep .auth-page:not(.auth-page--split) app-auth-card .card {
+  max-width: 440px;
+
+  .card-title {
+    font-size: 2.1rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.auth-page:not(.auth-page--split) {
+  .auth-subtitle {
+    margin-bottom: 1.6rem;
+    font-size: 1rem;
+  }
+
+  .auth-form {
+    gap: 18px;
+  }
+
+  .field {
+    gap: 8px;
+
+    label {
+      font-size: 0.9rem;
+    }
+  }
+
+  .forgot-link {
+    font-size: 0.875rem;
+  }
+
+  .auth-footer {
+    margin-top: 20px;
+    font-size: 0.9rem;
+  }
+}
+
+:host ::ng-deep .auth-page:not(.auth-page--split) {
+  input.p-inputtext,
+  .p-password-input {
+    padding: 0.9rem 1.1rem;
+    font-size: 1rem;
+  }
+
+  .auth-submit.p-button {
+    margin-top: 6px;
+    padding: 1rem 1.25rem;
+    font-size: 1.05rem;
   }
 }

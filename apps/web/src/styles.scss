@@ -2,22 +2,24 @@
 @import "primeicons/primeicons.css";
 
 :root {
-  --primary-color: #0d9488;
-  --primary-hover: #0f766e;
-  --primary-light: #f0fdfa;
-  --secondary-color: #3b82f6;
-  --success-color: #10b981;
+  // Brand palette: #075A5B deep petrol, #0B7777 dark teal, #159B9A turquoise,
+  // #72B9B2 seafoam, #B8DCD3 pale aqua, #F0F0E6 warm off-white.
+  --primary-color: #0b7777;
+  --primary-hover: #075a5b;
+  --primary-light: #e9f4f1;
+  --secondary-color: #72b9b2;
+  --success-color: #159b9a;
   --warning-color: #f59e0b;
   --danger-color: #ef4444;
   --surface-0: #ffffff;
-  --surface-50: #f8fafc;
-  --surface-100: #f1f5f9;
-  --surface-200: #e2e8f0;
-  --surface-300: #cbd5e1;
-  --surface-700: #334155;
-  --surface-900: #0f172a;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
+  --surface-50: #f0f0e6;
+  --surface-100: #e6ebe3;
+  --surface-200: #d3e1db;
+  --surface-300: #b8dcd3;
+  --surface-700: #0b7777;
+  --surface-900: #075a5b;
+  --text-main: #075a5b;
+  --text-muted: #4a7576;
   --border-radius: 8px;
   --box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --box-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -30,7 +32,8 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: "cv11", "ss01";
   color: var(--text-main);
   background-color: var(--surface-50);
   line-height: 1.5;
@@ -45,4 +48,31 @@ a {
 button {
   cursor: pointer;
   font-family: inherit;
+}
+
+/* Point PrimeNG's primary and success (green) scales at the brand palette. */
+:root:root {
+  --p-primary-50: #eef7f5;
+  --p-primary-100: #e9f4f1;
+  --p-primary-200: #b8dcd3;
+  --p-primary-300: #72b9b2;
+  --p-primary-400: #159b9a;
+  --p-primary-500: #0b7777;
+  --p-primary-600: #075a5b;
+  --p-primary-700: #064a4b;
+  --p-primary-800: #053f40;
+  --p-primary-900: #043536;
+  --p-primary-950: #032a2b;
+
+  --p-green-50: #eef7f5;
+  --p-green-100: #e9f4f1;
+  --p-green-200: #b8dcd3;
+  --p-green-300: #72b9b2;
+  --p-green-400: #3fb0ae;
+  --p-green-500: #159b9a;
+  --p-green-600: #0b7777;
+  --p-green-700: #075a5b;
+  --p-green-800: #064a4b;
+  --p-green-900: #053f40;
+  --p-green-950: #043536;
 }

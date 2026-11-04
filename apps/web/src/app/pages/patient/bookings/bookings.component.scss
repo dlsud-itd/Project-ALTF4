@@ -709,3 +709,58 @@
     }
   }
 }
+
+// ================= Staff-style design =================
+
+// Banner becomes the rounded deep petrol header box.
+.bookings-banner {
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
+  background: var(--surface-900);
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgb(7 90 91 / 0.18);
+
+  .banner-text {
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+      margin-bottom: 0.15rem;
+    }
+
+    p {
+      color: var(--surface-300);
+      font-size: 0.9rem;
+    }
+  }
+
+  .banner-badge {
+    background: #ffffff;
+    border-color: #ffffff;
+    border-radius: 12px;
+    color: var(--surface-900);
+  }
+}
+
+// White cards with a deep petrol border.
+.doctor-banner-card,
+.date-selector-section,
+.summary-card,
+.guidelines-card,
+.confirmation-card {
+  border: 1px solid var(--surface-900);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+}
+
+.slot-card {
+  border-radius: 16px;
+}
+
+@include bp.below-tablet {
+  .bookings-banner {
+    padding: 1.25rem 1rem;
+    border-radius: 16px;
+  }
+}

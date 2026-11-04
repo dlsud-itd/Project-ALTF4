@@ -1,10 +1,18 @@
+<!-- Header box: title on the left, booking action on the right -->
+<header class="page-top">
+  <div class="welcome-banner">
+    <h2>Welcome, {{ patientName() }}</h2>
+  </div>
+
+  <div class="button-row">
+    <a routerLink="/patient/bookings">
+      <p-button label="Book Appointment" icon="pi pi-calendar-plus" />
+    </a>
+  </div>
+</header>
+
 <div class="dashboard-page">
   <p-confirmdialog />
-
-  <div class="welcome-banner">
-    <h2>Welcome, {{ patientName() }}! 👋</h2>
-    <p>DLSU-D Health Services Clinic Queue & Consultation Portal</p>
-  </div>
 
   <!-- Quick Status / Cards Grid -->
   <div class="cards-grid">
@@ -23,13 +31,13 @@
           <i class="pi pi-ticket"></i>
         </div>
         <div class="card-content">
-          <h3>Your Queue Status</h3>
+          <h3>Your Queue</h3>
           @if (currentTicket()) {
-            <p class="status-highlight">Ticket #{{ currentTicket() }}</p>
+            <p class="status-highlight">{{ currentTicket() }}</p>
             <span class="status-hint">You are in queue. Estimated wait: 10 mins</span>
           } @else {
             <p class="status-value">No Active Ticket</p>
-            <span class="status-hint">You are not currently in the clinic queue.</span>
+            <span class="status-hint">Not currently in queue</span>
           }
         </div>
 
@@ -44,8 +52,7 @@
           />
         } @else {
           <p-button
-            label="Join Clinic Queue"
-            icon="pi pi-plus"
+            label="Join Queue"
             size="small"
             (onClick)="onJoinQueue()"
           />
@@ -60,8 +67,9 @@
       </div>
       <div class="card-content">
         <h3>Now Serving</h3>
-        <p class="status-highlight">Ticket #{{ nowServingTicket() }}</p>
-        <span class="status-hint">Counter 1 • General Consultation</span>
+        <p class="status-highlight">{{ nowServingTicket() }}</p>
+        <span class="status-hint">Counter 1</span>
+        <span class="status-hint">General Consultation</span>
       </div>
     </div>
 
@@ -72,8 +80,9 @@
       </div>
       <div class="card-content">
         <h3>Clinic Schedule</h3>
-        <p class="schedule-text">Mon - Fri: 8:00 AM - 5:00 PM</p>
-        <span class="status-hint">University Health Clinic, Ground Floor</span>
+        <p class="schedule-text">8 AM &ndash; 5 PM</p>
+        <span class="status-hint">Monday &ndash; Friday</span>
+        <span class="status-hint">Ground Floor</span>
       </div>
     </div>
   </div>
@@ -88,13 +97,6 @@
         </h3>
         <p class="section-desc">Manage upcoming consultations and view available doctor slots</p>
       </div>
-      <a routerLink="/patient/bookings">
-        <p-button
-          label="Book Appointment"
-          icon="pi pi-calendar-plus"
-          size="small"
-        />
-      </a>
     </div>
 
     @if (actionSuccess()) {
