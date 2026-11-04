@@ -1,7 +1,21 @@
-<!-- Header band: page title -->
+<!-- Header band: page title, live pill and refresh -->
 <header class="page-top">
   <div class="welcome-banner">
     <h2>Your Queue</h2>
+  </div>
+
+  <div class="header-actions">
+    <span class="live-pill" [class.is-live]="isLive()" role="status">
+      <span class="pill-dot"></span>
+      {{ isLive() ? 'Live' : 'Offline' }}
+    </span>
+    <p-button
+      class="refresh-button"
+      label="Refresh"
+      icon="pi pi-refresh"
+      [loading]="isRefreshing()"
+      (onClick)="onRefresh()"
+    />
   </div>
 </header>
 
@@ -13,11 +27,16 @@
         <div class="card-icon">
           <i class="pi pi-ticket"></i>
         </div>
-        <p-tag
-          class="entry-status"
-          [value]="statusLabel()"
-          [severity]="statusSeverity()"
-        />
+        <div class="ticket-badges">
+          <!-- TODO(Lim, Jereign): remove once the "my entry" endpoint
+               exists -->
+          <span class="sample-label">Sample data</span>
+          <p-tag
+            class="entry-status"
+            [value]="statusLabel()"
+            [severity]="statusSeverity()"
+          />
+        </div>
       </div>
 
       <h3 class="card-label">Ticket Number</h3>
@@ -64,39 +83,68 @@
       }
     </section>
 
-    <!-- Queue Summary Card -->
+    <!-- Queue Summary Card (real data) -->
     <section class="queue-card summary-card" aria-label="Queue summary">
       <h3 class="card-label">Queue Summary</h3>
 
-      <ul class="summary-list">
-        <li class="summary-item">
-          <span class="summary-icon">
-            <i class="pi pi-megaphone"></i>
-          </span>
-          <span class="summary-text">
-            <span class="summary-key">Now Serving</span>
-            <span class="summary-value">{{ summary().nowServing }}</span>
-          </span>
-        </li>
-        <li class="summary-item">
-          <span class="summary-icon waiting-icon">
-            <i class="pi pi-users"></i>
-          </span>
-          <span class="summary-text">
-            <span class="summary-key">Patients Waiting</span>
-            <span class="summary-value">{{ summary().patientsWaiting }}</span>
-          </span>
-        </li>
-        <li class="summary-item">
-          <span class="summary-icon time-icon">
-            <i class="pi pi-clock"></i>
-          </span>
-          <span class="summary-text">
-            <span class="summary-key">Last Updated</span>
-            <span class="summary-value">{{ summary().lastUpdated }}</span>
-          </span>
-        </li>
-      </ul>
+      @if (isLoading()) {
+        <app-loading-skeleton [lines]="loadingLineCount" />
+      } @else if (hasError()) {
+        <app-error-state
+          title="Could not load the queue"
+          message="Check your connection and try again."
+          (retry)="onRetry()"
+        />
+      } @else if (hasNoQueue()) {
+        <p class="closed-note" role="status">
+          <i class="pi pi-calendar-times"></i>
+          No queue is open today
+        </p>
+      } @else if (isQueueClosed()) {
+        <p class="closed-note" role="status">
+          <i class="pi pi-lock"></i>
+          The queue is closed
+        </p>
+      } @else {
+        <ul class="summary-list">
+          <li class="summary-item">
+            <span class="summary-icon">
+              <i class="pi pi-megaphone"></i>
+            </span>
+            <span class="summary-text">
+              <span class="summary-key">Now Serving</span>
+              <span class="summary-value now-serving">
+                {{ nowServingLabel() }}
+              </span>
+              @if (summary()?.roomNumber) {
+                <span class="summary-hint">{{ summary()?.roomNumber }}</span>
+              }
+            </span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-icon waiting-icon">
+              <i class="pi pi-users"></i>
+            </span>
+            <span class="summary-text">
+              <span class="summary-key">Patients Waiting</span>
+              <span class="summary-value patients-waiting">
+                {{ summary()?.patientsWaiting }}
+              </span>
+            </span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-icon time-icon">
+              <i class="pi pi-clock"></i>
+            </span>
+            <span class="summary-text">
+              <span class="summary-key">Last Updated</span>
+              <span class="summary-value last-updated">
+                As of {{ summary()?.lastUpdated | date: 'shortTime' }}
+              </span>
+            </span>
+          </li>
+        </ul>
+      }
     </section>
   </div>
 </div>
