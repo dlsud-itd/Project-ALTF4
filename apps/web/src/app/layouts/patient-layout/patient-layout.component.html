@@ -86,6 +86,17 @@
         <span class="nav-label">Bookings</span>
       </a>
 
+      <a
+        routerLink="/patient/queue"
+        routerLinkActive="active"
+        class="nav-link"
+        [attr.title]="isCollapsed() ? 'Queue' : null"
+        (click)="closeMobileMenu()"
+      >
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-.5a5.5 5.5 0 0 1 5.5-5.5h2a5.5 5.5 0 0 1 5.5 5.5v.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20v-.5a5.5 5.5 0 0 0-3.5-5.1"/></svg>
+        <span class="nav-label">Queue</span>
+      </a>
+
       <div class="nav-section-title">Account</div>
 
       <a

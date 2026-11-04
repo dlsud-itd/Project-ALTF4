@@ -1,0 +1,102 @@
+<!-- Header band: page title -->
+<header class="page-top">
+  <div class="welcome-banner">
+    <h2>Your Queue</h2>
+  </div>
+</header>
+
+<div class="queue-page">
+  <div class="queue-grid">
+    <!-- Ticket Card -->
+    <section class="queue-card ticket-card" aria-label="Your ticket">
+      <div class="ticket-head">
+        <div class="card-icon">
+          <i class="pi pi-ticket"></i>
+        </div>
+        <p-tag
+          class="entry-status"
+          [value]="statusLabel()"
+          [severity]="statusSeverity()"
+        />
+      </div>
+
+      <h3 class="card-label">Ticket Number</h3>
+      <p class="ticket-number">{{ entry().ticketNumber }}</p>
+
+      <dl class="stat-row">
+        <div class="stat">
+          <dt>Position</dt>
+          <dd class="position-value">{{ entry().positionInQueue }}</dd>
+          <span class="stat-hint">
+            {{ peopleAhead() }}
+            {{ peopleAhead() === 1 ? 'person' : 'people' }} ahead
+          </span>
+        </div>
+        <div class="stat">
+          <dt>Estimated Wait</dt>
+          <dd class="wait-value">
+            {{ entry().estimatedWaitMinutes }}
+            <span class="unit">min</span>
+          </dd>
+          <span class="stat-hint">Approximate</span>
+        </div>
+      </dl>
+
+      <!-- Progress tracker -->
+      @if (isTerminal()) {
+        <p class="terminal-note" role="status">
+          This ticket is {{ statusLabel().toLowerCase() }}.
+        </p>
+      } @else {
+        <ol class="tracker" aria-label="Queue progress">
+          @for (step of trackerSteps(); track step.label) {
+            <li
+              class="tracker-step"
+              [class.done]="step.state === 'done'"
+              [class.current]="step.state === 'current'"
+              [attr.aria-current]="step.state === 'current' ? 'step' : null"
+            >
+              <span class="step-dot"></span>
+              <span class="step-label">{{ step.label }}</span>
+            </li>
+          }
+        </ol>
+      }
+    </section>
+
+    <!-- Queue Summary Card -->
+    <section class="queue-card summary-card" aria-label="Queue summary">
+      <h3 class="card-label">Queue Summary</h3>
+
+      <ul class="summary-list">
+        <li class="summary-item">
+          <span class="summary-icon">
+            <i class="pi pi-megaphone"></i>
+          </span>
+          <span class="summary-text">
+            <span class="summary-key">Now Serving</span>
+            <span class="summary-value">{{ summary().nowServing }}</span>
+          </span>
+        </li>
+        <li class="summary-item">
+          <span class="summary-icon waiting-icon">
+            <i class="pi pi-users"></i>
+          </span>
+          <span class="summary-text">
+            <span class="summary-key">Patients Waiting</span>
+            <span class="summary-value">{{ summary().patientsWaiting }}</span>
+          </span>
+        </li>
+        <li class="summary-item">
+          <span class="summary-icon time-icon">
+            <i class="pi pi-clock"></i>
+          </span>
+          <span class="summary-text">
+            <span class="summary-key">Last Updated</span>
+            <span class="summary-value">{{ summary().lastUpdated }}</span>
+          </span>
+        </li>
+      </ul>
+    </section>
+  </div>
+</div>
