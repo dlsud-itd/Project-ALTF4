@@ -21,74 +21,108 @@
 
 <div class="queue-page">
   <div class="queue-grid">
-    <!-- Ticket Card -->
-    <section class="queue-card ticket-card" aria-label="Your ticket">
-      <div class="ticket-head">
-        <div class="card-icon">
-          <i class="pi pi-ticket"></i>
-        </div>
-        <div class="ticket-badges">
-          <!-- TODO(Lim, Jereign): remove once the "my entry" endpoint
-               exists -->
-          <span class="sample-label">Sample data</span>
-          <p-tag
-            class="entry-status"
-            [value]="statusLabel()"
-            [severity]="statusSeverity()"
-          />
-        </div>
-      </div>
-
-      <h3 class="card-label">Ticket Number</h3>
-      <p class="ticket-number">{{ entry().ticketNumber }}</p>
-
-      <dl class="stat-row">
-        <div class="stat">
-          <dt>Position</dt>
-          <dd class="position-value">{{ entry().positionInQueue }}</dd>
-          <span class="stat-hint">
-            {{ peopleAhead() }}
-            {{ peopleAhead() === 1 ? 'person' : 'people' }} ahead
-          </span>
-        </div>
-        <div class="stat">
-          <dt>Estimated Wait</dt>
-          <dd class="wait-value">
-            {{ entry().estimatedWaitMinutes }}
-            <span class="unit">min</span>
-          </dd>
-          <span class="stat-hint">Approximate</span>
-        </div>
-      </dl>
-
-      <!-- Progress tracker -->
-      @if (isTerminal()) {
-        <p class="terminal-note" role="status">
-          This ticket is {{ statusLabel().toLowerCase() }}.
+    <div class="ticket-column">
+      @if (isNextInLine()) {
+        <p class="queue-banner next-banner" role="status">
+          <i class="pi pi-bell"></i>
+          You are next in line. Please head to the clinic.
         </p>
-      } @else {
-        <ol class="tracker" aria-label="Queue progress">
-          @for (step of trackerSteps(); track step.label) {
-            <li
-              class="tracker-step"
-              [class.done]="step.state === 'done'"
-              [class.current]="step.state === 'current'"
-              [attr.aria-current]="step.state === 'current' ? 'step' : null"
-            >
-              <span class="step-dot"></span>
-              <span class="step-label">{{ step.label }}</span>
-            </li>
-          }
-        </ol>
       }
-    </section>
+
+      @if (hasDuplicateEntry() && entry(); as current) {
+        <p class="queue-banner duplicate-banner" role="status">
+          <i class="pi pi-info-circle"></i>
+          You are already in the queue. Your current position is
+          {{ current.positionInQueue }}.
+        </p>
+      }
+
+      @if (entry(); as ticket) {
+        <!-- Ticket Card -->
+        <section class="queue-card ticket-card" aria-label="Your ticket">
+          <div class="ticket-head">
+            <div class="card-icon">
+              <i class="pi pi-ticket"></i>
+            </div>
+            <div class="ticket-badges">
+              <!-- TODO(Lim, Jereign): remove once the "my entry" endpoint
+                   exists -->
+              <span class="sample-label">Sample data</span>
+              <p-tag
+                class="entry-status"
+                [value]="statusLabel()"
+                [severity]="statusSeverity()"
+              />
+            </div>
+          </div>
+
+          <h3 class="card-label">Ticket Number</h3>
+          <p class="ticket-number">{{ ticket.ticketNumber }}</p>
+
+          <dl class="stat-row">
+            <div class="stat">
+              <dt>Position</dt>
+              <dd class="position-value">{{ ticket.positionInQueue }}</dd>
+              <span class="stat-hint">
+                {{ peopleAhead() }}
+                {{ peopleAhead() === 1 ? 'person' : 'people' }} ahead
+              </span>
+            </div>
+            <div class="stat">
+              <dt>Estimated Wait</dt>
+              <dd class="wait-value">
+                {{ ticket.estimatedWaitMinutes }}
+                <span class="unit">min</span>
+              </dd>
+              <span class="stat-hint">Approximate</span>
+            </div>
+          </dl>
+
+          <!-- Progress tracker -->
+          @if (isTerminal()) {
+            <p class="terminal-note" role="status">
+              This ticket is {{ statusLabel().toLowerCase() }}.
+            </p>
+          } @else {
+            <ol class="tracker" aria-label="Queue progress">
+              @for (step of trackerSteps(); track step.label) {
+                <li
+                  class="tracker-step"
+                  [class.done]="step.state === 'done'"
+                  [class.current]="step.state === 'current'"
+                  [attr.aria-current]="step.state === 'current' ? 'step' : null"
+                >
+                  <span class="step-dot"></span>
+                  <span class="step-label">{{ step.label }}</span>
+                </li>
+              }
+            </ol>
+          }
+        </section>
+      } @else {
+        <section class="queue-card" aria-label="Your ticket">
+          <app-empty-state
+            class="no-entry"
+            icon="pi-ticket"
+            title="You are not in the queue"
+            message="You can join the queue on the day of your appointment."
+          >
+            <a class="bookings-link" routerLink="/patient/bookings">
+              <p-button label="Go to Bookings" icon="pi pi-calendar" />
+            </a>
+          </app-empty-state>
+        </section>
+      }
+    </div>
 
     <!-- Queue Summary Card (real data) -->
     <section class="queue-card summary-card" aria-label="Queue summary">
       <h3 class="card-label">Queue Summary</h3>
 
       @if (isLoading()) {
-        <app-loading-skeleton [lines]="loadingLineCount" />
+        <div role="status" aria-label="Loading queue summary">
+          <app-loading-skeleton [lines]="loadingLineCount" />
+        </div>
       } @else if (hasError()) {
         <app-error-state
           title="Could not load the queue"

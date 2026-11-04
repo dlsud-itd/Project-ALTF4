@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import {
   EMPTY,
   Subject,
@@ -24,7 +25,11 @@ import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
 import { QueueService, SseService } from '@core/services';
 import { QueueStatus, QueueStatusResponse } from '@core/models';
-import { ErrorStateComponent, LoadingSkeletonComponent } from '@shared/ui';
+import {
+  EmptyStateComponent,
+  ErrorStateComponent,
+  LoadingSkeletonComponent,
+} from '@shared/ui';
 
 type TagSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
 
@@ -82,9 +87,10 @@ const QUEUE_NOT_FOUND_CODE = 'QUEUE_NOT_FOUND';
 const NO_ONE_SERVING_LABEL = 'None yet';
 const LOADING_LINE_COUNT = 4;
 const FIRST_POSITION = 1;
+const NO_PEOPLE_AHEAD = 0;
 
-// TODO(Lim, Jereign): replace with real data in CQ-S4-4.4.02
-const SAMPLE_QUEUE_ENTRY: SampleQueueEntry = {
+// TODO(Lim, Jereign): replace with the "my entry" endpoint
+const SAMPLE_QUEUE_ENTRY: SampleQueueEntry | null = {
   ticketNumber: 'A-014',
   status: QueueStatus.WAITING,
   positionInQueue: 3,
@@ -154,6 +160,8 @@ function isQueueNotFound(error: unknown): boolean {
     Button,
     Tag,
     DatePipe,
+    RouterLink,
+    EmptyStateComponent,
     ErrorStateComponent,
     LoadingSkeletonComponent,
   ],
@@ -173,9 +181,11 @@ export class PatientQueueComponent implements OnInit {
   readonly isLive = signal(false);
   readonly isRefreshing = signal(false);
 
-  // TODO(Lim, Jereign): replace with real data once the "my entry"
-  // endpoint exists.
-  readonly entry = signal<SampleQueueEntry>(SAMPLE_QUEUE_ENTRY);
+  // TODO(Lim, Jereign): replace with the "my entry" endpoint
+  readonly entry = signal<SampleQueueEntry | null>(SAMPLE_QUEUE_ENTRY);
+
+  // TODO(Lim, Jereign): wire to the join flow once joining exists
+  readonly hasDuplicateEntry = signal(false);
 
   readonly isLoading = computed(
     () => this.viewState() === QUEUE_VIEW_STATE.LOADING,
@@ -197,26 +207,43 @@ export class PatientQueueComponent implements OnInit {
     () => this.summary()?.nowServing ?? NO_ONE_SERVING_LABEL,
   );
 
-  readonly statusLabel = computed(() => STATUS_LABELS[this.entry().status]);
+  readonly hasEntry = computed(() => this.entry() !== null);
 
-  readonly statusSeverity = computed(
-    () => STATUS_SEVERITIES[this.entry().status],
-  );
+  readonly statusLabel = computed(() => {
+    const entry = this.entry();
+    return entry ? STATUS_LABELS[entry.status] : '';
+  });
 
-  readonly peopleAhead = computed(() =>
-    Math.max(this.entry().positionInQueue - FIRST_POSITION, 0),
-  );
+  readonly statusSeverity = computed<TagSeverity>(() => {
+    const entry = this.entry();
+    return entry ? STATUS_SEVERITIES[entry.status] : 'secondary';
+  });
 
-  readonly isTerminal = computed(() =>
-    TERMINAL_STATUSES.includes(this.entry().status),
-  );
+  readonly peopleAhead = computed(() => {
+    const entry = this.entry();
+    return entry
+      ? Math.max(entry.positionInQueue - FIRST_POSITION, 0)
+      : NO_PEOPLE_AHEAD;
+  });
+
+  readonly isTerminal = computed(() => {
+    const entry = this.entry();
+    return entry ? TERMINAL_STATUSES.includes(entry.status) : false;
+  });
 
   readonly isWaiting = computed(
-    () => this.entry().status === QueueStatus.WAITING,
+    () => this.entry()?.status === QueueStatus.WAITING,
+  );
+
+  readonly isNextInLine = computed(
+    () => this.isWaiting() && this.peopleAhead() === NO_PEOPLE_AHEAD,
   );
 
   readonly trackerSteps = computed(() => {
-    const status = this.entry().status;
+    const status = this.entry()?.status;
+    if (!status) {
+      return [];
+    }
     const activeIndex = TRACKER_STEPS.indexOf(status);
     const isFinished = status === QueueStatus.SERVED;
 

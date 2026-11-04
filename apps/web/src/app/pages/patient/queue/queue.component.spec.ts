@@ -6,6 +6,7 @@ import {
   tick,
 } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -24,6 +25,12 @@ import { PatientQueueComponent } from './queue.component';
 const QUEUE_ID = 1;
 const POLL_INTERVAL_MS = 15000;
 const SERVER_ERROR = { status: 500, statusText: 'Server Error' };
+const NEXT_IN_LINE_TEXT = 'You are next in line. Please head to the clinic.';
+const PRIVATE_NAME = 'Jane Secret';
+const PRIVATE_PHONE = '09171234567';
+const PRIVATE_EXTRA = 'Other Patient Notes';
+
+type TicketEntry = NonNullable<ReturnType<PatientQueueComponent['entry']>>;
 
 // Stand-in for SseService: no EventSource, events pushed from the tests.
 class FakeSseService {
@@ -75,6 +82,13 @@ describe('PatientQueueComponent', () => {
   const getElement = (): HTMLElement => fixture.nativeElement as HTMLElement;
   const getText = (): string => getElement().textContent ?? '';
 
+  const normalizedText = (): string => getText().replace(/\s+/g, ' ');
+
+  const setEntry = (patch: Partial<TicketEntry>): void => {
+    component.entry.update((entry) => (entry ? { ...entry, ...patch } : entry));
+    fixture.detectChanges();
+  };
+
   const expectStatusRequest = (): TestRequest => http.expectOne(statusUrl);
 
   const flushStatus = (overrides: Partial<QueueStatusResponse> = {}): void => {
@@ -88,6 +102,7 @@ describe('PatientQueueComponent', () => {
     await TestBed.configureTestingModule({
       imports: [PatientQueueComponent],
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: SseService, useValue: sse },
@@ -130,7 +145,7 @@ describe('PatientQueueComponent', () => {
 
     it('should show ticket number, position, wait and status', () => {
       const { ticketNumber, positionInQueue, estimatedWaitMinutes } =
-        component.entry();
+        component.entry() as TicketEntry;
 
       expect(getText()).toContain(ticketNumber);
       expect(
@@ -145,10 +160,10 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should compute people ahead from the position', () => {
-      component.entry.update((entry) => ({ ...entry, positionInQueue: 1 }));
+      setEntry({ positionInQueue: 1 });
       expect(component.peopleAhead()).toBe(0);
 
-      component.entry.update((entry) => ({ ...entry, positionInQueue: 4 }));
+      setEntry({ positionInQueue: 4 });
       expect(component.peopleAhead()).toBe(3);
     });
 
@@ -184,17 +199,13 @@ describe('PatientQueueComponent', () => {
       ];
 
       for (const [status, label] of expected) {
-        component.entry.update((entry) => ({ ...entry, status }));
+        setEntry({ status });
         expect(component.statusLabel()).toBe(label);
       }
     });
 
     it('should mark every step done once the ticket is completed', () => {
-      component.entry.update((entry) => ({
-        ...entry,
-        status: QueueStatus.SERVED,
-      }));
-      fixture.detectChanges();
+      setEntry({ status: QueueStatus.SERVED });
 
       const element = getElement();
       expect(element.querySelectorAll('.tracker-step.done').length).toBe(4);
@@ -203,8 +214,7 @@ describe('PatientQueueComponent', () => {
 
     it('should hide the tracker for cancelled and no-show tickets', () => {
       for (const status of [QueueStatus.CANCELLED, QueueStatus.NO_SHOW]) {
-        component.entry.update((entry) => ({ ...entry, status }));
-        fixture.detectChanges();
+        setEntry({ status });
 
         const element = getElement();
         expect(element.querySelector('.tracker')).toBeNull();
@@ -468,6 +478,228 @@ describe('PatientQueueComponent', () => {
         timestamp: '2026-11-04T02:45:00.000Z',
       });
       http.expectNone(statusUrl);
+    });
+  });
+
+  describe('no entry state', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+      flushStatus();
+      component.entry.set(null);
+      fixture.detectChanges();
+    });
+
+    it('should replace the ticket card with the empty state', () => {
+      expect(getElement().querySelector('.ticket-card')).toBeNull();
+      expect(normalizedText()).toContain('You are not in the queue');
+      expect(normalizedText()).toContain(
+        'You can join the queue on the day of your appointment.',
+      );
+    });
+
+    it('should link to bookings and offer no join button', () => {
+      const element = getElement();
+      const link = element.querySelector('.bookings-link');
+      const buttons = Array.from(element.querySelectorAll('button'));
+      const hasJoin = buttons.some((b) => /join/i.test(b.textContent ?? ''));
+
+      expect(link?.getAttribute('href')).toBe('/patient/bookings');
+      expect(hasJoin).toBeFalse();
+    });
+
+    it('should keep the summary card visible', () => {
+      expect(getElement().querySelector('.now-serving')).toBeTruthy();
+    });
+  });
+
+  describe('banners', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+      flushStatus();
+    });
+
+    it('should hide the next-in-line banner by default', () => {
+      expect(getElement().querySelector('.next-banner')).toBeNull();
+    });
+
+    it('should show the next-in-line banner when waiting and first', () => {
+      setEntry({ positionInQueue: 1 });
+
+      expect(getElement().querySelector('.next-banner')).toBeTruthy();
+      expect(normalizedText()).toContain(NEXT_IN_LINE_TEXT);
+    });
+
+    it('should hide the next-in-line banner when not waiting', () => {
+      setEntry({ positionInQueue: 1, status: QueueStatus.CALLED });
+
+      expect(getElement().querySelector('.next-banner')).toBeNull();
+    });
+
+    it('should hide the next-in-line banner when there is no entry', () => {
+      component.entry.set(null);
+      fixture.detectChanges();
+
+      expect(getElement().querySelector('.next-banner')).toBeNull();
+    });
+
+    it('should hide the duplicate banner by default', () => {
+      expect(component.hasDuplicateEntry()).toBeFalse();
+      expect(getElement().querySelector('.duplicate-banner')).toBeNull();
+    });
+
+    it('should show the duplicate banner with the current position', () => {
+      component.hasDuplicateEntry.set(true);
+      fixture.detectChanges();
+
+      expect(getElement().querySelector('.duplicate-banner')).toBeTruthy();
+      expect(normalizedText()).toContain(
+        'You are already in the queue. Your current position is 3.',
+      );
+    });
+
+    it('should hide the duplicate banner again when cleared', () => {
+      component.hasDuplicateEntry.set(true);
+      fixture.detectChanges();
+      component.hasDuplicateEntry.set(false);
+      fixture.detectChanges();
+
+      expect(getElement().querySelector('.duplicate-banner')).toBeNull();
+    });
+  });
+
+  describe('privacy', () => {
+    const withPrivateFields = <T extends object>(base: T): T =>
+      ({
+        ...base,
+        patientName: PRIVATE_NAME,
+        patient_name: PRIVATE_NAME,
+        phone: PRIVATE_PHONE,
+        phoneNumber: PRIVATE_PHONE,
+        notes: PRIVATE_EXTRA,
+      }) as T;
+
+    const expectNothingPrivate = (): void => {
+      const html = getElement().innerHTML;
+
+      for (const value of [PRIVATE_NAME, PRIVATE_PHONE, PRIVATE_EXTRA]) {
+        expect(html).not.toContain(value);
+      }
+    };
+
+    it('should not render private fields from the API response', () => {
+      fixture.detectChanges();
+      const serving = {
+        ticket_number: 'A-011',
+        called_at: '2026-11-04T02:30:00.000Z',
+        room_number: 'Counter 2',
+      };
+      expectStatusRequest().flush(
+        withPrivateFields({
+          ...buildStatus(),
+          currently_serving: withPrivateFields(serving),
+          entries: [withPrivateFields({ ticket_number: 'A-099' })],
+        }),
+      );
+      fixture.detectChanges();
+
+      expectNothingPrivate();
+      expect(getText()).not.toContain('A-099');
+    });
+
+    it('should not render private fields from SSE payloads', () => {
+      fixture.detectChanges();
+      flushStatus();
+
+      sse.called.next(
+        withPrivateFields({
+          queueId: QUEUE_ID,
+          queueEntryId: 3,
+          ticketNumber: 'A-099',
+          patientName: PRIVATE_NAME,
+          roomNumber: 'Counter 9',
+          calledAt: '2026-11-04T02:44:00.000Z',
+        }),
+      );
+      flushStatus();
+      sse.updated.next(
+        withPrivateFields({
+          queueId: QUEUE_ID,
+          ticketNumber: 'A-098',
+          status: 'WAITING',
+          totalWaiting: 7,
+          timestamp: '2026-11-04T02:45:00.000Z',
+        }),
+      );
+      flushStatus();
+
+      expectNothingPrivate();
+      expect(getText()).not.toContain('A-099');
+      expect(getText()).not.toContain('A-098');
+      expect(getText()).not.toContain('Counter 9');
+    });
+
+    it('should show only the whitelisted summary fields', () => {
+      fixture.detectChanges();
+      flushStatus();
+
+      const summary = normalizedText().split('Queue Summary')[1] ?? '';
+      expect(summary).toContain('A-011');
+      expect(summary).toContain('Counter 2');
+      expect(summary).toContain('5');
+      expect(summary).toContain('As of');
+      expect(summary).not.toContain('9');
+    });
+
+    it('should never log payloads to the console', () => {
+      const spies = (['log', 'info', 'debug'] as const).map((method) =>
+        spyOn(console, method),
+      );
+
+      fixture.detectChanges();
+      flushStatus();
+      sse.updated.next({
+        queueId: QUEUE_ID,
+        status: 'WAITING',
+        totalWaiting: 6,
+        timestamp: '2026-11-04T02:43:00.000Z',
+      });
+      flushStatus();
+      component.onRefresh();
+      expectStatusRequest().flush(null, SERVER_ERROR);
+
+      for (const spy of spies) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+    });
+
+    it('should announce banners and state messages as status', () => {
+      fixture.detectChanges();
+      expect(
+        getElement().querySelector('[role="status"] app-loading-skeleton'),
+      ).toBeTruthy();
+      flushStatus();
+
+      setEntry({ positionInQueue: 1 });
+      component.hasDuplicateEntry.set(true);
+      fixture.detectChanges();
+      expect(
+        getElement().querySelector('.next-banner')?.getAttribute('role'),
+      ).toBe('status');
+      expect(
+        getElement().querySelector('.duplicate-banner')?.getAttribute('role'),
+      ).toBe('status');
+
+      component.entry.set(null);
+      fixture.detectChanges();
+      expect(
+        getElement().querySelector('app-empty-state [role="status"]'),
+      ).toBeTruthy();
+
+      component.onRefresh();
+      flushStatus({ is_active: false });
+      expect(
+        getElement().querySelector('.closed-note')?.getAttribute('role'),
+      ).toBe('status');
     });
   });
 });
