@@ -61,13 +61,18 @@ const buildStatus = (
   clinic_date: '2026-11-04',
   is_active: true,
   currently_serving: {
+    queue_entry_id: 1,
     ticket_number: 'A-011',
+    status: QueueStatus.CALLED,
     called_at: '2026-11-04T02:30:00.000Z',
+    grace_expires_at: '2026-11-04T02:33:00.000Z',
     room_number: 'Counter 2',
   },
   total_waiting: 5,
+  waiting_tickets: [],
   total_completed_today: 9,
   avg_wait_time_minutes: 5,
+  server_time: '2026-11-04T02:42:00.000Z',
   last_updated: '2026-11-04T02:42:00.000Z',
   ...overrides,
 });
@@ -193,6 +198,7 @@ describe('PatientQueueComponent', () => {
         [QueueStatus.WAITING, 'Waiting'],
         [QueueStatus.CALLED, 'Called'],
         [QueueStatus.IN_SERVICE, 'In consultation'],
+        [QueueStatus.DONE, 'Completed'],
         [QueueStatus.SERVED, 'Completed'],
         [QueueStatus.CANCELLED, 'Cancelled'],
         [QueueStatus.NO_SHOW, 'No-show'],
@@ -205,7 +211,7 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should mark every step done once the ticket is completed', () => {
-      setEntry({ status: QueueStatus.SERVED });
+      setEntry({ status: QueueStatus.DONE });
 
       const element = getElement();
       expect(element.querySelectorAll('.tracker-step.done').length).toBe(4);
@@ -357,15 +363,17 @@ describe('PatientQueueComponent', () => {
         queueId: QUEUE_ID,
         queueEntryId: 3,
         ticketNumber: 'A-012',
-        patientName: 'Jane Secret',
         roomNumber: 'Counter 2',
         calledAt: '2026-11-04T02:44:00.000Z',
       });
 
       flushStatus({
         currently_serving: {
+          queue_entry_id: 3,
           ticket_number: 'A-012',
+          status: QueueStatus.CALLED,
           called_at: '2026-11-04T02:44:00.000Z',
+          grace_expires_at: '2026-11-04T02:47:00.000Z',
           room_number: 'Counter 2',
         },
       });
@@ -374,12 +382,11 @@ describe('PatientQueueComponent', () => {
       );
     });
 
-    it('should never display patientName from an event', () => {
+    it('should not display personal data from a called event', () => {
       sse.called.next({
         queueId: QUEUE_ID,
         queueEntryId: 3,
         ticketNumber: 'A-012',
-        patientName: 'Jane Secret',
         roomNumber: 'Counter 2',
         calledAt: '2026-11-04T02:44:00.000Z',
       });

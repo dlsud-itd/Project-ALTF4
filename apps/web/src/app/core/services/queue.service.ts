@@ -11,6 +11,7 @@ import {
   CallNextResponse,
   UpdateEntryStatusRequest,
   UpdateEntryStatusResponse,
+  TrackingStatusResponse,
 } from '../models/queue.models';
 
 @Injectable({
@@ -29,6 +30,20 @@ export class QueueService {
 
   joinWalkIn(queueId: number, req: WalkInRequest): Observable<WalkInResponse> {
     return this.http.post<WalkInResponse>(`${this.apiConfig.apiUrl}/queues/${queueId}/walk-in`, req);
+  }
+
+  trackByToken(token: string): Observable<TrackingStatusResponse> {
+    return this.http.get<TrackingStatusResponse>(
+      `${this.apiConfig.apiUrl}/queues/track/${encodeURIComponent(token)}`,
+    );
+  }
+
+  generateStaffQueueNumber(queueId: number, req: WalkInRequest): Observable<WalkInResponse> {
+    return this.http.post<WalkInResponse>(
+      `${this.apiConfig.apiUrl}/queues/${queueId}/staff-generated`,
+      req,
+      { headers: this.authService.getAuthHeaders() },
+    );
   }
 
   callNext(queueId: number, req: CallNextRequest): Observable<CallNextResponse> {

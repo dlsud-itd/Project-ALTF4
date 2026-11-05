@@ -11,7 +11,12 @@ import {
   MessageEvent,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AccessRole } from '@prisma/client';
 import { QueueService } from './queue.service';
 import { WalkInDto } from './dto/walk-in.dto';
@@ -29,18 +34,37 @@ export class QueueController {
 
   // Streams real-time queue notifications and call events to clients via Server-Sent Events.
   @Sse(':queueId/events')
-  @ApiOperation({ summary: 'Stream real-time queue events via Server-Sent Events' })
-  @ApiResponse({ status: 200, description: 'Stream of queue events (queue:updated, queue:called)' })
+  @ApiOperation({
+    summary: 'Stream real-time queue events via Server-Sent Events',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stream of queue events (queue:updated, queue:called)',
+  })
   streamEvents(
     @Param('queueId', ParseIntPipe) queueId: number,
   ): Observable<MessageEvent> {
     return this.queueService.getQueueEvents(queueId);
   }
 
+  // Registers an online queue entry for an existing user or registered patient.
+  @Post(':queueId/online')
+  @ApiOperation({ summary: 'Join online queue' })
+  @ApiResponse({ status: 201, description: 'Online queue entry created' })
+  async joinOnline(
+    @Param('queueId', ParseIntPipe) queueId: number,
+    @Body() dto: WalkInDto,
+  ) {
+    return this.queueService.joinOnline(queueId, dto);
+  }
+
   // Registers a walk-in patient, issues a sequential ticket, and enqueues the entry.
   @Post(':queueId/walk-in')
   @ApiOperation({ summary: 'Join walk-in queue session' })
-  @ApiResponse({ status: 201, description: 'Queue entry created and sequential ticket assigned' })
+  @ApiResponse({
+    status: 201,
+    description: 'Queue entry created and sequential ticket assigned',
+  })
   @ApiResponse({ status: 400, description: 'Queue closed or invalid data' })
   @ApiResponse({ status: 404, description: 'Queue session not found' })
   async joinWalkIn(
@@ -48,6 +72,36 @@ export class QueueController {
     @Body() dto: WalkInDto,
   ) {
     return this.queueService.joinWalkIn(queueId, dto);
+  }
+
+  @Post(':queueId/staff-generated')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Create a staff-generated queue number for a patient present on-site',
+  })
+  async joinStaffGenerated(
+    @Param('queueId', ParseIntPipe) queueId: number,
+    @Body() dto: WalkInDto,
+  ) {
+    return this.queueService.joinStaffGenerated(queueId, dto);
+  }
+
+  @Get('track/:trackingToken')
+  @ApiOperation({ summary: 'Look up queue status by tracking token' })
+  async getTrackingStatus(@Param('trackingToken') trackingToken: string) {
+    return this.queueService.getTrackingStatus(trackingToken);
+  }
+
+  @Get(':queueId/track/:trackingToken')
+  @ApiOperation({ summary: 'Look up queue status by queue and tracking token' })
+  async getTrackingStatusForQueue(
+    @Param('queueId', ParseIntPipe) queueId: number,
+    @Param('trackingToken') trackingToken: string,
+  ) {
+    return this.queueService.getTrackingStatus(trackingToken);
   }
 
   // Retrieves real-time summary statistics, current serving ticket, and waiting counts.
@@ -64,7 +118,9 @@ export class QueueController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Advance queue and call next patient (Staff/Admin)' })
+  @ApiOperation({
+    summary: 'Advance queue and call next patient (Staff/Admin)',
+  })
   @ApiResponse({ status: 200, description: 'Next patient called successfully' })
   @ApiResponse({ status: 400, description: 'No waiting patients in queue' })
   async callNext(
@@ -79,7 +135,9 @@ export class QueueController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update status of specific queue entry (Staff/Admin)' })
+  @ApiOperation({
+    summary: 'Update status of specific queue entry (Staff/Admin)',
+  })
   @ApiResponse({ status: 200, description: 'Queue entry updated successfully' })
   async updateEntryStatus(
     @Param('queueId', ParseIntPipe) queueId: number,

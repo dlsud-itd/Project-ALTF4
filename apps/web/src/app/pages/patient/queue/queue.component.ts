@@ -101,6 +101,7 @@ const STATUS_LABELS: Record<QueueStatus, string> = {
   [QueueStatus.WAITING]: 'Waiting',
   [QueueStatus.CALLED]: 'Called',
   [QueueStatus.IN_SERVICE]: 'In consultation',
+  [QueueStatus.DONE]: 'Completed',
   [QueueStatus.SERVED]: 'Completed',
   [QueueStatus.CANCELLED]: 'Cancelled',
   [QueueStatus.NO_SHOW]: 'No-show',
@@ -110,6 +111,7 @@ const STATUS_SEVERITIES: Record<QueueStatus, TagSeverity> = {
   [QueueStatus.WAITING]: 'warn',
   [QueueStatus.CALLED]: 'info',
   [QueueStatus.IN_SERVICE]: 'info',
+  [QueueStatus.DONE]: 'success',
   [QueueStatus.SERVED]: 'success',
   [QueueStatus.CANCELLED]: 'danger',
   [QueueStatus.NO_SHOW]: 'secondary',
@@ -120,7 +122,7 @@ const TRACKER_STEPS: readonly QueueStatus[] = [
   QueueStatus.WAITING,
   QueueStatus.CALLED,
   QueueStatus.IN_SERVICE,
-  QueueStatus.SERVED,
+  QueueStatus.DONE,
 ];
 
 const TERMINAL_STATUSES: readonly QueueStatus[] = [
@@ -245,7 +247,8 @@ export class PatientQueueComponent implements OnInit {
       return [];
     }
     const activeIndex = TRACKER_STEPS.indexOf(status);
-    const isFinished = status === QueueStatus.SERVED;
+    const isFinished =
+      status === QueueStatus.DONE || status === QueueStatus.SERVED;
 
     return TRACKER_STEPS.map((step, index) => {
       let state: TrackerStepState = 'upcoming';
