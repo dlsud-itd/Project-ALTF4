@@ -34,7 +34,16 @@
           <h3>Your Queue</h3>
           @if (currentTicket()) {
             <p class="status-highlight">{{ currentTicket() }}</p>
-            <span class="status-hint">You are in queue. Estimated wait: {{ estimatedWaitMinutes() }} mins</span>
+            <span class="status-hint">
+              @if (positionInQueue() === 1) {
+                You are next in line!
+              } @else if (positionInQueue() !== null && patientsAhead() > 0) {
+                <strong>{{ patientsAhead() }}</strong> {{ patientsAhead() === 1 ? 'patient' : 'patients' }} ahead of you
+              } @else {
+                You are in queue.
+              }
+              &bull; ~{{ estimatedWaitMinutes() }} mins wait
+            </span>
           } @else {
             <p class="status-value">No Active Ticket</p>
             <span class="status-hint">Not currently in queue</span>
@@ -46,14 +55,14 @@
 
         @if (currentTicket()) {
           <p-button
-            label="Cancel Ticket"
+            label="Cancel Appointment"
             icon="pi pi-times"
             severity="danger"
             [outlined]="true"
             size="small"
             (onClick)="onLeaveQueue()"
           />
-        } @else {
+        } @else if (upcomingAppointments().length > 0) {
           <p-button
             label="Join Queue"
             icon="pi pi-ticket"
@@ -61,6 +70,15 @@
             [loading]="isJoiningQueue()"
             (onClick)="onJoinQueue()"
           />
+        } @else {
+          <a routerLink="/patient/bookings">
+            <p-button
+              label="Book to Queue"
+              icon="pi pi-calendar-plus"
+              size="small"
+              [outlined]="true"
+            />
+          </a>
         }
       }
     </div>
@@ -160,6 +178,26 @@
                   <i class="pi pi-map-marker"></i>
                   <span>DLSU-D University Health Services Clinic</span>
                 </div>
+
+                @if (appt.reservedQueueEntry) {
+                  <div class="queue-reservation-banner">
+                    <div class="reservation-badge">
+                      <i class="pi pi-ticket"></i>
+                      <span class="ticket-tag">Reserved Ticket: <strong>{{ appt.reservedQueueEntry.ticketNumber }}</strong></span>
+                    </div>
+                    <div class="reservation-wait">
+                      <i class="pi pi-users"></i>
+                      <span>
+                        @if (appt.reservedQueueEntry.positionInQueue <= 1) {
+                          You are next in line!
+                        } @else {
+                          {{ appt.reservedQueueEntry.positionInQueue - 1 }} patient(s) ahead of you
+                        }
+                        &bull; ~{{ appt.reservedQueueEntry.estimatedWaitMinutes }} min wait
+                      </span>
+                    </div>
+                  </div>
+                }
               </div>
 
               <div class="appointment-footer">

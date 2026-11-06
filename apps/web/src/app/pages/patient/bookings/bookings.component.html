@@ -36,6 +36,14 @@
             <span class="label">Status:</span>
             <span class="value"><p-tag value="Confirmed" severity="success" /></span>
           </div>
+          @if (success.appointment.reservedQueueEntry; as queue) {
+            <div class="detail-row">
+              <span class="label">Reserved Ticket:</span>
+              <span class="value highlight">
+                {{ queue.ticketNumber }} ({{ queue.positionInQueue === 1 ? 'Next in line' : (queue.positionInQueue - 1) + ' patient(s) ahead' }} &bull; ~{{ queue.estimatedWaitMinutes }} mins wait)
+              </span>
+            </div>
+          }
         </div>
 
         <div class="confirmation-actions">

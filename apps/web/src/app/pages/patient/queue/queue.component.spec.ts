@@ -84,6 +84,8 @@ describe('PatientQueueComponent', () => {
   let sse: FakeSseService;
   let statusUrl: string;
 
+  let myEntryUrl: string;
+
   const getElement = (): HTMLElement => fixture.nativeElement as HTMLElement;
   const getText = (): string => getElement().textContent ?? '';
 
@@ -99,6 +101,14 @@ describe('PatientQueueComponent', () => {
   const flushStatus = (overrides: Partial<QueueStatusResponse> = {}): void => {
     expectStatusRequest().flush(buildStatus(overrides));
     fixture.detectChanges();
+  };
+
+  const flushMyEntry = (entry: any = null): void => {
+    const req = http.match(myEntryUrl);
+    if (req.length > 0) {
+      req[0].flush(entry);
+      fixture.detectChanges();
+    }
   };
 
   beforeEach(async () => {
@@ -117,11 +127,16 @@ describe('PatientQueueComponent', () => {
     http = TestBed.inject(HttpTestingController);
     const apiUrl = TestBed.inject(ApiConfigService).apiUrl;
     statusUrl = `${apiUrl}/queues/${QUEUE_ID}/status`;
+    myEntryUrl = `${apiUrl}/queues/${QUEUE_ID}/my-entry`;
     fixture = TestBed.createComponent(PatientQueueComponent);
     component = fixture.componentInstance;
   });
 
   afterEach(() => {
+    // Flush any pending my-entry calls
+    const pendingMyEntry = http.match(myEntryUrl);
+    pendingMyEntry.forEach((req) => req.flush(null));
+
     fixture.destroy();
     http.verify();
   });
@@ -130,6 +145,15 @@ describe('PatientQueueComponent', () => {
     beforeEach(() => {
       fixture.detectChanges();
       flushStatus();
+      flushMyEntry({
+        queue_entry_id: 14,
+        queue_id: 1,
+        ticket_number: 'A-014',
+        position_in_queue: 3,
+        estimated_wait_minutes: 15,
+        status: QueueStatus.WAITING,
+        joined_at: new Date().toISOString(),
+      });
     });
 
     it('should create', () => {
@@ -140,12 +164,6 @@ describe('PatientQueueComponent', () => {
       expect(getElement().querySelector('.page-top h2')?.textContent).toContain(
         'Your Queue',
       );
-    });
-
-    it('should label the ticket card as sample data', () => {
-      expect(
-        getElement().querySelector('.sample-label')?.textContent,
-      ).toContain('Sample data');
     });
 
     it('should show ticket number, position, wait and status', () => {
@@ -523,6 +541,15 @@ describe('PatientQueueComponent', () => {
     beforeEach(() => {
       fixture.detectChanges();
       flushStatus();
+      flushMyEntry({
+        queue_entry_id: 14,
+        queue_id: 1,
+        ticket_number: 'A-014',
+        position_in_queue: 3,
+        estimated_wait_minutes: 15,
+        status: QueueStatus.WAITING,
+        joined_at: new Date().toISOString(),
+      });
     });
 
     it('should hide the next-in-line banner by default', () => {
@@ -555,6 +582,7 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should show the duplicate banner with the current position', () => {
+      setEntry({ positionInQueue: 3 });
       component.hasDuplicateEntry.set(true);
       fixture.detectChanges();
 
@@ -565,6 +593,7 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should hide the duplicate banner again when cleared', () => {
+      setEntry({ positionInQueue: 3 });
       component.hasDuplicateEntry.set(true);
       fixture.detectChanges();
       component.hasDuplicateEntry.set(false);
@@ -686,7 +715,12 @@ describe('PatientQueueComponent', () => {
       ).toBeTruthy();
       flushStatus();
 
-      setEntry({ positionInQueue: 1 });
+      component.entry.set({
+        ticketNumber: 'A-001',
+        status: QueueStatus.WAITING,
+        positionInQueue: 1,
+        estimatedWaitMinutes: 5,
+      });
       component.hasDuplicateEntry.set(true);
       fixture.detectChanges();
       expect(

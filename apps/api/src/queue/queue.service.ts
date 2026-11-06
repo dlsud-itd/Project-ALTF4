@@ -207,6 +207,24 @@ export class QueueService {
   }
 
   async joinOnline(queueId: number, dto: WalkInDto) {
+    // A patient must have an active booked appointment to join the online queue
+    if (dto.patientId && this.prisma.appointment?.findFirst) {
+      const activeAppointment = await this.prisma.appointment.findFirst({
+        where: {
+          patientId: dto.patientId,
+          status: 'BOOKED',
+        },
+      });
+
+      if (!activeAppointment) {
+        throw new BadRequestException({
+          code: 'NO_ACTIVE_APPOINTMENT',
+          message:
+            'You must have a confirmed booked appointment to join the queue.',
+        });
+      }
+    }
+
     return this.createQueueEntry(queueId, dto, QueueSource.ONLINE);
   }
 

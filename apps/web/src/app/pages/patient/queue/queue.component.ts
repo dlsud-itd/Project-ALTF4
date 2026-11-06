@@ -9,7 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   EMPTY,
   Subject,
@@ -24,7 +24,12 @@ import {
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
 import { QueueService, SseService } from '@core/services';
-import { QueueStatus, QueueStatusResponse } from '@core/models';
+import {
+  PatientQueueEntryResponse,
+  QueueStatus,
+  QueueStatusResponse,
+  TrackingStatusResponse,
+} from '@core/models';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
@@ -35,11 +40,12 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
 
 type TrackerStepState = 'done' | 'current' | 'upcoming';
 
-type SampleQueueEntry = {
+export type DisplayQueueEntry = {
   ticketNumber: string;
   status: QueueStatus;
   positionInQueue: number;
   estimatedWaitMinutes: number;
+  roomNumber?: string | null;
 };
 
 // Page view model mapped from the snake_case status response.
@@ -88,14 +94,6 @@ const NO_ONE_SERVING_LABEL = 'None yet';
 const LOADING_LINE_COUNT = 4;
 const FIRST_POSITION = 1;
 const NO_PEOPLE_AHEAD = 0;
-
-// TODO(Lim, Jereign): replace with the "my entry" endpoint
-const SAMPLE_QUEUE_ENTRY: SampleQueueEntry | null = {
-  ticketNumber: 'A-014',
-  status: QueueStatus.WAITING,
-  positionInQueue: 3,
-  estimatedWaitMinutes: 15,
-};
 
 const STATUS_LABELS: Record<QueueStatus, string> = {
   [QueueStatus.WAITING]: 'Waiting',
@@ -173,6 +171,7 @@ function isQueueNotFound(error: unknown): boolean {
 export class PatientQueueComponent implements OnInit {
   private readonly queueService = inject(QueueService);
   private readonly sseService = inject(SseService);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly refresh$ = new Subject<RefreshKind>();
 
@@ -183,10 +182,9 @@ export class PatientQueueComponent implements OnInit {
   readonly isLive = signal(false);
   readonly isRefreshing = signal(false);
 
-  // TODO(Lim, Jereign): replace with the "my entry" endpoint
-  readonly entry = signal<SampleQueueEntry | null>(SAMPLE_QUEUE_ENTRY);
+  // Connected to live backend queue entry
+  readonly entry = signal<DisplayQueueEntry | null>(null);
 
-  // TODO(Lim, Jereign): wire to the join flow once joining exists
   readonly hasDuplicateEntry = signal(false);
 
   readonly isLoading = computed(
@@ -265,6 +263,7 @@ export class PatientQueueComponent implements OnInit {
     this.listenForRefreshes();
     this.listenForSseEvents();
     this.pollWhileOffline();
+    this.loadEntry();
 
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
 
@@ -272,11 +271,59 @@ export class PatientQueueComponent implements OnInit {
     this.refresh(REFRESH_KIND.INITIAL);
   }
 
+  loadEntry(): void {
+    const token = this.route.snapshot.queryParamMap.get('token');
+    if (token) {
+      this.queueService.trackByToken(token).subscribe({
+        next: (res: TrackingStatusResponse) => {
+          this.entry.set({
+            ticketNumber: res.ticket_number,
+            status: res.status,
+            positionInQueue: res.position_in_queue,
+            estimatedWaitMinutes: res.time_remaining_seconds
+              ? Math.ceil(res.time_remaining_seconds / 60)
+              : res.position_in_queue * 15,
+          });
+        },
+        error: () => {
+          this.entry.set(null);
+        },
+      });
+      return;
+    }
+
+    // Authenticated patient lookup
+    this.queueService.getMyQueueEntry(CURRENT_QUEUE_ID).subscribe({
+      next: (entry: PatientQueueEntryResponse | null) => {
+        if (entry) {
+          this.entry.set({
+            ticketNumber: entry.ticket_number,
+            status: entry.status,
+            positionInQueue: entry.position_in_queue,
+            estimatedWaitMinutes: entry.estimated_wait_minutes,
+            roomNumber: entry.room_number,
+          });
+        } else {
+          this.entry.set(null);
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 409) {
+          this.hasDuplicateEntry.set(true);
+        } else {
+          this.entry.set(null);
+        }
+      },
+    });
+  }
+
   onRefresh(): void {
+    this.loadEntry();
     this.refresh(REFRESH_KIND.MANUAL);
   }
 
   onRetry(): void {
+    this.loadEntry();
     this.refresh(REFRESH_KIND.MANUAL);
   }
 
@@ -302,7 +349,10 @@ export class PatientQueueComponent implements OnInit {
   private listenForSseEvents(): void {
     merge(this.sseService.queueUpdated$, this.sseService.queueCalled$)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.refresh(REFRESH_KIND.BACKGROUND));
+      .subscribe(() => {
+        this.loadEntry();
+        this.refresh(REFRESH_KIND.BACKGROUND);
+      });
   }
 
   // Polling fallback: the timer exists only while the stream is offline.

@@ -160,8 +160,9 @@ describe('PatientDashboardComponent', () => {
     expect(confirmSpy).toHaveBeenCalled();
   });
 
-  it('should allow joining the queue online directly from the dashboard card', () => {
+  it('should allow joining the queue online directly from the dashboard card when appointment is booked', () => {
     const queueService = TestBed.inject(QueueService);
+    component.appointments.set(mockAppointments);
     component.onJoinQueue();
 
     expect(queueService.joinOnline).toHaveBeenCalled();

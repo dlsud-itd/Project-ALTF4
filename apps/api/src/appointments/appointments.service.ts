@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AccessRole, AppointmentStatus } from '@prisma/client';
+import { AccessRole, AppointmentStatus, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
@@ -77,6 +77,85 @@ export class AppointmentsService {
       },
     });
 
+    // Per Section 2 of Queue Plan: immediately assign a queue number upon booking
+    let reservedQueueEntry: {
+      ticketNumber: string;
+      queueNumber: number;
+      positionInQueue: number;
+      estimatedWaitMinutes: number;
+    } | null = null;
+
+    try {
+      const patientRecord = await this.prisma.user.findUnique({
+        where: { id: patientId },
+        select: { fullName: true },
+      });
+
+      // Find or create DailyQueue for the slot's clinic date
+      const slotDateOnly = new Date(slot.clinicDate);
+      slotDateOnly.setHours(0, 0, 0, 0);
+
+      let dailyQueue = await this.prisma.dailyQueue.findFirst({
+        where: {
+          clinicDate: slotDateOnly,
+        },
+      });
+
+      if (!dailyQueue) {
+        dailyQueue = await this.prisma.dailyQueue.create({
+          data: {
+            clinicDate: slotDateOnly,
+            isOpen: true,
+            nextNumber: 1,
+            fallbackServiceMinutes: 15,
+          },
+        });
+      }
+
+      // Atomically allocate sequential ticket number
+      const allocatedQueue = await this.prisma.dailyQueue.update({
+        where: { id: dailyQueue.id },
+        data: { nextNumber: { increment: 1 } },
+      });
+      const nextNumber = allocatedQueue.nextNumber - 1;
+      const ticketNumber = `A-${String(nextNumber).padStart(3, '0')}`;
+
+      // Create QueueEntry linked to this appointment
+      await this.prisma.queueEntry.create({
+        data: {
+          dailyQueueId: dailyQueue.id,
+          patientId,
+          appointmentId: appointment.id,
+          queueNumber: nextNumber,
+          ticketNumber,
+          source: QueueSource.ONLINE,
+          status: QueueStatus.WAITING,
+          firstName: patientRecord?.fullName ?? 'Patient',
+          reasonForVisit: dto.reasonForVisit ?? 'Scheduled Consultation',
+        },
+      });
+
+      // Calculate position in queue and wait time (patients ahead * duration)
+      const waitingAhead = await this.prisma.queueEntry.count({
+        where: {
+          dailyQueueId: dailyQueue.id,
+          status: QueueStatus.WAITING,
+          queueNumber: { lt: nextNumber },
+        },
+      });
+      const positionInQueue = waitingAhead + 1;
+      const estimatedWaitMinutes = waitingAhead * dailyQueue.fallbackServiceMinutes;
+
+      reservedQueueEntry = {
+        ticketNumber,
+        queueNumber: nextNumber,
+        positionInQueue,
+        estimatedWaitMinutes,
+      };
+    } catch {
+      // Non-blocking: if queue creation fails, booking still succeeds
+    }
+
     try {
       await this.prisma.auditLog.create({
         data: {
@@ -105,6 +184,7 @@ export class AppointmentsService {
         status: appointment.status,
         createdAt: appointment.createdAt,
         reasonForVisit: dto.reasonForVisit ?? null,
+        reservedQueueEntry,
         slot: {
           id: slot.id,
           clinicDate: slot.clinicDate.toISOString().slice(0, 10),
@@ -149,6 +229,25 @@ export class AppointmentsService {
             isBookable: true,
           },
         },
+        queueEntries: {
+          where: {
+            status: { in: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE] },
+          },
+          orderBy: { queueNumber: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            ticketNumber: true,
+            queueNumber: true,
+            status: true,
+            dailyQueueId: true,
+            dailyQueue: {
+              select: {
+                fallbackServiceMinutes: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [
         { slot: { clinicDate: 'desc' } },
@@ -156,21 +255,64 @@ export class AppointmentsService {
       ],
     });
 
+    // Populate waiting counts for any linked queue entry
+    const formattedAppointments = await Promise.all(
+      appointments.map(async (appt) => {
+        const activeEntry = appt.queueEntries?.[0] ?? null;
+        let reservedQueueEntry: {
+          ticketNumber: string;
+          queueNumber: number;
+          positionInQueue: number;
+          estimatedWaitMinutes: number;
+        } | null = null;
+
+        if (activeEntry) {
+          try {
+            const waitingAhead = await this.prisma.queueEntry.count({
+              where: {
+                dailyQueueId: activeEntry.dailyQueueId,
+                status: QueueStatus.WAITING,
+                queueNumber: { lt: activeEntry.queueNumber },
+              },
+            });
+            const positionInQueue = waitingAhead + 1;
+            const fallbackMin = activeEntry.dailyQueue?.fallbackServiceMinutes ?? 15;
+            reservedQueueEntry = {
+              ticketNumber: activeEntry.ticketNumber,
+              queueNumber: activeEntry.queueNumber,
+              positionInQueue,
+              estimatedWaitMinutes: waitingAhead * fallbackMin,
+            };
+          } catch {
+            reservedQueueEntry = {
+              ticketNumber: activeEntry.ticketNumber,
+              queueNumber: activeEntry.queueNumber,
+              positionInQueue: 1,
+              estimatedWaitMinutes: 0,
+            };
+          }
+        }
+
+        return {
+          id: appt.id,
+          status: appt.status,
+          createdAt: appt.createdAt,
+          patient: appt.patient,
+          reservedQueueEntry,
+          slot: {
+            id: appt.slot.id,
+            clinicDate: appt.slot.clinicDate.toISOString().slice(0, 10),
+            startTime: appt.slot.startTime,
+            endTime: appt.slot.endTime,
+            capacity: appt.slot.capacity,
+            isBookable: appt.slot.isBookable,
+          },
+        };
+      }),
+    );
+
     return {
-      appointments: appointments.map((appt) => ({
-        id: appt.id,
-        status: appt.status,
-        createdAt: appt.createdAt,
-        patient: appt.patient,
-        slot: {
-          id: appt.slot.id,
-          clinicDate: appt.slot.clinicDate.toISOString().slice(0, 10),
-          startTime: appt.slot.startTime,
-          endTime: appt.slot.endTime,
-          capacity: appt.slot.capacity,
-          isBookable: appt.slot.isBookable,
-        },
-      })),
+      appointments: formattedAppointments,
     };
   }
 
@@ -262,6 +404,32 @@ export class AppointmentsService {
         status: AppointmentStatus.CANCELLED,
       },
     });
+
+    // Remove any active queue entries associated with this patient for this appointment/date
+    try {
+      await this.prisma.queueEntry.updateMany({
+        where: {
+          appointmentId,
+          status: { in: [QueueStatus.WAITING, QueueStatus.CALLED] },
+        },
+        data: {
+          status: QueueStatus.CANCELLED,
+        },
+      });
+
+      // Also cancel any standalone active queue entries this patient might have
+      await this.prisma.queueEntry.updateMany({
+        where: {
+          patientId,
+          status: { in: [QueueStatus.WAITING, QueueStatus.CALLED] },
+        },
+        data: {
+          status: QueueStatus.CANCELLED,
+        },
+      });
+    } catch {
+      // Non-blocking
+    }
 
     try {
       await this.prisma.auditLog.create({
@@ -374,6 +542,66 @@ export class AppointmentsService {
         slotId: slot.id,
       },
     });
+
+    // Handle linked queue entries when rescheduled:
+    // Cancel the old date's queue entry, and issue a new queue entry for the new slot
+    try {
+      await this.prisma.queueEntry.updateMany({
+        where: {
+          appointmentId,
+          status: { in: [QueueStatus.WAITING, QueueStatus.CALLED] },
+        },
+        data: {
+          status: QueueStatus.CANCELLED,
+        },
+      });
+
+      const slotDateOnly = new Date(slot.clinicDate);
+      slotDateOnly.setHours(0, 0, 0, 0);
+
+      let dailyQueue = await this.prisma.dailyQueue.findFirst({
+        where: { clinicDate: slotDateOnly },
+      });
+
+      if (!dailyQueue) {
+        dailyQueue = await this.prisma.dailyQueue.create({
+          data: {
+            clinicDate: slotDateOnly,
+            isOpen: true,
+            nextNumber: 1,
+            fallbackServiceMinutes: 15,
+          },
+        });
+      }
+
+      const allocatedQueue = await this.prisma.dailyQueue.update({
+        where: { id: dailyQueue.id },
+        data: { nextNumber: { increment: 1 } },
+      });
+      const nextNumber = allocatedQueue.nextNumber - 1;
+      const ticketNumber = `A-${String(nextNumber).padStart(3, '0')}`;
+
+      const patientRecord = await this.prisma.user.findUnique({
+        where: { id: patientId },
+        select: { fullName: true },
+      });
+
+      await this.prisma.queueEntry.create({
+        data: {
+          dailyQueueId: dailyQueue.id,
+          patientId,
+          appointmentId,
+          queueNumber: nextNumber,
+          ticketNumber,
+          source: QueueSource.ONLINE,
+          status: QueueStatus.WAITING,
+          firstName: patientRecord?.fullName ?? 'Patient',
+          reasonForVisit: 'Rescheduled Consultation',
+        },
+      });
+    } catch {
+      // Non-blocking
+    }
 
     try {
       await this.prisma.auditLog.create({

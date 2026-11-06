@@ -539,7 +539,7 @@ describe('QueueService', () => {
         queue_id: 1,
         ticket_number: 'A-002',
         position_in_queue: 2,
-        estimated_wait_minutes: 30,
+        estimated_wait_minutes: 15,
         status: QueueStatus.WAITING,
         room_number: 'Room 101',
         joined_at: now.toISOString(),

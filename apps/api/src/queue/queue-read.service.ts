@@ -101,7 +101,9 @@ export class QueueReadService {
     const waitingEntries = await this.getOrderedWaitingEntries(queueId);
     const rank = waitingEntries.findIndex((entry) => entry.id === entryId);
     const position = rank >= 0 ? rank + 1 : waitingEntries.length + 1;
-    const estimatedWaitMinutes = position * queue.fallbackServiceMinutes;
+    // Section 6 of Queue Plan: eligible patients ahead × average consultation duration
+    const patientsAhead = Math.max(0, position - 1);
+    const estimatedWaitMinutes = patientsAhead * queue.fallbackServiceMinutes;
 
     return { position, estimatedWaitMinutes };
   }
@@ -265,10 +267,11 @@ export class QueueReadService {
   }
 
   async getMyQueueEntry(queueId: number, patientId: number) {
-    const queue = await this.getQueueOrThrow(queueId);
+    const defaultQueue = await this.getQueueOrThrow(queueId);
     await this.expireCalledEntries(queueId);
 
-    const entry = await this.prisma.queueEntry.findFirst({
+    // Look for active queue entry across target queue or any daily queue
+    let entry = await this.prisma.queueEntry.findFirst({
       where: {
         dailyQueueId: queueId,
         patientId,
@@ -284,14 +287,38 @@ export class QueueReadService {
         calledAt: true,
         graceExpiresAt: true,
       },
+      orderBy: { id: 'desc' },
     });
+
+    if (!entry) {
+      entry = await this.prisma.queueEntry.findFirst({
+        where: {
+          patientId,
+          status: { in: [...ACTIVE_QUEUE_STATUSES] },
+        },
+        select: {
+          id: true,
+          dailyQueueId: true,
+          ticketNumber: true,
+          status: true,
+          roomNumber: true,
+          joinedAt: true,
+          calledAt: true,
+          graceExpiresAt: true,
+        },
+        orderBy: { id: 'desc' },
+      });
+    }
 
     if (!entry) {
       return null;
     }
 
+    const targetQueueId = entry.dailyQueueId;
+    const queue = targetQueueId === queueId ? defaultQueue : await this.getQueueOrThrow(targetQueueId);
+
     const { position, estimatedWaitMinutes } =
-      await this.getQueuePositionAndWait(queueId, queue, entry.id);
+      await this.getQueuePositionAndWait(targetQueueId, queue, entry.id);
 
     return {
       queue_entry_id: entry.id,

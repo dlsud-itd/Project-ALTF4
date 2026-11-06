@@ -231,6 +231,49 @@
     }
   }
 
+  .queue-reservation-banner {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    .reservation-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #15803d;
+      font-size: 0.9rem;
+
+      i {
+        font-size: 1rem;
+      }
+
+      .ticket-tag {
+        font-weight: 500;
+        strong {
+          color: #166534;
+          font-weight: 700;
+        }
+      }
+    }
+
+    .reservation-wait {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #166534;
+      font-size: 0.82rem;
+
+      i {
+        font-size: 0.85rem;
+      }
+    }
+  }
+
   .appointment-footer {
     border-top: 1px solid var(--surface-100);
     padding-top: 0.75rem;
@@ -453,6 +496,49 @@
 .appointment-card {
   border: 1px solid var(--surface-900);
   border-radius: 16px;
+
+  .queue-reservation-banner {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    .reservation-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #15803d;
+      font-size: 0.9rem;
+
+      i {
+        font-size: 1rem;
+      }
+
+      .ticket-tag {
+        font-weight: 500;
+        strong {
+          color: #166534;
+          font-weight: 700;
+        }
+      }
+    }
+
+    .reservation-wait {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #166534;
+      font-size: 0.82rem;
+
+      i {
+        font-size: 0.85rem;
+      }
+    }
+  }
 
   .appointment-footer {
     border-top-color: var(--surface-200);
