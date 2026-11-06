@@ -271,8 +271,18 @@ export class StaffDashboardComponent implements OnInit {
       })
       .subscribe({
         next: (response): void => {
+          const calledTicket: ServingTicket = {
+            queue_entry_id: response.queue_entry_id,
+            ticket_number: response.ticket_number,
+            status: response.status,
+            called_at: response.called_at,
+            grace_expires_at: response.grace_expires_at,
+            room_number: response.room_number,
+          };
+          this.currentTicket.set(calledTicket);
           this.servingTicket.set(response.ticket_number);
           this.waitingCount.update((count: number): number => Math.max(0, count - 1));
+          this.updateCountdown();
           this.loadQueueStatus();
         },
         error: (): void => {
@@ -301,7 +311,18 @@ export class StaffDashboardComponent implements OnInit {
     this.queueService
       .updateEntryStatus(this.queueId(), ticket.queue_entry_id, { status })
       .subscribe({
-        next: (): void => this.loadQueueStatus(),
+        next: (): void => {
+          if (status === QueueStatus.DONE) {
+            this.currentTicket.set(null);
+            this.servingTicket.set('—');
+            this.completedCount.update((count: number): number => count + 1);
+          } else if (status === QueueStatus.IN_SERVICE) {
+            this.currentTicket.update((current) =>
+              current ? { ...current, status: QueueStatus.IN_SERVICE, grace_expires_at: null } : null,
+            );
+          }
+          this.loadQueueStatus();
+        },
         error: (): void => {
           this.hasStatsError.set(true);
         },
