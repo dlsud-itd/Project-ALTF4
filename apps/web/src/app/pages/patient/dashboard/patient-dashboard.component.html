@@ -34,10 +34,13 @@
           <h3>Your Queue</h3>
           @if (currentTicket()) {
             <p class="status-highlight">{{ currentTicket() }}</p>
-            <span class="status-hint">You are in queue. Estimated wait: 10 mins</span>
+            <span class="status-hint">You are in queue. Estimated wait: {{ estimatedWaitMinutes() }} mins</span>
           } @else {
             <p class="status-value">No Active Ticket</p>
             <span class="status-hint">Not currently in queue</span>
+          }
+          @if (joinQueueError()) {
+            <small class="field-error">{{ joinQueueError() }}</small>
           }
         </div>
 
@@ -53,7 +56,9 @@
         } @else {
           <p-button
             label="Join Queue"
+            icon="pi pi-ticket"
             size="small"
+            [loading]="isJoiningQueue()"
             (onClick)="onJoinQueue()"
           />
         }
@@ -68,7 +73,7 @@
       <div class="card-content">
         <h3>Now Serving</h3>
         <p class="status-highlight">{{ nowServingTicket() }}</p>
-        <span class="status-hint">Counter 1</span>
+        <span class="status-hint">{{ nowServingRoom() }}</span>
         <span class="status-hint">General Consultation</span>
       </div>
     </div>

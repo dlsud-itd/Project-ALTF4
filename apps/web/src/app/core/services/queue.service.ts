@@ -12,6 +12,7 @@ import {
   UpdateEntryStatusRequest,
   UpdateEntryStatusResponse,
   TrackingStatusResponse,
+  PatientQueueEntryResponse,
 } from '../models/queue.models';
 
 @Injectable({
@@ -32,9 +33,24 @@ export class QueueService {
     return this.http.post<WalkInResponse>(`${this.apiConfig.apiUrl}/queues/${queueId}/walk-in`, req);
   }
 
+  joinOnline(queueId: number, req: WalkInRequest): Observable<WalkInResponse> {
+    return this.http.post<WalkInResponse>(
+      `${this.apiConfig.apiUrl}/queues/${queueId}/online`,
+      req,
+      { headers: this.authService.getAuthHeaders() },
+    );
+  }
+
   trackByToken(token: string): Observable<TrackingStatusResponse> {
     return this.http.get<TrackingStatusResponse>(
       `${this.apiConfig.apiUrl}/queues/track/${encodeURIComponent(token)}`,
+    );
+  }
+
+  getMyQueueEntry(queueId: number): Observable<PatientQueueEntryResponse | null> {
+    return this.http.get<PatientQueueEntryResponse | null>(
+      `${this.apiConfig.apiUrl}/queues/${queueId}/my-entry`,
+      { headers: this.authService.getAuthHeaders() },
     );
   }
 

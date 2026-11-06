@@ -38,6 +38,7 @@ export type QueueTicketSummary = {
 
 export type WalkInRequest = {
   name: string;
+  patientId?: number;
   reasonForVisit?: string;
 };
 
@@ -86,6 +87,19 @@ export type TrackingStatusResponse = {
   status: QueueStatus;
   position_in_queue: number;
   time_remaining_seconds?: number;
+};
+
+export type PatientQueueEntryResponse = {
+  queue_entry_id: number;
+  queue_id: number;
+  ticket_number: string;
+  position_in_queue: number;
+  estimated_wait_minutes: number;
+  status: QueueStatus;
+  room_number?: string | null;
+  joined_at: string;
+  called_at?: string | null;
+  grace_expires_at?: string | null;
 };
 
 export type WebSocketConnectionStatus = {

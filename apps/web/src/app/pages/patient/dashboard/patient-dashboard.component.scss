@@ -114,6 +114,13 @@
       font-size: 0.8rem;
       color: var(--text-muted);
     }
+
+    .field-error {
+      color: #b42318;
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+      display: block;
+    }
   }
 }
 
