@@ -4,6 +4,12 @@ import { Prisma, PrismaClient, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from './queue-events.service';
 
+export const ACTIVE_QUEUE_STATUSES = [
+  QueueStatus.WAITING,
+  QueueStatus.CALLED,
+  QueueStatus.IN_SERVICE,
+] as const;
+
 @Injectable()
 export class QueueReadService {
   constructor(
@@ -255,6 +261,51 @@ export class QueueReadService {
             ),
           }
         : {}),
+    };
+  }
+
+  async getMyQueueEntry(queueId: number, patientId: number) {
+    const queue = await this.getQueueOrThrow(queueId);
+    await this.expireCalledEntries(queueId);
+
+    const entry = await this.prisma.queueEntry.findFirst({
+      where: {
+        dailyQueueId: queueId,
+        patientId,
+        status: { in: [...ACTIVE_QUEUE_STATUSES] },
+      },
+      select: {
+        id: true,
+        dailyQueueId: true,
+        ticketNumber: true,
+        status: true,
+        roomNumber: true,
+        joinedAt: true,
+        calledAt: true,
+        graceExpiresAt: true,
+      },
+    });
+
+    if (!entry) {
+      return null;
+    }
+
+    const { position, estimatedWaitMinutes } =
+      await this.getQueuePositionAndWait(queueId, queue, entry.id);
+
+    return {
+      queue_entry_id: entry.id,
+      queue_id: entry.dailyQueueId,
+      ticket_number: entry.ticketNumber,
+      position_in_queue: position,
+      estimated_wait_minutes: estimatedWaitMinutes,
+      status: entry.status,
+      room_number: entry.roomNumber,
+      joined_at: entry.joinedAt.toISOString(),
+      called_at: entry.calledAt ? entry.calledAt.toISOString() : null,
+      grace_expires_at: entry.graceExpiresAt
+        ? entry.graceExpiresAt.toISOString()
+        : null,
     };
   }
 

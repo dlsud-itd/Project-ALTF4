@@ -5,6 +5,7 @@ import {
   Patch,
   Param,
   Body,
+  Request,
   ParseIntPipe,
   UseGuards,
   Sse,
@@ -25,6 +26,7 @@ import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 // Controller exposing HTTP and Server-Sent Events endpoints for clinic queue management.
 @ApiTags('Queue Management')
@@ -102,6 +104,25 @@ export class QueueController {
     @Param('trackingToken') trackingToken: string,
   ) {
     return this.queueService.getTrackingStatus(trackingToken);
+  }
+
+  @Get(':queueId/my-entry')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.PATIENT)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get active queue entry for the authenticated patient',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Active queue entry retrieved or null if not in queue',
+  })
+  @ApiResponse({ status: 404, description: 'Queue session not found' })
+  async getMyQueueEntry(
+    @Param('queueId', ParseIntPipe) queueId: number,
+    @Request() req: { user: AuthenticatedUser },
+  ) {
+    return this.queueService.getMyQueueEntry(queueId, req.user.id);
   }
 
   // Retrieves real-time summary statistics, current serving ticket, and waiting counts.

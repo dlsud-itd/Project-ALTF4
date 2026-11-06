@@ -5,23 +5,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { QueueSource, QueueStatus } from '@prisma/client';
+import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CallNextDto } from './dto/call-next.dto';
 import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
 import { WalkInDto } from './dto/walk-in.dto';
 import { QueueEventsService } from './queue-events.service';
-import { QueueReadService } from './queue-read.service';
+import { ACTIVE_QUEUE_STATUSES, QueueReadService } from './queue-read.service';
 
 export const GRACE_PERIOD_SECONDS = 180;
 
 @Injectable()
 export class QueueService {
-  private readonly activeStatuses = [
-    QueueStatus.WAITING,
-    QueueStatus.CALLED,
-    QueueStatus.IN_SERVICE,
-  ];
+  private readonly activeStatuses = [...ACTIVE_QUEUE_STATUSES];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -79,80 +75,93 @@ export class QueueService {
     await this.ensureQueueOpen(queueId);
     await this.ensureNoDuplicateActiveEntry(queueId, dto.patientId);
 
-    return this.prisma.$transaction(async (tx) => {
-      const queueSession = await tx.dailyQueue.findUnique({
-        where: { id: queueId },
-      });
+    try {
+      const { createdEntry, ticketNumber, rawTrackingToken, queueSession } =
+        await this.prisma.$transaction(
+          async (tx) => {
+            const queueSession = await tx.dailyQueue.findUnique({
+              where: { id: queueId },
+            });
 
-      if (!queueSession) {
-        throw new NotFoundException({
-          code: 'QUEUE_NOT_FOUND',
-          message: 'The target queue session was not found.',
-        });
-      }
+            if (!queueSession) {
+              throw new NotFoundException({
+                code: 'QUEUE_NOT_FOUND',
+                message: 'The target queue session was not found.',
+              });
+            }
 
-      if (!queueSession.isOpen) {
-        throw new ConflictException({
-          code: 'QUEUE_CLOSED',
-          message:
-            'The specified queue session is no longer accepting new queue entries.',
-        });
-      }
+            if (!queueSession.isOpen) {
+              throw new ConflictException({
+                code: 'QUEUE_CLOSED',
+                message:
+                  'The specified queue session is no longer accepting new queue entries.',
+              });
+            }
 
-      if (dto.patientId) {
-        const existing = await tx.queueEntry.findFirst({
-          where: {
-            dailyQueueId: queueId,
-            patientId: dto.patientId,
-            status: { in: this.activeStatuses },
+            if (dto.patientId) {
+              const existing = await tx.queueEntry.findFirst({
+                where: {
+                  dailyQueueId: queueId,
+                  patientId: dto.patientId,
+                  status: { in: this.activeStatuses },
+                },
+                select: { id: true },
+              });
+
+              if (existing) {
+                throw new ConflictException({
+                  code: 'DUPLICATE_ACTIVE_ENTRY',
+                  message:
+                    'This patient already has an active queue entry in this session.',
+                });
+              }
+            }
+
+            const allocatedQueue = await tx.dailyQueue.update({
+              where: { id: queueId },
+              data: { nextNumber: { increment: 1 } },
+            });
+            const nextNumber = allocatedQueue.nextNumber - 1;
+            const ticketNumber = `A-${String(nextNumber).padStart(3, '0')}`;
+            const rawTrackingToken = `trk_${randomBytes(8).toString('hex')}`;
+            const trackingTokenHash =
+              this.queueRead.hashTrackingToken(rawTrackingToken);
+
+            const createdEntry = await tx.queueEntry.create({
+              data: {
+                dailyQueueId: queueId,
+                patientId: dto.patientId ?? null,
+                queueNumber: nextNumber,
+                ticketNumber,
+                source,
+                status: QueueStatus.WAITING,
+                trackingToken: trackingTokenHash,
+                firstName: dto.name,
+                reasonForVisit: dto.reasonForVisit,
+              },
+              select: {
+                id: true,
+                joinedAt: true,
+                status: true,
+                ticketNumber: true,
+              },
+            });
+
+            await this.queueRead.recordStatusHistory(
+              tx,
+              createdEntry.id,
+              QueueStatus.WAITING,
+            );
+
+            return {
+              createdEntry,
+              ticketNumber,
+              rawTrackingToken,
+              queueSession,
+            };
           },
-          select: { id: true },
-        });
-
-        if (existing) {
-          throw new ConflictException({
-            code: 'DUPLICATE_ACTIVE_ENTRY',
-            message:
-              'This patient already has an active queue entry in this session.',
-          });
-        }
-      }
-
-      const allocatedQueue = await tx.dailyQueue.update({
-        where: { id: queueId },
-        data: { nextNumber: { increment: 1 } },
-      });
-      const nextNumber = allocatedQueue.nextNumber - 1;
-      const ticketNumber = `A-${String(nextNumber).padStart(3, '0')}`;
-      const rawTrackingToken = `trk_${randomBytes(8).toString('hex')}`;
-      const trackingTokenHash =
-        this.queueRead.hashTrackingToken(rawTrackingToken);
-
-      const createdEntry = await tx.queueEntry.create({
-        data: {
-          dailyQueueId: queueId,
-          patientId: dto.patientId ?? null,
-          queueNumber: nextNumber,
-          ticketNumber,
-          source,
-          status: QueueStatus.WAITING,
-          trackingToken: trackingTokenHash,
-          firstName: dto.name,
-          reasonForVisit: dto.reasonForVisit,
-        },
-        select: {
-          id: true,
-          joinedAt: true,
-          status: true,
-          ticketNumber: true,
-        },
-      });
-
-      await this.queueRead.recordStatusHistory(
-        tx,
-        createdEntry.id,
-        QueueStatus.WAITING,
-      );
+          { maxWait: 5000, timeout: 15000 },
+        );
 
       const { position, estimatedWaitMinutes } =
         await this.queueRead.getQueuePositionAndWait(
@@ -182,7 +191,19 @@ export class QueueService {
         tracking_token: rawTrackingToken,
         joined_at: createdEntry.joinedAt.toISOString(),
       };
-    });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException({
+          code: 'DUPLICATE_ACTIVE_ENTRY',
+          message:
+            'This patient already has an active queue entry in this session.',
+        });
+      }
+      throw error;
+    }
   }
 
   async joinOnline(queueId: number, dto: WalkInDto) {
@@ -273,7 +294,7 @@ export class QueueService {
         QueueStatus.CALLED,
       );
       return { entry, calledAt, graceExpiresAt };
-    });
+    }, { maxWait: 5000, timeout: 15000 });
 
     if ('error' in callResult) {
       if (callResult.error === 'QUEUE_CALL_IN_PROGRESS') {
@@ -430,5 +451,9 @@ export class QueueService {
 
   async getTrackingStatus(trackingToken: string) {
     return this.queueRead.getTrackingStatus(trackingToken);
+  }
+
+  async getMyQueueEntry(queueId: number, patientId: number) {
+    return this.queueRead.getMyQueueEntry(queueId, patientId);
   }
 }

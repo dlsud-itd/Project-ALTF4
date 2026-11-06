@@ -1,6 +1,6 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { jest } from '@jest/globals';
-import { QueueSource, QueueStatus } from '@prisma/client';
+import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from './queue-events.service';
 import { QueueReadService } from './queue-read.service';
@@ -330,5 +330,238 @@ describe('QueueService', () => {
       'ticket_number',
       'time_remaining_seconds',
     ]);
+  });
+
+  describe('Queue validity and duplicate entry rules (CQ-S4-4.2.03 & CQ-S4-4.3.02)', () => {
+    it('rejects queue entry creation when target queue does not exist', async () => {
+      prisma.dailyQueue.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.joinWalkIn(999, { name: 'Jane Doe' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects queue entry creation when queue is closed', async () => {
+      prisma.dailyQueue.findUnique.mockResolvedValue({
+        ...queue,
+        isOpen: false,
+      });
+
+      await expect(
+        service.joinWalkIn(1, { name: 'Jane Doe' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects queue entry creation when patient already has an active WAITING ticket', async () => {
+      prisma.queueEntry.findFirst.mockResolvedValue(
+        makeEntry({ patientId: 42, status: QueueStatus.WAITING }),
+      );
+
+      await expect(
+        service.joinOnline(1, { name: 'Jane Doe', patientId: 42 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects queue entry creation when patient has a CALLED or IN_SERVICE ticket', async () => {
+      prisma.queueEntry.findFirst.mockResolvedValue(
+        makeEntry({ patientId: 42, status: QueueStatus.CALLED }),
+      );
+
+      await expect(
+        service.joinOnline(1, { name: 'Jane Doe', patientId: 42 }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('permits a new queue entry when patient previous ticket is in terminal state', async () => {
+      prisma.queueEntry.findFirst.mockResolvedValue(null);
+      tx.queueEntry.findFirst.mockResolvedValue(null);
+      const created = makeEntry({
+        id: 30,
+        patientId: 42,
+        status: QueueStatus.WAITING,
+        joinedAt: now,
+      });
+      tx.dailyQueue.update.mockResolvedValue({ ...queue, nextNumber: 3 });
+      tx.queueEntry.create.mockResolvedValue(created);
+      prisma.queueEntry.findMany.mockResolvedValue([created]);
+
+      const result = await service.joinOnline(1, {
+        name: 'Jane Doe',
+        patientId: 42,
+      });
+
+      expect(result.status).toBe(QueueStatus.WAITING);
+      expect(result.position_in_queue).toBe(1);
+    });
+
+    it('maps Prisma P2002 unique constraint conflict to DUPLICATE_ACTIVE_ENTRY', async () => {
+      prisma.queueEntry.findFirst.mockResolvedValue(null);
+      prisma.$transaction.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '6.19.3',
+        }),
+      );
+
+      await expect(
+        service.joinWalkIn(1, { name: 'Jane Doe', patientId: 42 }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('Queue metrics and status retrieval (CQ-S4-4.3.01)', () => {
+    it('returns accurate queue metrics including breakdown and average wait time', async () => {
+      const e1 = makeEntry({
+        id: 1,
+        source: QueueSource.WALK_IN,
+        queueNumber: 1,
+      });
+      const e2 = makeEntry({
+        id: 2,
+        source: QueueSource.ONLINE,
+        queueNumber: 2,
+      });
+      const e3 = makeEntry({
+        id: 3,
+        source: QueueSource.STAFF_GENERATED,
+        queueNumber: 3,
+      });
+
+      prisma.queueEntry.findMany.mockImplementation((...args: unknown[]) => {
+        const query = args[0] as { where: { status: QueueStatus } };
+        if (query.where.status === QueueStatus.WAITING) {
+          return Promise.resolve([e1, e2, e3]);
+        }
+        return Promise.resolve([]);
+      });
+      prisma.queueEntry.findFirst.mockResolvedValue(null);
+      prisma.queueEntry.count.mockResolvedValue(5);
+
+      const status = await service.getQueueStatus(1);
+
+      expect(status.total_waiting).toBe(3);
+      expect(status.waiting_breakdown).toEqual({
+        ONLINE: 1,
+        WALK_IN: 1,
+        STAFF_GENERATED: 1,
+      });
+      expect(status.total_completed_today).toBe(5);
+      expect(status.avg_wait_time_minutes).toBe(30);
+      expect(status.is_active).toBe(true);
+      expect(status.last_updated).toBeDefined();
+    });
+
+    it('returns zero wait time and null current serving for an empty queue', async () => {
+      prisma.queueEntry.findMany.mockResolvedValue([]);
+      prisma.queueEntry.findFirst.mockResolvedValue(null);
+      prisma.queueEntry.count.mockResolvedValue(0);
+
+      const status = await service.getQueueStatus(1);
+
+      expect(status.total_waiting).toBe(0);
+      expect(status.currently_serving).toBeNull();
+      expect(status.avg_wait_time_minutes).toBe(0);
+    });
+
+    it('prefers CALLED over IN_SERVICE as current serving ticket', async () => {
+      prisma.queueEntry.findMany.mockResolvedValue([]);
+      const called = makeEntry({
+        id: 5,
+        ticketNumber: 'A-005',
+        status: QueueStatus.CALLED,
+        calledAt: now,
+      });
+      prisma.queueEntry.findFirst.mockResolvedValue(called);
+
+      const status = await service.getQueueStatus(1);
+
+      expect(status.currently_serving?.ticket_number).toBe('A-005');
+      expect(status.currently_serving?.status).toBe(QueueStatus.CALLED);
+    });
+
+    it('falls back to IN_SERVICE as current serving when no CALLED ticket exists', async () => {
+      prisma.queueEntry.findMany.mockResolvedValue([]);
+      const inService = makeEntry({
+        id: 6,
+        ticketNumber: 'A-006',
+        status: QueueStatus.IN_SERVICE,
+        updatedAt: now,
+      });
+      prisma.queueEntry.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(inService);
+
+      const status = await service.getQueueStatus(1);
+
+      expect(status.currently_serving?.ticket_number).toBe('A-006');
+      expect(status.currently_serving?.status).toBe(QueueStatus.IN_SERVICE);
+    });
+  });
+
+  describe('Protect tracking token and patient-specific responses (CQ-S4-4.3.03)', () => {
+    it('throws NotFoundException when tracking token does not exist', async () => {
+      prisma.queueEntry.findFirst.mockResolvedValue(null);
+
+      await expect(service.getTrackingStatus('trk_unknown')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('returns the active queue entry for an authenticated patient with position and wait estimate', async () => {
+      const myEntry = makeEntry({
+        id: 15,
+        patientId: 88,
+        ticketNumber: 'A-002',
+        queueNumber: 2,
+        status: QueueStatus.WAITING,
+        roomNumber: 'Room 101',
+      });
+      const firstEntry = makeEntry({
+        id: 10,
+        patientId: 99,
+        queueNumber: 1,
+        status: QueueStatus.WAITING,
+      });
+
+      prisma.queueEntry.findFirst.mockResolvedValue(myEntry);
+      prisma.queueEntry.findMany.mockImplementation((...args: unknown[]) => {
+        const query = args[0] as { where: { status: QueueStatus } };
+        if (query.where.status === QueueStatus.WAITING) {
+          return Promise.resolve([firstEntry, myEntry]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const res = await service.getMyQueueEntry(1, 88);
+
+      expect(res).toEqual({
+        queue_entry_id: 15,
+        queue_id: 1,
+        ticket_number: 'A-002',
+        position_in_queue: 2,
+        estimated_wait_minutes: 30,
+        status: QueueStatus.WAITING,
+        room_number: 'Room 101',
+        joined_at: now.toISOString(),
+        called_at: null,
+        grace_expires_at: null,
+      });
+    });
+
+    it('returns null when authenticated patient has no active queue entry', async () => {
+      prisma.queueEntry.findFirst.mockResolvedValue(null);
+
+      const res = await service.getMyQueueEntry(1, 88);
+
+      expect(res).toBeNull();
+    });
+
+    it('rejects getMyQueueEntry when the queue session does not exist', async () => {
+      prisma.dailyQueue.findUnique.mockResolvedValue(null);
+
+      await expect(service.getMyQueueEntry(999, 88)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });
