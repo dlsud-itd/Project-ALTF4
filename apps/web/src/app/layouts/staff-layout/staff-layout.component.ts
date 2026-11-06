@@ -21,6 +21,7 @@ export class StaffLayoutComponent {
     (): string => this.authService.currentUser()?.role ?? 'STAFF',
   );
   readonly isMobileMenuOpen = signal<boolean>(false);
+  readonly isCollapsed = signal<boolean>(false);
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen.update((open: boolean): boolean => !open);
@@ -28,6 +29,11 @@ export class StaffLayoutComponent {
 
   closeMobileMenu(): void {
     this.isMobileMenuOpen.set(false);
+  }
+
+  // Switches the desktop sidebar between the full menu and the icon rail.
+  toggleCollapsed(): void {
+    this.isCollapsed.update((collapsed: boolean): boolean => !collapsed);
   }
 
   onLogout(): void {

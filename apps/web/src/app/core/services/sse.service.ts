@@ -7,7 +7,6 @@ export type QueueCalledEvent = {
   queueId: number;
   queueEntryId: number;
   ticketNumber: string;
-  patientName: string;
   roomNumber: string;
   calledAt: string;
 };

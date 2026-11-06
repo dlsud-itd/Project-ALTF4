@@ -30,10 +30,17 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum QueueSource {
+  ONLINE
+  WALK_IN
+  STAFF_GENERATED
+}
+
 enum QueueStatus {
   WAITING
   CALLED
   IN_SERVICE
+  DONE
   SERVED
   CANCELLED
   NO_SHOW
@@ -130,6 +137,7 @@ model QueueEntry {
   appointmentId  Int?          @map("appointment_id")
   queueNumber    Int           @map("queue_number")
   ticketNumber   String        @map("ticket_number") @db.VarChar(20)
+  source         QueueSource   @default(WALK_IN) @map("source")
   status         QueueStatus   @default(WAITING)
   priority       QueuePriority @default(NORMAL)
   trackingToken  String?       @map("tracking_token") @db.VarChar(64)
@@ -141,14 +149,33 @@ model QueueEntry {
   notes          String?       @db.Text
   joinedAt       DateTime      @default(now()) @map("joined_at")
   calledAt       DateTime?     @map("called_at")
+  graceExpiresAt DateTime?     @map("grace_expires_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  dailyQueue   DailyQueue   @relation(fields: [dailyQueueId], references: [id], onDelete: Cascade)
-  patient      User?        @relation(fields: [patientId], references: [id], onDelete: SetNull)
-  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  dailyQueue    DailyQueue          @relation(fields: [dailyQueueId], references: [id], onDelete: Cascade)
+  patient       User?               @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  appointment   Appointment?        @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   notifications Notification[]
+  statusHistory QueueStatusHistory[]
 
+  @@unique([dailyQueueId, queueNumber])
+  @@unique([trackingToken])
+  @@index([dailyQueueId, status, queueNumber], map: "queue_entry_daily_queue_status_queue_number_idx")
+  @@index([dailyQueueId, status, joinedAt])
+  @@index([dailyQueueId, patientId, status])
   @@map("queue_entry")
+}
+
+model QueueStatusHistory {
+  id          Int        @id @default(autoincrement())
+  queueEntryId Int        @map("queue_entry_id")
+  status      QueueStatus
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  queueEntry QueueEntry @relation(fields: [queueEntryId], references: [id], onDelete: Cascade)
+
+  @@index([queueEntryId, createdAt])
+  @@map("queue_status_history")
 }
 
 model Notification {

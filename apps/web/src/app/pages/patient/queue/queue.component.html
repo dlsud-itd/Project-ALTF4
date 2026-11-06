@@ -1,0 +1,181 @@
+<!-- Header band: page title, live pill and refresh -->
+<header class="page-top">
+  <div class="welcome-banner">
+    <h2>Your Queue</h2>
+  </div>
+
+  <div class="header-actions">
+    <span class="live-pill" [class.is-live]="isLive()" role="status">
+      <span class="pill-dot"></span>
+      {{ isLive() ? 'Live' : 'Offline' }}
+    </span>
+    <p-button
+      class="refresh-button"
+      label="Refresh"
+      icon="pi pi-refresh"
+      [loading]="isRefreshing()"
+      (onClick)="onRefresh()"
+    />
+  </div>
+</header>
+
+<div class="queue-page">
+  <div class="queue-grid">
+    <div class="ticket-column">
+      @if (isNextInLine()) {
+        <p class="queue-banner next-banner" role="status">
+          <i class="pi pi-bell"></i>
+          You are next in line. Please head to the clinic.
+        </p>
+      }
+
+      @if (hasDuplicateEntry() && entry(); as current) {
+        <p class="queue-banner duplicate-banner" role="status">
+          <i class="pi pi-info-circle"></i>
+          You are already in the queue. Your current position is
+          {{ current.positionInQueue }}.
+        </p>
+      }
+
+      @if (entry(); as ticket) {
+        <!-- Ticket Card -->
+        <section class="queue-card ticket-card" aria-label="Your ticket">
+          <div class="ticket-head">
+            <div class="card-icon">
+              <i class="pi pi-ticket"></i>
+            </div>
+            <div class="ticket-badges">
+              <p-tag
+                class="entry-status"
+                [value]="statusLabel()"
+                [severity]="statusSeverity()"
+              />
+            </div>
+          </div>
+
+          <h3 class="card-label">Ticket Number</h3>
+          <p class="ticket-number">{{ ticket.ticketNumber }}</p>
+
+          <dl class="stat-row">
+            <div class="stat">
+              <dt>Position</dt>
+              <dd class="position-value">{{ ticket.positionInQueue }}</dd>
+              <span class="stat-hint">
+                {{ peopleAhead() }}
+                {{ peopleAhead() === 1 ? 'person' : 'people' }} ahead
+              </span>
+            </div>
+            <div class="stat">
+              <dt>Estimated Wait</dt>
+              <dd class="wait-value">
+                {{ ticket.estimatedWaitMinutes }}
+                <span class="unit">min</span>
+              </dd>
+              <span class="stat-hint">Approximate</span>
+            </div>
+          </dl>
+
+          <!-- Progress tracker -->
+          @if (isTerminal()) {
+            <p class="terminal-note" role="status">
+              This ticket is {{ statusLabel().toLowerCase() }}.
+            </p>
+          } @else {
+            <ol class="tracker" aria-label="Queue progress">
+              @for (step of trackerSteps(); track step.label) {
+                <li
+                  class="tracker-step"
+                  [class.done]="step.state === 'done'"
+                  [class.current]="step.state === 'current'"
+                  [attr.aria-current]="step.state === 'current' ? 'step' : null"
+                >
+                  <span class="step-dot"></span>
+                  <span class="step-label">{{ step.label }}</span>
+                </li>
+              }
+            </ol>
+          }
+        </section>
+      } @else {
+        <section class="queue-card" aria-label="Your ticket">
+          <app-empty-state
+            class="no-entry"
+            icon="pi-ticket"
+            title="You are not in the queue"
+            message="You can join the queue on the day of your appointment."
+          >
+            <a class="bookings-link" routerLink="/patient/bookings">
+              <p-button label="Go to Bookings" icon="pi pi-calendar" />
+            </a>
+          </app-empty-state>
+        </section>
+      }
+    </div>
+
+    <!-- Queue Summary Card (real data) -->
+    <section class="queue-card summary-card" aria-label="Queue summary">
+      <h3 class="card-label">Queue Summary</h3>
+
+      @if (isLoading()) {
+        <div role="status" aria-label="Loading queue summary">
+          <app-loading-skeleton [lines]="loadingLineCount" />
+        </div>
+      } @else if (hasError()) {
+        <app-error-state
+          title="Could not load the queue"
+          message="Check your connection and try again."
+          (retry)="onRetry()"
+        />
+      } @else if (hasNoQueue()) {
+        <p class="closed-note" role="status">
+          <i class="pi pi-calendar-times"></i>
+          No queue is open today
+        </p>
+      } @else if (isQueueClosed()) {
+        <p class="closed-note" role="status">
+          <i class="pi pi-lock"></i>
+          The queue is closed
+        </p>
+      } @else {
+        <ul class="summary-list">
+          <li class="summary-item">
+            <span class="summary-icon">
+              <i class="pi pi-megaphone"></i>
+            </span>
+            <span class="summary-text">
+              <span class="summary-key">Now Serving</span>
+              <span class="summary-value now-serving">
+                {{ nowServingLabel() }}
+              </span>
+              @if (summary()?.roomNumber) {
+                <span class="summary-hint">{{ summary()?.roomNumber }}</span>
+              }
+            </span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-icon waiting-icon">
+              <i class="pi pi-users"></i>
+            </span>
+            <span class="summary-text">
+              <span class="summary-key">Patients Waiting</span>
+              <span class="summary-value patients-waiting">
+                {{ summary()?.patientsWaiting }}
+              </span>
+            </span>
+          </li>
+          <li class="summary-item">
+            <span class="summary-icon time-icon">
+              <i class="pi pi-clock"></i>
+            </span>
+            <span class="summary-text">
+              <span class="summary-key">Last Updated</span>
+              <span class="summary-value last-updated">
+                As of {{ summary()?.lastUpdated | date: 'shortTime' }}
+              </span>
+            </span>
+          </li>
+        </ul>
+      }
+    </section>
+  </div>
+</div>

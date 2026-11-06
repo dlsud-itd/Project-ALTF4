@@ -1,12 +1,12 @@
-<div class="schedule-page">
-  <div class="page-header">
-    <div>
-      <h2>Slot Schedule</h2>
-      <p>Clinic slots for the next two weeks</p>
-    </div>
-    <p-button label="Add slot" icon="pi pi-plus" (onClick)="onAddSlot()" />
+<header class="page-header">
+  <div>
+    <h2>Slot Schedule</h2>
+    <p>Clinic slots for the next two weeks</p>
   </div>
+  <p-button label="Add slot" icon="pi pi-plus" (onClick)="onAddSlot()" />
+</header>
 
+<div class="schedule-page">
   @if (deleteError(); as message) {
     <p-message
       class="delete-error"

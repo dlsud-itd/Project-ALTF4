@@ -20,48 +20,55 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
-    const message = this.getErrorMessage(exception, status);
+    const payload = this.getErrorPayload(exception, status);
 
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.url} failed: ${message}`,
+        `${request.method} ${request.url} failed: ${payload.message}`,
         exception instanceof Error ? exception.stack : undefined,
       );
     }
 
-    response.status(status).json({ error: message });
+    response.status(status).json(payload);
   }
 
-  private getErrorMessage(exception: unknown, status: number): string {
+  private getErrorPayload(
+    exception: unknown,
+    status: number,
+  ): { code?: string; message: string } {
     if (status === 500) {
-      return 'Internal server error';
+      return { message: 'Internal server error' };
     }
 
     if (!(exception instanceof HttpException)) {
-      return 'Internal server error';
+      return { message: 'Internal server error' };
     }
 
     const body = exception.getResponse();
     if (typeof body === 'string') {
-      return body;
+      return { message: body };
     }
     if (typeof body === 'object' && body !== null) {
+      const code = 'code' in body ? body.code : undefined;
       const message = 'message' in body ? body.message : undefined;
+      if (typeof code === 'string' && typeof message === 'string') {
+        return { code, message };
+      }
       if (typeof message === 'string') {
-        return message;
+        return { message };
       }
       if (
         Array.isArray(message) &&
         message.every((item) => typeof item === 'string')
       ) {
-        return message.join('; ');
+        return { message: message.join('; ') };
       }
       const error = 'error' in body ? body.error : undefined;
       if (typeof error === 'string') {
-        return error;
+        return { message: error };
       }
     }
 
-    return exception.message;
+    return { message: exception.message };
   }
 }

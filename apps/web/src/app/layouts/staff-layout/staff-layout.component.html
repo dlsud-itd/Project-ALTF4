@@ -2,7 +2,7 @@
   <!-- Mobile Header Bar -->
   <header class="mobile-topbar">
     <div class="mobile-brand">
-      <i class="pi pi-shield brand-icon"></i>
+      <img class="brand-logo" src="Logo.png" alt="ClinicQueue logo" />
       <span class="brand-title">ClinicQueue</span>
     </div>
     <button
@@ -29,75 +29,90 @@
   <aside
     class="portal-sidebar"
     [class.open]="isMobileMenuOpen()"
+    [class.collapsed]="isCollapsed()"
     aria-label="Staff portal navigation"
   >
     <!-- Brand Header -->
     <div class="sidebar-brand">
-      <div class="brand-icon-wrapper">
-        <i class="pi pi-shield brand-icon"></i>
-      </div>
+      <button
+        type="button"
+        class="brand-icon-wrapper"
+        (click)="isCollapsed() && toggleCollapsed()"
+        [attr.aria-label]="isCollapsed() ? 'Expand sidebar' : 'ClinicQueue'"
+        [attr.title]="isCollapsed() ? 'Expand sidebar' : null"
+      >
+        <img class="brand-logo" src="Logo.png" alt="ClinicQueue logo" />
+      </button>
       <div class="brand-info">
         <h1 class="brand-name">ClinicQueue</h1>
         <span class="brand-subtitle">Staff Operations</span>
       </div>
+      <button
+        type="button"
+        class="collapse-toggle"
+        (click)="toggleCollapsed()"
+        [attr.aria-label]="
+          isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'
+        "
+        [attr.aria-expanded]="!isCollapsed()"
+      >
+        <span class="toggle-glyph" aria-hidden="true"></span>
+      </button>
     </div>
 
     <!-- Navigation Menu -->
     <nav class="sidebar-nav">
-      <div class="nav-section-title">Menu</div>
-
       <a
         routerLink="/staff/dashboard"
         routerLinkActive="active"
         class="nav-link"
+        [attr.title]="isCollapsed() ? 'Dashboard' : null"
         (click)="closeMobileMenu()"
       >
-        <i class="pi pi-th-large"></i>
-        <span>Dashboard</span>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span class="nav-label">Dashboard</span>
       </a>
+
+      <div class="nav-section-title">Planning</div>
 
       <a
         routerLink="/staff/schedule"
         routerLinkActive="active"
         class="nav-link"
+        [attr.title]="isCollapsed() ? 'Schedule' : null"
         (click)="closeMobileMenu()"
       >
-        <i class="pi pi-calendar"></i>
-        <span>Schedule</span>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span class="nav-label">Schedule</span>
       </a>
+
+      <div class="nav-section-title">Account</div>
 
       <a
         routerLink="/staff/profile"
         routerLinkActive="active"
         class="nav-link"
+        [attr.title]="isCollapsed() ? 'Profile' : null"
         (click)="closeMobileMenu()"
       >
-        <i class="pi pi-user"></i>
-        <span>Profile</span>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+        <span class="nav-label">Profile</span>
       </a>
     </nav>
 
     <!-- Sidebar Footer / Staff Profile & Sign Out -->
     <div class="sidebar-footer">
-      <div class="user-card">
-        <div class="user-avatar">
-          <i class="pi pi-user-edit"></i>
-        </div>
-        <div class="user-details">
-          <span class="user-name">{{ staffName() }}</span>
-          <span class="user-badge">{{ staffRole() }}</span>
-        </div>
-      </div>
 
       <p-button
-        label="Sign Out"
-        icon="pi pi-sign-out"
+        [label]="isCollapsed() ? undefined : 'Sign Out'"
+        ariaLabel="Sign Out"
         severity="danger"
-        [outlined]="true"
         size="small"
         [fluid]="true"
         (onClick)="onLogout()"
-      />
+      >
+        <ng-template #icon><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></ng-template>
+      </p-button>
     </div>
   </aside>
 

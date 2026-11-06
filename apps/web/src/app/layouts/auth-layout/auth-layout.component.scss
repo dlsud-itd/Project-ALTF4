@@ -1,12 +1,44 @@
 .auth-layout {
-  --auth-primary: #1b7aa6;
-  --auth-bg: #ebf4f8;
-  --auth-input-bg: #eff5f8;
+  --auth-primary: #0b7777;
+  --auth-bg: #075a5b;
+  --auth-input-bg: #f3f6f5;
 
-  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
   background: var(--auth-bg);
+
+  // Blurred clinic photo behind the card.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -24px;
+    z-index: -2;
+    background: url('/Login-signinbg.jpeg') center / cover no-repeat;
+    filter: blur(14px);
+  }
+
+  // Deep petrol tint keeps the card readable and on-palette.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgb(7 90 91 / 0.5);
+  }
+}
+
+// Safety net: only on very short windows, let the card area scroll
+// instead of cutting the form off.
+@media (max-height: 620px) {
+  .auth-layout {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
 }

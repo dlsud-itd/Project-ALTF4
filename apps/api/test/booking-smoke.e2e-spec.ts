@@ -2,7 +2,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AccessRole, AppointmentStatus, ClinicAffiliation } from '@prisma/client';
+import {
+  AccessRole,
+  AppointmentStatus,
+  ClinicAffiliation,
+} from '@prisma/client';
 import type { Server } from 'node:http';
 import request from 'supertest';
 import { ApiExceptionFilter } from '../src/common/api-exception.filter';
@@ -84,40 +88,57 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
 
   const prismaMock = {
     user: {
-      findUnique: jest.fn(({ where }: { where: { id?: number; email?: string } }) => {
-        if (where.id) return users.get(where.id) ?? null;
-        if (where.email) {
-          return [...users.values()].find((u) => u.email === where.email) ?? null;
-        }
-        return null;
-      }),
+      findUnique: jest.fn(
+        ({ where }: { where: { id?: number; email?: string } }) => {
+          if (where.id) return users.get(where.id) ?? null;
+          if (where.email) {
+            return (
+              [...users.values()].find((u) => u.email === where.email) ?? null
+            );
+          }
+          return null;
+        },
+      ),
     },
     clinicSlot: {
-      findMany: jest.fn(({ where }: { where: { clinicDate?: { gte?: Date; lte?: Date }; isBookable?: boolean } }) => {
-        let result = [...slots.values()];
-        if (where?.clinicDate?.gte && where?.clinicDate?.lte) {
-          result = result.filter(
-            (s) => s.clinicDate >= where.clinicDate!.gte! && s.clinicDate <= where.clinicDate!.lte!,
-          );
-        }
-        if (where?.isBookable !== undefined) {
-          result = result.filter((s) => s.isBookable === where.isBookable);
-        }
-        result.sort((a, b) => a.startTime.localeCompare(b.startTime));
-        return result.map((slot) => ({
-          ...slot,
-          appointments: [...appointments.values()].filter(
-            (a) => a.slotId === slot.id && a.status === AppointmentStatus.BOOKED,
-          ),
-        }));
-      }),
+      findMany: jest.fn(
+        ({
+          where,
+        }: {
+          where: {
+            clinicDate?: { gte?: Date; lte?: Date };
+            isBookable?: boolean;
+          };
+        }) => {
+          let result = [...slots.values()];
+          if (where?.clinicDate?.gte && where?.clinicDate?.lte) {
+            result = result.filter(
+              (s) =>
+                s.clinicDate >= where.clinicDate!.gte! &&
+                s.clinicDate <= where.clinicDate!.lte!,
+            );
+          }
+          if (where?.isBookable !== undefined) {
+            result = result.filter((s) => s.isBookable === where.isBookable);
+          }
+          result.sort((a, b) => a.startTime.localeCompare(b.startTime));
+          return result.map((slot) => ({
+            ...slot,
+            appointments: [...appointments.values()].filter(
+              (a) =>
+                a.slotId === slot.id && a.status === AppointmentStatus.BOOKED,
+            ),
+          }));
+        },
+      ),
       findUnique: jest.fn(({ where }: { where: { id: number } }) => {
         const slot = slots.get(where.id);
         if (!slot) return null;
         return {
           ...slot,
           appointments: [...appointments.values()].filter(
-            (a) => a.slotId === slot.id && a.status === AppointmentStatus.BOOKED,
+            (a) =>
+              a.slotId === slot.id && a.status === AppointmentStatus.BOOKED,
           ),
         };
       }),
@@ -143,24 +164,38 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
           );
         },
       ),
-      create: jest.fn(({ data }: { data: Omit<MockSlot, 'id' | 'createdAt' | 'updatedAt'> }) => {
-        const now = new Date();
-        const slot: MockSlot = {
-          ...data,
-          id: nextSlotId++,
-          createdAt: now,
-          updatedAt: now,
-        };
-        slots.set(slot.id, slot);
-        return slot;
-      }),
-      update: jest.fn(({ where, data }: { where: { id: number }; data: Partial<MockSlot> }) => {
-        const slot = slots.get(where.id);
-        if (!slot) return null;
-        const updated = { ...slot, ...data, updatedAt: new Date() };
-        slots.set(where.id, updated);
-        return updated;
-      }),
+      create: jest.fn(
+        ({
+          data,
+        }: {
+          data: Omit<MockSlot, 'id' | 'createdAt' | 'updatedAt'>;
+        }) => {
+          const now = new Date();
+          const slot: MockSlot = {
+            ...data,
+            id: nextSlotId++,
+            createdAt: now,
+            updatedAt: now,
+          };
+          slots.set(slot.id, slot);
+          return slot;
+        },
+      ),
+      update: jest.fn(
+        ({
+          where,
+          data,
+        }: {
+          where: { id: number };
+          data: Partial<MockSlot>;
+        }) => {
+          const slot = slots.get(where.id);
+          if (!slot) return null;
+          const updated = { ...slot, ...data, updatedAt: new Date() };
+          slots.set(where.id, updated);
+          return updated;
+        },
+      ),
       delete: jest.fn(({ where }: { where: { id: number } }) => {
         const slot = slots.get(where.id);
         if (slot) slots.delete(where.id);
@@ -181,8 +216,10 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
         }) => {
           return (
             [...appointments.values()].find((a) => {
-              if (where.id?.not !== undefined && a.id === where.id.not) return false;
-              if (a.patientId !== where.patientId || a.status !== where.status) return false;
+              if (where.id?.not !== undefined && a.id === where.id.not)
+                return false;
+              if (a.patientId !== where.patientId || a.status !== where.status)
+                return false;
               const slot = slots.get(a.slotId);
               if (!slot) return false;
               return (
@@ -219,28 +256,46 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
           patient: users.get(appt.patientId)!,
         }));
       }),
-      create: jest.fn(({ data }: { data: { patientId: number; slotId: number; status: AppointmentStatus } }) => {
-        const now = new Date();
-        const appt: MockAppointment = {
-          ...data,
-          id: nextAppointmentId++,
-          createdAt: now,
-          updatedAt: now,
-        };
-        appointments.set(appt.id, appt);
-        const slot = slots.get(appt.slotId)!;
-        return {
-          ...appt,
-          slot,
-        };
-      }),
-      update: jest.fn(({ where, data }: { where: { id: number }; data: Partial<MockAppointment> }) => {
-        const appt = appointments.get(where.id);
-        if (!appt) return null;
-        const updated = { ...appt, ...data, updatedAt: new Date() };
-        appointments.set(where.id, updated);
-        return updated;
-      }),
+      create: jest.fn(
+        ({
+          data,
+        }: {
+          data: {
+            patientId: number;
+            slotId: number;
+            status: AppointmentStatus;
+          };
+        }) => {
+          const now = new Date();
+          const appt: MockAppointment = {
+            ...data,
+            id: nextAppointmentId++,
+            createdAt: now,
+            updatedAt: now,
+          };
+          appointments.set(appt.id, appt);
+          const slot = slots.get(appt.slotId)!;
+          return {
+            ...appt,
+            slot,
+          };
+        },
+      ),
+      update: jest.fn(
+        ({
+          where,
+          data,
+        }: {
+          where: { id: number };
+          data: Partial<MockAppointment>;
+        }) => {
+          const appt = appointments.get(where.id);
+          if (!appt) return null;
+          const updated = { ...appt, ...data, updatedAt: new Date() };
+          appointments.set(where.id, updated);
+          return updated;
+        },
+      ),
     },
     auditLog: {
       create: jest.fn().mockResolvedValue({ id: 1 }),
@@ -344,7 +399,11 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
       .set('Authorization', `Bearer ${patient1Token}`)
       .expect(200);
 
-    expect(availableSlotsRes1.body.slots.some((s: { id: number }) => s.id === slot1Id)).toBe(true);
+    expect(
+      availableSlotsRes1.body.slots.some(
+        (s: { id: number }) => s.id === slot1Id,
+      ),
+    ).toBe(true);
 
     const bookRes = await request(app.getHttpServer())
       .post('/api/v1/appointments')
@@ -409,8 +468,12 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
       .set('Authorization', `Bearer ${staffToken}`)
       .expect(200);
 
-    const s1 = staffSlotsRes3.body.slots.find((s: { id: number }) => s.id === slot1Id);
-    const s2 = staffSlotsRes3.body.slots.find((s: { id: number }) => s.id === slot2Id);
+    const s1 = staffSlotsRes3.body.slots.find(
+      (s: { id: number }) => s.id === slot1Id,
+    );
+    const s2 = staffSlotsRes3.body.slots.find(
+      (s: { id: number }) => s.id === slot2Id,
+    );
 
     expect(s1.remainingCapacity).toBe(1);
     expect(s1.isBookable).toBe(true);
@@ -430,7 +493,9 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
       .set('Authorization', `Bearer ${staffToken}`)
       .expect(200);
 
-    const s2AfterCancel = staffSlotsRes4.body.slots.find((s: { id: number }) => s.id === slot2Id);
+    const s2AfterCancel = staffSlotsRes4.body.slots.find(
+      (s: { id: number }) => s.id === slot2Id,
+    );
     expect(s2AfterCancel.remainingCapacity).toBe(2);
 
     // 11. Staff deletes Slot 1 safely now that it has no active appointments
@@ -444,6 +509,8 @@ describe('Patient to Staff Booking & Capacity Synchronization Smoke Test (e2e)',
       .set('Authorization', `Bearer ${staffToken}`)
       .expect(200);
 
-    expect(staffSlotsRes5.body.slots.some((s: { id: number }) => s.id === slot1Id)).toBe(false);
+    expect(
+      staffSlotsRes5.body.slots.some((s: { id: number }) => s.id === slot1Id),
+    ).toBe(false);
   });
 });

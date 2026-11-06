@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
-import { AppointmentsService } from '@core/services';
+import { AppointmentsService, QueueService, SseService } from '@core/services';
 import { PatientDashboardComponent } from './patient-dashboard.component';
 import { PatientAppointment } from '@core/models';
 
@@ -37,12 +37,60 @@ describe('PatientDashboardComponent', () => {
     ]);
     spy.getMyAppointments.and.returnValue(of({ appointments: [] }));
 
+    const queueServiceMock = jasmine.createSpyObj('QueueService', [
+      'getQueueStatus',
+      'getMyQueueEntry',
+      'joinOnline',
+    ]);
+    queueServiceMock.joinOnline.and.returnValue(
+      of({
+        queue_entry_id: 10,
+        queue_id: 1,
+        ticket_number: 'A-010',
+        position_in_queue: 1,
+        estimated_wait_minutes: 15,
+        status: 'WAITING',
+        joined_at: '2026-11-06T00:00:00.000Z',
+      }),
+    );
+    queueServiceMock.getQueueStatus.and.returnValue(
+      of({
+        queue_id: 1,
+        clinic_date: '2026-11-06',
+        is_active: true,
+        currently_serving: {
+          queue_entry_id: 1,
+          ticket_number: 'A-001',
+          status: 'CALLED',
+          called_at: '2026-11-06T00:00:00.000Z',
+          grace_expires_at: '2026-11-06T00:03:00.000Z',
+          room_number: 'Counter 1',
+        },
+        total_waiting: 0,
+        waiting_tickets: [],
+        total_completed_today: 0,
+        avg_wait_time_minutes: 0,
+        server_time: new Date().toISOString(),
+        last_updated: new Date().toISOString(),
+      }),
+    );
+    queueServiceMock.getMyQueueEntry.and.returnValue(of(null));
+
+    const sseServiceMock = {
+      queueUpdated$: of(),
+      queueCalled$: of(),
+      subscribeToQueue: jasmine.createSpy('subscribeToQueue'),
+      disconnect: jasmine.createSpy('disconnect'),
+    };
+
     await TestBed.configureTestingModule({
       imports: [PatientDashboardComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
         { provide: AppointmentsService, useValue: spy },
+        { provide: QueueService, useValue: queueServiceMock },
+        { provide: SseService, useValue: sseServiceMock },
         ConfirmationService,
       ],
     }).compileComponents();
@@ -110,5 +158,15 @@ describe('PatientDashboardComponent', () => {
     component.onCancelAppointment(mockAppointments[0]);
 
     expect(confirmSpy).toHaveBeenCalled();
+  });
+
+  it('should allow joining the queue online directly from the dashboard card when appointment is booked', () => {
+    const queueService = TestBed.inject(QueueService);
+    component.appointments.set(mockAppointments);
+    component.onJoinQueue();
+
+    expect(queueService.joinOnline).toHaveBeenCalled();
+    expect(component.currentTicket()).toBe('A-010');
+    expect(component.estimatedWaitMinutes()).toBe(15);
   });
 });

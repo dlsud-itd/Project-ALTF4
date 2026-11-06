@@ -1,4 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ConfirmationService } from 'primeng/api';
@@ -6,8 +14,20 @@ import { Button } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
-import { AuthService, AppointmentsService } from '@core/services';
-import { PatientAppointment, AppointmentStatus } from '@core/models';
+import { merge } from 'rxjs';
+import {
+  AuthService,
+  AppointmentsService,
+  QueueService,
+  SseService,
+} from '@core/services';
+import {
+  PatientAppointment,
+  AppointmentStatus,
+  QueueStatusResponse,
+  PatientQueueEntryResponse,
+  WalkInResponse,
+} from '@core/models';
 import { getErrorMessage } from '@core/utils';
 import {
   EmptyStateComponent,
@@ -16,6 +36,8 @@ import {
 } from '@shared/ui';
 
 type TagSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
+
+const CURRENT_QUEUE_ID = 1;
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   BOOKED: 'Confirmed',
@@ -52,17 +74,31 @@ const STATUS_SEVERITIES: Record<AppointmentStatus, TagSeverity> = {
 export class PatientDashboardComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly appointmentsService = inject(AppointmentsService);
+  private readonly queueService = inject(QueueService);
+  private readonly sseService = inject(SseService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly confirmationService = inject(ConfirmationService);
 
   readonly patientName = computed(
     (): string => this.authService.currentUser()?.fullName ?? 'Patient',
   );
   readonly currentTicket = signal<string | null>(null);
-  readonly nowServingTicket = signal<string>('A-104');
+  readonly positionInQueue = signal<number | null>(null);
+  readonly estimatedWaitMinutes = signal<number>(10);
+  readonly nowServingTicket = signal<string>('None yet');
+  readonly nowServingRoom = signal<string>('Counter 1');
+
+  readonly patientsAhead = computed((): number => {
+    const pos = this.positionInQueue();
+    if (pos === null || pos <= 1) return 0;
+    return pos - 1;
+  });
 
   // Queue state
   readonly isQueueLoading = signal<boolean>(false);
   readonly hasQueueError = signal<boolean>(false);
+  readonly isJoiningQueue = signal<boolean>(false);
+  readonly joinQueueError = signal<string | null>(null);
 
   // Appointments state
   readonly appointments = signal<PatientAppointment[]>([]);
@@ -87,6 +123,74 @@ export class PatientDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAppointments();
+    this.loadQueueStatus();
+    this.loadMyQueueEntry();
+    this.listenForSseEvents();
+  }
+
+  private listenForSseEvents(): void {
+    merge(this.sseService.queueUpdated$, this.sseService.queueCalled$)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((): void => {
+        this.loadQueueStatus();
+        this.loadMyQueueEntry();
+      });
+
+    this.destroyRef.onDestroy((): void => this.sseService.disconnect());
+    this.sseService.subscribeToQueue(CURRENT_QUEUE_ID);
+  }
+
+  loadQueueStatus(): void {
+    this.isQueueLoading.set(true);
+    this.hasQueueError.set(false);
+
+    this.queueService.getQueueStatus(CURRENT_QUEUE_ID).subscribe({
+      next: (res: QueueStatusResponse): void => {
+        if (res.currently_serving) {
+          this.nowServingTicket.set(res.currently_serving.ticket_number);
+          this.nowServingRoom.set(res.currently_serving.room_number || 'Counter 1');
+        } else {
+          this.nowServingTicket.set('None yet');
+          this.nowServingRoom.set('Counter 1');
+        }
+        this.isQueueLoading.set(false);
+      },
+      error: (): void => {
+        this.hasQueueError.set(true);
+        this.isQueueLoading.set(false);
+      },
+    });
+  }
+
+  loadMyQueueEntry(): void {
+    this.queueService.getMyQueueEntry(CURRENT_QUEUE_ID).subscribe({
+      next: (entry: PatientQueueEntryResponse | null): void => {
+        if (entry) {
+          this.currentTicket.set(entry.ticket_number);
+          this.positionInQueue.set(entry.position_in_queue);
+          this.estimatedWaitMinutes.set(entry.estimated_wait_minutes);
+        } else {
+          // If queue endpoint returns null, fallback to active booked appointment's reserved entry
+          const active = this.upcomingAppointments().find((a) => a.reservedQueueEntry);
+          if (active?.reservedQueueEntry) {
+            this.currentTicket.set(active.reservedQueueEntry.ticketNumber);
+            this.positionInQueue.set(active.reservedQueueEntry.positionInQueue);
+            this.estimatedWaitMinutes.set(active.reservedQueueEntry.estimatedWaitMinutes);
+          } else {
+            this.currentTicket.set(null);
+            this.positionInQueue.set(null);
+          }
+        }
+      },
+      error: (): void => {
+        const active = this.upcomingAppointments().find((a) => a.reservedQueueEntry);
+        if (active?.reservedQueueEntry) {
+          this.currentTicket.set(active.reservedQueueEntry.ticketNumber);
+          this.positionInQueue.set(active.reservedQueueEntry.positionInQueue);
+          this.estimatedWaitMinutes.set(active.reservedQueueEntry.estimatedWaitMinutes);
+        }
+      },
+    });
   }
 
   loadAppointments(): void {
@@ -97,6 +201,16 @@ export class PatientDashboardComponent implements OnInit {
       next: (res): void => {
         this.appointments.set(res.appointments);
         this.isAppointmentsLoading.set(false);
+
+        // Auto-sync dashboard ticket from active booked appointment if not yet set
+        const active = res.appointments.find(
+          (a) => a.status === 'BOOKED' && a.reservedQueueEntry,
+        );
+        if (active?.reservedQueueEntry && !this.currentTicket()) {
+          this.currentTicket.set(active.reservedQueueEntry.ticketNumber);
+          this.positionInQueue.set(active.reservedQueueEntry.positionInQueue);
+          this.estimatedWaitMinutes.set(active.reservedQueueEntry.estimatedWaitMinutes);
+        }
       },
       error: (err: HttpErrorResponse): void => {
         this.appointmentsError.set(
@@ -124,8 +238,13 @@ export class PatientDashboardComponent implements OnInit {
         this.appointmentsService.cancelAppointment(appointment.id).subscribe({
           next: (): void => {
             this.cancellingId.set(null);
-            this.actionSuccess.set('Appointment cancelled successfully.');
+            this.actionSuccess.set('Appointment and queue ticket cancelled successfully.');
+            // Clear queue ticket and position immediately on dashboard
+            this.currentTicket.set(null);
+            this.positionInQueue.set(null);
             this.loadAppointments();
+            this.loadQueueStatus();
+            this.loadMyQueueEntry();
           },
           error: (err: HttpErrorResponse): void => {
             this.cancellingId.set(null);
@@ -159,14 +278,70 @@ export class PatientDashboardComponent implements OnInit {
   }
 
   onJoinQueue(): void {
-    this.currentTicket.set('A-108');
+    if (this.upcomingAppointments().length === 0) {
+      this.joinQueueError.set('You must have a confirmed booked appointment to join the queue.');
+      return;
+    }
+
+    const user = this.authService.currentUser();
+    const name = user?.fullName || 'Online Patient';
+    const patientId = user?.id;
+
+    this.isJoiningQueue.set(true);
+    this.joinQueueError.set(null);
+
+    this.queueService
+      .joinOnline(CURRENT_QUEUE_ID, {
+        name,
+        patientId,
+        reasonForVisit: 'General Consultation',
+      })
+      .subscribe({
+        next: (response: WalkInResponse): void => {
+          this.currentTicket.set(response.ticket_number);
+          this.positionInQueue.set(response.position_in_queue);
+          this.estimatedWaitMinutes.set(response.estimated_wait_minutes);
+          this.isJoiningQueue.set(false);
+          this.loadQueueStatus();
+        },
+        error: (err: HttpErrorResponse): void => {
+          this.isJoiningQueue.set(false);
+          if (err.status === 409) {
+            this.loadMyQueueEntry();
+          } else {
+            this.joinQueueError.set(
+              getErrorMessage(err, 'Could not join the queue. Please try again.'),
+            );
+          }
+        },
+      });
   }
 
   onLeaveQueue(): void {
-    this.currentTicket.set(null);
+    const upcoming = this.upcomingAppointments();
+    if (upcoming.length > 0) {
+      // Direct patient to cancel the appointment which removes both
+      this.onCancelAppointment(upcoming[0]);
+      return;
+    }
+
+    this.confirmationService.confirm({
+      header: 'Cancel Queue Ticket',
+      message: 'Are you sure you want to cancel your queue ticket?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Yes, Cancel Ticket',
+      rejectLabel: 'Keep Ticket',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: (): void => {
+        this.currentTicket.set(null);
+        this.positionInQueue.set(null);
+      },
+    });
   }
 
   onRetryQueue(): void {
-    this.hasQueueError.set(false);
+    this.loadQueueStatus();
+    this.loadMyQueueEntry();
   }
 }

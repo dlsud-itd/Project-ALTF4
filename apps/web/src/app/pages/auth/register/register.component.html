@@ -1,7 +1,10 @@
 <div class="auth-page auth-page--split">
-  <app-auth-brand />
+  <aside class="auth-aside">
+    <app-auth-brand />
+  </aside>
 
-  <app-auth-card title="Create account">
+  <app-auth-card title="Create Account">
+    <p class="auth-subtitle">Sign up and book your clinic visit in a few quick steps.</p>
     @if (errorMessage(); as message) {
       <p-message severity="error" [text]="message" />
     }
@@ -57,7 +60,7 @@
         <app-affiliation-selector [control]="form.controls.affiliation" />
       </div>
 
-      <p-button type="submit" label="Create account" styleClass="auth-submit" [loading]="loading()" [disabled]="loading()" />
+      <p-button type="submit" label="Create account" icon="pi pi-arrow-up-right" iconPos="right" styleClass="auth-submit" [loading]="loading()" [disabled]="loading()" />
     </form>
 
     <p class="auth-footer">Already registered? <a routerLink="/login">Sign in</a></p>

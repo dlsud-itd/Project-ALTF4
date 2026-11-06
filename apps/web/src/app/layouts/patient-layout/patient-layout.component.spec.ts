@@ -22,12 +22,12 @@ describe('PatientLayoutComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render sidebar navigation links for Dashboard, Bookings, and Profile', () => {
+  it('should render sidebar navigation links for Dashboard, Bookings, Queue, and Profile', () => {
     const navItems = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll('.sidebar-nav .nav-link'),
     ).map((item) => item.textContent?.trim());
 
-    expect(navItems).toEqual(['Dashboard', 'Bookings', 'Profile']);
+    expect(navItems).toEqual(['Dashboard', 'Bookings', 'Queue', 'Profile']);
   });
 
   it('should display brand title in the sidebar', () => {

@@ -13,10 +13,9 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector = new Reflector()) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<Array<AccessRole | string>>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<
+      Array<AccessRole | string>
+    >(ROLES_KEY, [context.getHandler(), context.getClass()]);
 
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
@@ -30,7 +29,9 @@ export class RolesGuard implements CanActivate {
     }
 
     const normalizedUserRole = String(user.role).toUpperCase();
-    const allowedRoles = requiredRoles.map((role) => String(role).toUpperCase());
+    const allowedRoles = requiredRoles.map((role) =>
+      String(role).toUpperCase(),
+    );
 
     if (!allowedRoles.includes(normalizedUserRole)) {
       throw new ForbiddenException('Forbidden: insufficient permissions');

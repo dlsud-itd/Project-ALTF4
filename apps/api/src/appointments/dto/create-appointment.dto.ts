@@ -1,4 +1,11 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAppointmentDto {
@@ -20,4 +27,3 @@ export class CreateAppointmentDto {
   @MaxLength(500)
   reasonForVisit?: string;
 }
-
