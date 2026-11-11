@@ -1,6 +1,7 @@
 @use '../../../shared/styles/breakpoints' as bp;
 
 $card-radius: 16px;
+$touch-target-min: 44px;
 
 :host {
   display: block;
@@ -22,7 +23,7 @@ $card-radius: 16px;
   }
 
   > .profile-card,
-  > .placeholder-panel {
+  > .appointments-panel {
     grid-column: auto;
   }
 }
@@ -423,19 +424,22 @@ $card-radius: 16px;
   }
 }
 
-// ---- Upcoming events placeholder ----
-.placeholder-panel {
+// ---- Upcoming appointments (same card surface as the profile card) ----
+.appointments-panel {
+  min-width: 0;
   background: var(--surface-0);
-  border: 1px dashed var(--surface-900);
+  border: 1px solid var(--surface-900);
   border-radius: $card-radius;
   padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
 
-  .placeholder-header {
+  .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
+    margin-bottom: 0.75rem;
 
     h3 {
       display: flex;
@@ -451,7 +455,7 @@ $card-radius: 16px;
       }
     }
 
-    .coming-soon-tag {
+    .sample-data-tag {
       font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -462,6 +466,34 @@ $card-radius: 16px;
       padding: 0.2rem 0.5rem;
     }
   }
+
+  .appointment-list {
+    display: grid;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+
+    li {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) auto;
+      align-items: center;
+      gap: 0.5rem 1rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--surface-200);
+      color: var(--text-main);
+      font-size: 0.9rem;
+    }
+
+    .appointment-name {
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .appointment-date,
+    .appointment-time {
+      color: var(--text-muted);
+    }
+  }
 }
 
 @include bp.below-tablet {
@@ -470,7 +502,7 @@ $card-radius: 16px;
     grid-template-columns: minmax(0, 1fr);
 
     > .profile-card,
-    > .placeholder-panel {
+    > .appointments-panel {
       grid-column: 1 / -1;
     }
   }
@@ -499,6 +531,42 @@ $card-radius: 16px;
   .profile-card {
     flex-direction: column;
     padding: 1rem;
+  }
+
+  .appointments-panel {
+    padding: 1rem;
+
+    .appointment-list li {
+      grid-template-columns: minmax(0, 1fr) auto;
+      min-height: $touch-target-min;
+
+      .appointment-name,
+      .appointment-time {
+        grid-column: 1;
+      }
+
+      .appointment-date {
+        grid-column: 1;
+      }
+
+      p-tag {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+      }
+    }
+  }
+
+  // Touch targets: at least 44px tall below tablet width.
+  :host ::ng-deep {
+    .p-button,
+    app-error-state .p-button {
+      min-height: $touch-target-min;
+    }
+  }
+
+  .queue-panel input,
+  .queue-panel textarea {
+    min-height: $touch-target-min;
   }
 
   .ticket-card {
@@ -578,7 +646,7 @@ $card-radius: 16px;
 // Larger rounded upper-left and upper-right corners on the cards.
 .stats-grid .stat-card,
 .profile-card,
-.placeholder-panel {
+.appointments-panel {
   border-radius: 28px 28px 12px 12px;
 }
 
@@ -618,7 +686,7 @@ $card-radius: 16px;
   .page-top,
   .stats-grid,
   .profile-card,
-  .placeholder-panel,
+  .appointments-panel,
   .button-row,
   .ticket-actions,
   app-loading-skeleton,

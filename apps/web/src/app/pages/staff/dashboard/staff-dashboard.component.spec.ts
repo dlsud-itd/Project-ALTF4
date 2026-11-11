@@ -2,9 +2,9 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { QueueStatus } from '@core/models';
 import { QueueService } from '@core/services';
 import { StaffDashboardComponent } from './staff-dashboard.component';
@@ -91,11 +91,144 @@ describe('StaffDashboardComponent', () => {
     expect(component.staffRole()).toBe('STAFF');
   });
 
-  it('should render the profile summary and upcoming events placeholder', () => {
+  it('should render the profile summary and upcoming appointments panel', () => {
     const element: HTMLElement = fixture.nativeElement;
     expect(element.querySelector('.profile-card')).toBeTruthy();
     expect(element.querySelector('#profile-title')?.textContent).toContain('Staff Nurse');
-    expect(element.querySelector('.placeholder-panel #events-title')?.textContent).toContain('Upcoming Events');
+    expect(
+      element.querySelector('.appointments-panel #appointments-title')
+        ?.textContent,
+    ).toContain('Upcoming appointments');
+    expect(element.querySelector('.sample-data-tag')?.textContent).toContain(
+      'Sample data',
+    );
+  });
+
+  it('lists sample appointments with 12-hour times and status tags', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const rows = element.querySelectorAll('.appointment-list li');
+
+    expect(rows.length).toBe(component.appointments().length);
+    expect(rows[0].textContent).toContain('Sample Patient A');
+    expect(rows[0].querySelector('.appointment-time')?.textContent).toContain(
+      '8:00 AM to 8:30 AM',
+    );
+    expect(rows[2].querySelector('.appointment-time')?.textContent).toContain(
+      '1:00 PM to 1:30 PM',
+    );
+    expect(rows[0].querySelector('p-tag')).toBeTruthy();
+  });
+
+  it('shows a loading skeleton for the appointments panel', () => {
+    component.isAppointmentsLoading.set(true);
+    fixture.detectChanges();
+    const panel = (fixture.nativeElement as HTMLElement).querySelector(
+      '.appointments-panel',
+    );
+
+    expect(panel?.querySelector('app-loading-skeleton')).toBeTruthy();
+    expect(panel?.querySelector('.appointment-list')).toBeNull();
+  });
+
+  it('shows an empty state when there are no upcoming appointments', () => {
+    component.appointments.set([]);
+    fixture.detectChanges();
+    const panel = (fixture.nativeElement as HTMLElement).querySelector(
+      '.appointments-panel',
+    );
+
+    expect(panel?.textContent).toContain('No upcoming appointments');
+    expect(panel?.querySelector('.appointment-list')).toBeNull();
+  });
+
+  it('shows an appointments error state and clears it on retry', () => {
+    component.hasAppointmentsError.set(true);
+    fixture.detectChanges();
+    const panel = (fixture.nativeElement as HTMLElement).querySelector(
+      '.appointments-panel',
+    );
+
+    expect(panel?.querySelector('app-error-state')).toBeTruthy();
+
+    component.onRetryAppointments();
+    fixture.detectChanges();
+
+    expect(component.hasAppointmentsError()).toBeFalse();
+    expect(panel?.querySelector('app-error-state')).toBeNull();
+  });
+
+  it('shows the no active queue states when the queue is not active', () => {
+    component.isStatsLoading.set(false);
+    component.isQueueActive.set(false);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('.live-queue-panel')?.textContent,
+    ).toContain('No active queue today');
+    expect(element.textContent).toContain('No stats yet');
+    expect(element.querySelector('.stats-grid')).toBeNull();
+    expect(element.querySelector('.walk-in-layout form')).toBeTruthy();
+  });
+
+  it('marks the queue inactive when the status says is_active is false', () => {
+    const queueService = TestBed.inject(QueueService);
+    (queueService.getQueueStatus as jasmine.Spy).and.returnValue(
+      of({
+        queue_id: 1,
+        clinic_date: '2026-11-06',
+        is_active: false,
+        currently_serving: null,
+        total_waiting: 0,
+        waiting_tickets: [],
+        total_completed_today: 0,
+        avg_wait_time_minutes: 0,
+        server_time: new Date().toISOString(),
+        last_updated: '2026-11-06T00:00:00.000Z',
+      }),
+    );
+
+    component.onRetryStats();
+
+    expect(component.isQueueActive()).toBeFalse();
+    expect(component.hasStatsError()).toBeFalse();
+  });
+
+  it('treats a 404 with code QUEUE_NOT_FOUND as no queue, not an error', () => {
+    const queueService = TestBed.inject(QueueService);
+    (queueService.getQueueStatus as jasmine.Spy).and.returnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 404,
+            error: { code: 'QUEUE_NOT_FOUND', message: 'not found' },
+          }),
+      ),
+    );
+
+    component.onRetryStats();
+
+    expect(component.isQueueActive()).toBeFalse();
+    expect(component.hasStatsError()).toBeFalse();
+    expect(component.isStatsLoading()).toBeFalse();
+  });
+
+  it('keeps the error state for any other status error', () => {
+    const queueService = TestBed.inject(QueueService);
+    (queueService.getQueueStatus as jasmine.Spy).and.returnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 404,
+            error: { code: 'ENTRY_NOT_FOUND', message: 'other' },
+          }),
+      ),
+    );
+
+    component.onRetryStats();
+
+    expect(component.hasStatsError()).toBeTrue();
+    expect(component.isQueueActive()).toBeTrue();
   });
 
   it('should show queue management information without the staff token lookup card', () => {
