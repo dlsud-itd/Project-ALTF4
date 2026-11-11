@@ -53,11 +53,9 @@ $touch-target-min: 44px;
   gap: 0.625rem;
 }
 
-.walk-in-layout {
+.live-queue-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
-  gap: 1.25rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .queue-panel {
@@ -69,26 +67,7 @@ $touch-target-min: 44px;
   box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
 
   h3 { margin: 0 0 1rem; color: var(--text-main); font-size: 1.1rem; }
-  form { display: grid; gap: 0.6rem; }
-  label { margin-top: 0.35rem; color: var(--text-main); font-size: 0.88rem; font-weight: 600; }
-  label span { color: var(--text-muted); font-weight: 400; }
-  input,
-  textarea {
-    width: 100%;
-    padding: 0.8rem;
-    color: var(--text-main);
-    background: var(--surface-0);
-    border: 1px solid var(--surface-300);
-    border-radius: 9px;
-    font: inherit;
-  }
-
-  textarea { resize: vertical; }
-  input:focus, textarea:focus { outline: 2px solid var(--primary-color); }
 }
-
-.field-error,
-.form-error { color: #b42318; font-size: 0.82rem; }
 
 .now-calling {
   display: grid;
@@ -265,74 +244,6 @@ $touch-target-min: 44px;
   }
 }
 
-// ---- Patient queue ticket slip ----
-.ticket-card {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: center;
-  background: var(--surface-0);
-  border: 1px solid var(--surface-900);
-  border-radius: $card-radius;
-  padding: 1.5rem;
-  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
-
-  .ticket-qr-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 180px;
-    border: 1px solid var(--surface-900);
-    border-radius: 18px;
-    background: #ffffff;
-    overflow: hidden;
-  }
-
-  .ticket-qr,
-  .ticket-qr-placeholder {
-    width: 170px;
-    height: 170px;
-  }
-
-  .ticket-qr-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: var(--primary-color);
-    background: var(--surface-100);
-  }
-
-  .ticket-details {
-    min-width: 0;
-  }
-
-  .ticket-label {
-    margin: 0.5rem 0 0.25rem;
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: 700;
-  }
-
-  .ticket-number {
-    font-size: clamp(2.2rem, 4vw, 4rem);
-    line-height: 1;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    color: var(--primary-color);
-    margin-bottom: 0.75rem;
-  }
-
-  .ticket-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 1rem;
-  }
-}
-
 // ---- Upcoming appointments (same card surface as the stat cards) ----
 .appointments-panel {
   min-width: 0;
@@ -429,7 +340,7 @@ $touch-target-min: 44px;
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .walk-in-layout {
+  .live-queue-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -464,19 +375,7 @@ $touch-target-min: 44px;
     }
   }
 
-  .queue-panel input,
-  .queue-panel textarea {
-    min-height: $touch-target-min;
-  }
 
-  .ticket-card {
-    grid-template-columns: 1fr;
-    padding: 1rem;
-
-    .ticket-qr-box {
-      min-height: 150px;
-    }
-  }
 }
 
 // ---- Deep petrol header bar, full width, controls on the right ----
@@ -564,75 +463,6 @@ $touch-target-min: 44px;
     width: calc(100% - 2rem);
     margin-top: 1rem;
     border-radius: 16px;
-  }
-}
-
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm;
-  }
-
-  :host {
-    background: #ffffff !important;
-    color: #0d4e52 !important;
-  }
-
-  body {
-    background: #ffffff !important;
-  }
-
-  .page-top,
-  .stats-grid,
-  .appointments-panel,
-  .button-row,
-  .ticket-actions,
-  app-loading-skeleton,
-  app-error-state,
-  app-empty-state {
-    display: none !important;
-  }
-
-  .dashboard-page {
-    display: block !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .ticket-card {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 1rem !important;
-    border: 1.5px solid var(--surface-900) !important;
-    box-shadow: none !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
-    border-radius: 18px !important;
-  }
-
-  .ticket-card .ticket-qr-box {
-    width: 200px !important;
-    height: 200px !important;
-    margin: 0 auto 1rem auto !important;
-    border-radius: 12px !important;
-  }
-
-  .ticket-card .ticket-details {
-    text-align: center !important;
-    width: 100% !important;
-  }
-
-  .ticket-card .ticket-number {
-    font-size: 2.75rem !important;
-    margin-bottom: 0.5rem !important;
-    letter-spacing: -0.04em !important;
-  }
-
-  .ticket-card .ticket-label {
-    display: none !important;
   }
 }
 

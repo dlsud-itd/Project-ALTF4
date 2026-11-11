@@ -9,15 +9,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  Validators,
-} from '@angular/forms';
 import { interval } from 'rxjs';
-import QRCode from 'qrcode';
 import { merge } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
@@ -28,7 +20,6 @@ import {
   QueueStatusResponse,
   QueueTicketSummary,
   ServingTicket,
-  WalkInRequest,
 } from '@core/models';
 import {
   EmptyStateComponent,
@@ -128,7 +119,6 @@ function formatTime12h(time: string): string {
     Button,
     DatePipe,
     Tag,
-    ReactiveFormsModule,
     EmptyStateComponent,
     ErrorStateComponent,
     LoadingSkeletonComponent,
@@ -141,21 +131,6 @@ export class StaffDashboardComponent implements OnInit {
   private readonly queueService = inject(QueueService);
   private readonly sseService = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly formBuilder = inject(FormBuilder);
-  private readonly namePattern = /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u;
-  private readonly validatePatientName = (
-    control: AbstractControl<string>,
-  ): ValidationErrors | null => {
-    const name = control.value.trim().replace(/\s+/g, ' ');
-    if (name.length < 2) {
-      return { minlength: true };
-    }
-    if (name.length > 60) {
-      return { maxlength: true };
-    }
-    return this.namePattern.test(name) ? null : { pattern: true };
-  };
-
   readonly queueId = signal<number>(1);
   readonly counterNumber = signal<number>(1);
   readonly servingTicket = signal<string>('—');
@@ -165,40 +140,7 @@ export class StaffDashboardComponent implements OnInit {
   readonly waitingCount = signal<number>(0);
   readonly waitingTickets = signal<QueueTicketSummary[]>([]);
   readonly completedCount = signal<number>(0);
-  readonly generatedTicket = signal<string | null>(null);
-  readonly qrCodeDataUrl = signal<string | null>(null);
   readonly isGeneratingQueue = signal<boolean>(false);
-  readonly walkInError = signal<string | null>(null);
-  readonly walkInForm = this.formBuilder.nonNullable.group({
-    name: [
-      '',
-      [Validators.required, this.validatePatientName],
-    ],
-    reasonForVisit: ['', [Validators.maxLength(200)]],
-  });
-
-  private getTrackingUrl(token: string): string {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4200';
-    return `${origin}/patient/queue?token=${encodeURIComponent(token)}`;
-  }
-
-  private async generateQrCode(token: string): Promise<void> {
-    try {
-      const trackingUrl = this.getTrackingUrl(token);
-      const dataUrl = await QRCode.toDataURL(trackingUrl, {
-        margin: 1,
-        width: 180,
-        color: {
-          dark: '#0d4e52',
-          light: '#ffffff',
-        },
-      });
-      this.qrCodeDataUrl.set(dataUrl);
-    } catch {
-      this.qrCodeDataUrl.set(null);
-    }
-  }
-
   readonly dateFormat = DATE_DISPLAY_FORMAT;
   // TODO(Lim, Jereign): replace with GET /appointments (staff)
   readonly appointments = signal<StaffAppointmentRow[]>(SAMPLE_APPOINTMENTS);
@@ -307,64 +249,6 @@ export class StaffDashboardComponent implements OnInit {
   readonly isInService = computed(
     (): boolean => this.currentTicket()?.status === QueueStatus.IN_SERVICE,
   );
-
-  onGenerateQueueNumber(): void {
-    if (this.walkInForm.invalid) {
-      this.walkInForm.markAllAsTouched();
-      return;
-    }
-
-    const formValue = this.walkInForm.getRawValue();
-    const payload: WalkInRequest = {
-      name: formValue.name.trim().replace(/\s+/g, ' '),
-      reasonForVisit: formValue.reasonForVisit.trim() || undefined,
-    };
-
-    this.isGeneratingQueue.set(true);
-    this.walkInError.set(null);
-    this.queueService.generateStaffQueueNumber(this.queueId(), payload).subscribe({
-      next: (response): void => {
-        this.generatedTicket.set(response.ticket_number);
-        this.qrCodeDataUrl.set(null);
-
-        if (response.tracking_token) {
-          void this.generateQrCode(response.tracking_token);
-        }
-
-        this.walkInForm.reset();
-        this.loadQueueStatus();
-      },
-      error: (error: { error?: { message?: string | string[] } }): void => {
-        const message = error.error?.message;
-        this.walkInError.set(
-          Array.isArray(message)
-            ? message.join(', ')
-            : message ?? 'Could not create the walk-in ticket.',
-        );
-        this.isGeneratingQueue.set(false);
-      },
-      complete: (): void => {
-        this.isGeneratingQueue.set(false);
-      },
-    });
-  }
-
-  onPrintQueueTicket(): void {
-    if (!this.generatedTicket()) {
-      return;
-    }
-
-    const originalTitle = document.title;
-    const queueNumber = this.generatedTicket();
-    document.title = `ClinicQueue Ticket ${queueNumber}`;
-
-    window.setTimeout(() => {
-      window.print();
-      window.setTimeout(() => {
-        document.title = originalTitle;
-      }, 200);
-    }, 50);
-  }
 
   onCallNext(): void {
     this.isGeneratingQueue.set(true);

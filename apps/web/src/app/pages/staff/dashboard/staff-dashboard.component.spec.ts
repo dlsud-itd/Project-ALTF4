@@ -16,7 +16,6 @@ describe('StaffDashboardComponent', () => {
   beforeEach(async () => {
     const queueServiceMock = jasmine.createSpyObj('QueueService', [
       'getQueueStatus',
-      'generateStaffQueueNumber',
       'callNext',
       'updateEntryStatus',
     ]);
@@ -55,18 +54,6 @@ describe('StaffDashboardComponent', () => {
       }),
     );
     queueServiceMock.updateEntryStatus.and.returnValue(of({}));
-    queueServiceMock.generateStaffQueueNumber.and.returnValue(
-      of({
-        queue_entry_id: 43,
-        queue_id: 1,
-        ticket_number: 'A-106',
-        position_in_queue: 2,
-        estimated_wait_minutes: 30,
-        status: QueueStatus.WAITING,
-        tracking_token: 'trk_0123456789abcdef',
-        joined_at: '2026-11-06T00:00:00.000Z',
-      }),
-    );
     await TestBed.configureTestingModule({
       imports: [StaffDashboardComponent],
       providers: [
@@ -161,7 +148,7 @@ describe('StaffDashboardComponent', () => {
     ).toContain('No active queue today');
     expect(element.textContent).toContain('No stats yet');
     expect(element.querySelector('.stats-grid')).toBeNull();
-    expect(element.querySelector('.walk-in-layout form')).toBeTruthy();
+    expect(element.querySelector('.walk-in-layout')).toBeNull();
   });
 
   it('marks the queue inactive when the status says is_active is false', () => {
@@ -228,8 +215,10 @@ describe('StaffDashboardComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.querySelector('.tracking-panel')).toBeNull();
-    expect(element.querySelector('.walk-in-layout .live-queue-panel')).toBeTruthy();
+    expect(element.querySelector('.live-queue-layout .live-queue-panel')).toBeTruthy();
     expect(element.querySelector('.stats-grid')).toBeTruthy();
+    expect(element.querySelector('form')).toBeNull();
+    expect(element.querySelector('.ticket-card')).toBeNull();
   });
 
   it('should show a loading skeleton while the queue stats load', () => {
@@ -296,22 +285,5 @@ describe('StaffDashboardComponent', () => {
         '.grace-countdown--urgent',
       ),
     ).toBeTruthy();
-  });
-
-  it('creates a walk-in ticket using the name and optional reason only', () => {
-    component.walkInForm.setValue({
-      name: '  Jane   Doe ',
-      reasonForVisit: '  Headache  ',
-    });
-
-    component.onGenerateQueueNumber();
-
-    expect(
-      TestBed.inject(QueueService).generateStaffQueueNumber,
-    ).toHaveBeenCalledWith(1, {
-      name: 'Jane Doe',
-      reasonForVisit: 'Headache',
-    }    );
-    expect(component.generatedTicket()).toBe('A-106');
   });
 });

@@ -32,46 +32,7 @@
 </header>
 
 <div class="dashboard-page">
-  <section class="walk-in-layout" aria-label="Walk-in queue management">
-    <section class="queue-panel" aria-labelledby="walk-in-title">
-      <h3 id="walk-in-title">New walk-in</h3>
-      <form [formGroup]="walkInForm" (ngSubmit)="onGenerateQueueNumber()">
-        <label for="walk-in-name">Name <span>(required)</span></label>
-        <input
-          id="walk-in-name"
-          type="text"
-          formControlName="name"
-          placeholder="e.g. Juan Dela Cruz"
-          autocomplete="off"
-        />
-        @if (walkInForm.controls.name.touched && walkInForm.controls.name.invalid) {
-          <small class="field-error">
-            Enter 2–60 characters using letters, spaces, hyphens, or apostrophes.
-          </small>
-        }
-
-        <label for="walk-in-reason">Visit reason <span>(optional)</span></label>
-        <textarea
-          id="walk-in-reason"
-          formControlName="reasonForVisit"
-          maxlength="200"
-          rows="2"
-          placeholder="Visit reason"
-        ></textarea>
-
-        @if (walkInError()) {
-          <p class="form-error" role="alert">{{ walkInError() }}</p>
-        }
-        <p-button
-          type="submit"
-          label="Get ticket"
-          icon="pi pi-ticket"
-          severity="info"
-          [loading]="isGeneratingQueue()"
-        />
-      </form>
-    </section>
-
+  <section class="live-queue-layout" aria-label="Live queue">
     <section class="queue-panel live-queue-panel" aria-labelledby="queue-list-title">
       @if (!isQueueActive()) {
         <app-empty-state
@@ -122,7 +83,7 @@
             (retry)="onRetryStats()"
           />
         } @else if (waitingTickets().length === 0) {
-          <p class="empty-queue">No tickets yet. Add the first walk-in.</p>
+          <p class="empty-queue">No tickets yet. Add the first walk-in from the Walk-in tab.</p>
         } @else {
           <ol class="waiting-list">
             @for (ticket of waitingTickets(); track ticket.queue_entry_id) {
@@ -172,24 +133,6 @@
         </div>
       </div>
     </div>
-  }
-
-  @if (generatedTicket()) {
-    <section class="ticket-card" aria-live="polite">
-      <div class="ticket-qr-box">
-        @if (qrCodeDataUrl(); as qrCode) {
-          <img [src]="qrCode" alt="Queue tracking QR code" class="ticket-qr" />
-        } @else {
-          <div class="ticket-qr-placeholder">
-            <i class="pi pi-qrcode"></i>
-          </div>
-        }
-      </div>
-
-      <div class="ticket-details">
-        <div class="ticket-number">#{{ generatedTicket() }}</div>
-      </div>
-    </section>
   }
 
   <!-- Upcoming appointments (sample data) -->
