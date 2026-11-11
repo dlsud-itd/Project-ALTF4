@@ -32,99 +32,68 @@
 </header>
 
 <div class="dashboard-page">
-  <section class="walk-in-layout" aria-label="Walk-in queue management">
-    <section class="queue-panel" aria-labelledby="walk-in-title">
-      <h3 id="walk-in-title">New walk-in</h3>
-      <form [formGroup]="walkInForm" (ngSubmit)="onGenerateQueueNumber()">
-        <label for="walk-in-name">Name <span>(required)</span></label>
-        <input
-          id="walk-in-name"
-          type="text"
-          formControlName="name"
-          placeholder="e.g. Juan Dela Cruz"
-          autocomplete="off"
-        />
-        @if (walkInForm.controls.name.touched && walkInForm.controls.name.invalid) {
-          <small class="field-error">
-            Enter 2–60 characters using letters, spaces, hyphens, or apostrophes.
-          </small>
-        }
-
-        <label for="walk-in-reason">Visit reason <span>(optional)</span></label>
-        <textarea
-          id="walk-in-reason"
-          formControlName="reasonForVisit"
-          maxlength="200"
-          rows="2"
-          placeholder="Visit reason"
-        ></textarea>
-
-        @if (walkInError()) {
-          <p class="form-error" role="alert">{{ walkInError() }}</p>
-        }
-        <p-button
-          type="submit"
-          label="Get ticket"
-          icon="pi pi-ticket"
-          severity="info"
-          [loading]="isGeneratingQueue()"
-        />
-      </form>
-    </section>
-
+  <section class="live-queue-layout" aria-label="Live queue">
     <section class="queue-panel live-queue-panel" aria-labelledby="queue-list-title">
-      @if (currentTicket(); as ticket) {
-        <div class="now-calling">
-          <span>Now calling</span>
-          <strong>{{ ticket.ticket_number }}</strong>
-          <small>{{ ticket.status === 'CALLED' ? 'Waiting for patient to arrive' : 'In service' }}</small>
-          @if (ticket.status === 'CALLED') {
-            <span
-              class="grace-countdown"
-              [class.grace-countdown--urgent]="isGracePeriodUrgent()"
-              aria-live="polite"
-            >
-              {{ countdownText() }}
-            </span>
-            <p-button
-              label="Patient arrived"
-              icon="pi pi-check"
-              severity="success"
-              (onClick)="onPatientArrived()"
-            />
-          }
-        </div>
-      } @else {
-        <div class="now-calling">
-          <span>Now calling</span>
-          <strong>—</strong>
-          <small>No one called yet</small>
-        </div>
-      }
-
-      <div class="queue-list-heading">
-        <h3 id="queue-list-title">Queue</h3>
-        <span>{{ waitingCount() }} waiting</span>
-      </div>
-      @if (isStatsLoading() && waitingTickets().length === 0) {
-        <app-loading-skeleton [lines]="2" />
-      } @else if (hasStatsError()) {
-        <app-error-state
-          title="Could not load queue stats"
-          message="Check your connection and try again."
-          (retry)="onRetryStats()"
+      @if (!isQueueActive()) {
+        <app-empty-state
+          icon="pi-calendar-times"
+          title="No active queue today"
+          message="The queue opens when a clinic session starts."
         />
-      } @else if (waitingTickets().length === 0) {
-        <p class="empty-queue">No tickets yet. Add the first walk-in.</p>
       } @else {
-        <ol class="waiting-list">
-          @for (ticket of waitingTickets(); track ticket.queue_entry_id) {
-            <li>
-              <span>{{ ticket.ticket_number }}</span>
-              <span>{{ ticket.status }}</span>
-            </li>
-          }
-        </ol>
+        @if (currentTicket(); as ticket) {
+          <div class="now-calling">
+            <span>Now calling</span>
+            <strong>{{ ticket.ticket_number }}</strong>
+            <small>{{ ticket.status === 'CALLED' ? 'Waiting for patient to arrive' : 'In service' }}</small>
+            @if (ticket.status === 'CALLED') {
+              <span
+                class="grace-countdown"
+                [class.grace-countdown--urgent]="isGracePeriodUrgent()"
+                aria-live="polite"
+              >
+                {{ countdownText() }}
+              </span>
+              <p-button
+                label="Patient arrived"
+                icon="pi pi-check"
+                severity="success"
+                (onClick)="onPatientArrived()"
+              />
+            }
+          </div>
+        } @else {
+          <div class="now-calling">
+            <span>Now calling</span>
+            <strong>—</strong>
+            <small>No one called yet</small>
+          </div>
+        }
+
+        <div class="queue-list-heading">
+          <h3 id="queue-list-title">Queue</h3>
+          <span>{{ waitingCount() }} waiting</span>
+        </div>
+        @if (isStatsLoading() && waitingTickets().length === 0) {
+          <app-loading-skeleton [lines]="2" />
+        } @else if (hasStatsError()) {
+          <app-error-state
+            title="Could not load queue stats"
+            message="Check your connection and try again."
+            (retry)="onRetryStats()"
+          />
+        } @else if (waitingTickets().length === 0) {
+          <p class="empty-queue">No tickets yet. Add the first walk-in from the Walk-in tab.</p>
+        } @else {
+          <ol class="waiting-list">
+            @for (ticket of waitingTickets(); track ticket.queue_entry_id) {
+              <li>
+                <span>{{ ticket.ticket_number }}</span>
+                <span>{{ ticket.status }}</span>
+              </li>
+            }
+          </ol>
+        }
       }
     </section>
   </section>
@@ -132,6 +101,12 @@
   <!-- Quick Stats Grid -->
   @if (isStatsLoading()) {
     <app-loading-skeleton [lines]="3" />
+  } @else if (!isQueueActive()) {
+    <app-empty-state
+      icon="pi-chart-bar"
+      title="No stats yet"
+      message="Queue numbers appear once a queue is open."
+    />
   } @else if (!hasStatsError()) {
     <div class="stats-grid">
       <div class="stat-card">
@@ -160,68 +135,47 @@
     </div>
   }
 
-  @if (generatedTicket()) {
-    <section class="ticket-card" aria-live="polite">
-      <div class="ticket-qr-box">
-        @if (qrCodeDataUrl(); as qrCode) {
-          <img [src]="qrCode" alt="Queue tracking QR code" class="ticket-qr" />
-        } @else {
-          <div class="ticket-qr-placeholder">
-            <i class="pi pi-qrcode"></i>
-          </div>
-        }
-      </div>
-
-      <div class="ticket-details">
-        <div class="ticket-number">#{{ generatedTicket() }}</div>
-      </div>
-    </section>
-  }
-
-  <!-- Profile Summary -->
-  <section class="profile-card" aria-labelledby="profile-title">
-    <div class="profile-avatar" aria-hidden="true">
-      <i class="pi pi-user-edit"></i>
-    </div>
-
-    <div class="profile-details">
-      <div class="profile-heading">
-        <h3 id="profile-title">{{ staffName() }}</h3>
-        <span class="role-pill">{{ staffRole() }}</span>
-      </div>
-      <p class="profile-subtitle">{{ staffEmail() }}</p>
-
-      <dl class="profile-meta">
-        <div>
-          <dt>Assigned Station</dt>
-          <dd>Counter {{ counterNumber() }}</dd>
-        </div>
-        <div>
-          <dt>Shift</dt>
-          <dd>8:00 AM &ndash; 5:00 PM</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd class="status-online">On Duty</dd>
-        </div>
-      </dl>
-    </div>
-  </section>
-
-  <!-- Upcoming Events -->
-  <section class="placeholder-panel" aria-labelledby="events-title">
-    <div class="placeholder-header">
-      <h3 id="events-title">
+  <!-- Upcoming appointments (sample data) -->
+  <section class="appointments-panel" aria-labelledby="appointments-title">
+    <div class="panel-header">
+      <h3 id="appointments-title">
         <i class="pi pi-calendar"></i>
-        Upcoming Events
+        Upcoming appointments
       </h3>
-      <span class="coming-soon-tag">Coming soon</span>
+      <!-- TODO(Lim, Jereign): remove once the data is connected -->
+      <span class="sample-data-tag">Sample data</span>
     </div>
 
-    <app-empty-state
-      icon="pi-calendar-plus"
-      title="No scheduled events"
-      message="Clinic events will appear here."
-    />
+    @if (isAppointmentsLoading()) {
+      <app-loading-skeleton [lines]="3" />
+    } @else if (hasAppointmentsError()) {
+      <app-error-state
+        title="Could not load appointments"
+        message="Check your connection and try again."
+        (retry)="onRetryAppointments()"
+      />
+    } @else if (!hasAppointments()) {
+      <app-empty-state
+        icon="pi-calendar"
+        title="No upcoming appointments"
+        message="Booked appointments will appear here."
+      />
+    } @else {
+      <ul class="appointment-list">
+        @for (row of appointments(); track row.id) {
+          <li>
+            <span class="appointment-name">{{ row.patientName }}</span>
+            <span class="appointment-date">
+              {{ row.clinicDate | date: dateFormat }}
+            </span>
+            <span class="appointment-time">{{ appointmentTimeRange(row) }}</span>
+            <p-tag
+              [value]="appointmentStatusLabel(row.status)"
+              [severity]="appointmentStatusSeverity(row.status)"
+            />
+          </li>
+        }
+      </ul>
+    }
   </section>
 </div>
