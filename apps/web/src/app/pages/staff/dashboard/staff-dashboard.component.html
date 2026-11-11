@@ -51,6 +51,11 @@
           <div class="now-calling">
             <span>Now calling</span>
             <strong>{{ ticket.ticket_number }}</strong>
+            <!-- TODO(Lim, Jereign): show the real patient name and reason -->
+            <div class="patient-meta">
+              <span class="patient-name">Patient name</span>
+              <span class="patient-reason">Reason for visit</span>
+            </div>
             <small>{{ ticket.status === 'CALLED' ? 'Waiting for patient to arrive' : 'In service' }}</small>
             @if (ticket.status === 'CALLED') {
               <span
@@ -111,10 +116,27 @@
           <p class="empty-queue">No tickets yet. Add the first walk-in from the Walk-in tab.</p>
         } @else {
           <ol class="waiting-list">
-            @for (ticket of waitingTickets(); track ticket.queue_entry_id) {
-              <li>
-                <span>{{ ticket.ticket_number }}</span>
-                <span>{{ ticket.status }}</span>
+            @for (
+              ticket of waitingTickets();
+              track ticket.queue_entry_id;
+              let isNext = $first
+            ) {
+              <li [class.is-next]="isNext && ticket.status === 'WAITING'">
+                <div class="ticket-info">
+                  <span class="ticket-id">{{ ticket.ticket_number }}</span>
+                  <!-- TODO(Lim, Jereign): show the real name and reason -->
+                  <div class="patient-meta">
+                    <span class="patient-name">Patient name</span>
+                    <span class="patient-reason">Reason for visit</span>
+                  </div>
+                </div>
+                <span class="ticket-status">
+                  {{
+                    isNext && ticket.status === 'WAITING'
+                      ? 'NEXT'
+                      : ticket.status
+                  }}
+                </span>
               </li>
             }
           </ol>
@@ -134,14 +156,6 @@
     />
   } @else if (!hasStatsError()) {
     <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon primary" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-        <div class="stat-body">
-          <span class="stat-label">Currently Serving</span>
-          <span class="stat-number primary">{{ servingTicket() === '—' ? '—' : '#' + servingTicket() }}</span>
-        </div>
-      </div>
-
       <div class="stat-card">
         <span class="stat-icon warning" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
         <div class="stat-body">

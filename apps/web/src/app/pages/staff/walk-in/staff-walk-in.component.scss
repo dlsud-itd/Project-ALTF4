@@ -14,8 +14,9 @@ $touch-target-min: 44px;
   max-width: 1280px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
+  align-items: stretch;
 }
 
 // ---- Deep petrol header band, same as the dashboard ----
@@ -85,7 +86,7 @@ $touch-target-min: 44px;
 // ---- Generated ticket slip ----
 .ticket-card {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 180px;
   gap: 1.5rem;
   align-items: center;
   background: var(--surface-0);
@@ -95,6 +96,7 @@ $touch-target-min: 44px;
   box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
 
   .ticket-qr-box {
+    order: 2;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -154,6 +156,7 @@ $touch-target-min: 44px;
 @include bp.below-tablet {
   .walk-in-page {
     padding: 1.25rem 1rem;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .page-top {
@@ -185,6 +188,7 @@ $touch-target-min: 44px;
     padding: 1rem;
 
     .ticket-qr-box {
+      order: 0;
       min-height: 150px;
     }
   }
@@ -231,6 +235,7 @@ $touch-target-min: 44px;
   }
 
   .ticket-card .ticket-qr-box {
+    order: 0 !important;
     width: 200px !important;
     height: 200px !important;
     margin: 0 auto 1rem auto !important;
