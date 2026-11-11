@@ -85,16 +85,9 @@ describe('StaffDashboardComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should fall back to placeholder profile details when unauthenticated', () => {
-    expect(component.staffName()).toBe('Staff Nurse');
-    expect(component.staffEmail()).toBe('staff@dlsud.edu.ph');
-    expect(component.staffRole()).toBe('STAFF');
-  });
-
-  it('should render the profile summary and upcoming appointments panel', () => {
+  it('should render the upcoming appointments panel without a profile card', () => {
     const element: HTMLElement = fixture.nativeElement;
-    expect(element.querySelector('.profile-card')).toBeTruthy();
-    expect(element.querySelector('#profile-title')?.textContent).toContain('Staff Nurse');
+    expect(element.querySelector('.profile-card')).toBeNull();
     expect(
       element.querySelector('.appointments-panel #appointments-title')
         ?.textContent,

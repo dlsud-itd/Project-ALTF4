@@ -192,36 +192,6 @@
     </section>
   }
 
-  <!-- Profile Summary -->
-  <section class="profile-card" aria-labelledby="profile-title">
-    <div class="profile-avatar" aria-hidden="true">
-      <i class="pi pi-user-edit"></i>
-    </div>
-
-    <div class="profile-details">
-      <div class="profile-heading">
-        <h3 id="profile-title">{{ staffName() }}</h3>
-        <span class="role-pill">{{ staffRole() }}</span>
-      </div>
-      <p class="profile-subtitle">{{ staffEmail() }}</p>
-
-      <dl class="profile-meta">
-        <div>
-          <dt>Assigned Station</dt>
-          <dd>Counter {{ counterNumber() }}</dd>
-        </div>
-        <div>
-          <dt>Shift</dt>
-          <dd>8:00 AM &ndash; 5:00 PM</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd class="status-online">On Duty</dd>
-        </div>
-      </dl>
-    </div>
-  </section>
-
   <!-- Upcoming appointments (sample data) -->
   <section class="appointments-panel" aria-labelledby="appointments-title">
     <div class="panel-header">

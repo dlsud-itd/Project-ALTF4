@@ -157,15 +157,6 @@ export class StaffDashboardComponent implements OnInit {
   };
 
   readonly queueId = signal<number>(1);
-  readonly staffName = computed(
-    (): string => this.authService.currentUser()?.fullName ?? 'Staff Nurse',
-  );
-  readonly staffEmail = computed(
-    (): string => this.authService.currentUser()?.email ?? 'staff@dlsud.edu.ph',
-  );
-  readonly staffRole = computed(
-    (): string => this.authService.currentUser()?.role ?? 'STAFF',
-  );
   readonly counterNumber = signal<number>(1);
   readonly servingTicket = signal<string>('—');
   readonly currentTicket = signal<ServingTicket | null>(null);

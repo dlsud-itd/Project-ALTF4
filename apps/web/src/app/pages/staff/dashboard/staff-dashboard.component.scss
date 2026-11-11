@@ -9,7 +9,7 @@ $touch-target-min: 44px;
   background: var(--surface-0);
 }
 
-// Header, stats row, then profile + events side by side.
+// Header, queue panels, stats row, then the appointments panel.
 .dashboard-page {
   padding: 1.5rem 2rem 2rem;
   max-width: 1280px;
@@ -20,11 +20,6 @@ $touch-target-min: 44px;
 
   > * {
     grid-column: 1 / -1;
-  }
-
-  > .profile-card,
-  > .appointments-panel {
-    grid-column: auto;
   }
 }
 
@@ -338,93 +333,7 @@ $touch-target-min: 44px;
   }
 }
 
-// ---- Profile summary ----
-.profile-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.25rem;
-  background: var(--surface-0);
-  border: 1px solid var(--surface-900);
-  border-radius: $card-radius;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
-
-  .profile-avatar {
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: var(--primary-light);
-    color: var(--primary-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-  }
-
-  .profile-details {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .profile-heading {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-
-    h3 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: var(--text-main);
-      margin: 0;
-    }
-
-    .role-pill {
-      font-size: 0.7rem;
-      background: var(--primary-light);
-      color: var(--primary-color);
-      padding: 0.15rem 0.5rem;
-      border-radius: 6px;
-      font-weight: 700;
-    }
-  }
-
-  .profile-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 0.15rem;
-  }
-
-  .profile-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2rem;
-    margin-top: 0.75rem;
-
-    dt {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--text-muted);
-      font-weight: 600;
-      margin-bottom: 0.2rem;
-    }
-
-    dd {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-main);
-      margin: 0;
-
-      &.status-online {
-        color: var(--primary-color);
-      }
-    }
-  }
-}
-
-// ---- Upcoming appointments (same card surface as the profile card) ----
+// ---- Upcoming appointments (same card surface as the stat cards) ----
 .appointments-panel {
   min-width: 0;
   background: var(--surface-0);
@@ -501,10 +410,6 @@ $touch-target-min: 44px;
     padding: 1.25rem 1rem;
     grid-template-columns: minmax(0, 1fr);
 
-    > .profile-card,
-    > .appointments-panel {
-      grid-column: 1 / -1;
-    }
   }
 
   .welcome-banner h2 {
@@ -526,11 +431,6 @@ $touch-target-min: 44px;
 
   .walk-in-layout {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .profile-card {
-    flex-direction: column;
-    padding: 1rem;
   }
 
   .appointments-panel {
@@ -645,7 +545,6 @@ $touch-target-min: 44px;
 
 // Larger rounded upper-left and upper-right corners on the cards.
 .stats-grid .stat-card,
-.profile-card,
 .appointments-panel {
   border-radius: 28px 28px 12px 12px;
 }
@@ -685,7 +584,6 @@ $touch-target-min: 44px;
 
   .page-top,
   .stats-grid,
-  .profile-card,
   .appointments-panel,
   .button-row,
   .ticket-actions,
