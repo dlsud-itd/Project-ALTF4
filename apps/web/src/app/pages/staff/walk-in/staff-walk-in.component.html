@@ -45,21 +45,35 @@
     </form>
   </section>
 
-  @if (generatedTicket()) {
-    <section class="ticket-card" aria-live="polite">
-      <div class="ticket-qr-box">
-        @if (qrCodeDataUrl(); as qrCode) {
-          <img [src]="qrCode" alt="Queue tracking QR code" class="ticket-qr" />
-        } @else {
-          <div class="ticket-qr-placeholder">
-            <i class="pi pi-qrcode"></i>
-          </div>
-        }
+  <section class="ticket-card" aria-live="polite" aria-labelledby="ticket-title">
+    @if (issuedTicket(); as ticket) {
+      <div class="ticket-content">
+        <h3 id="ticket-title">Walk-in ticket</h3>
+        <strong class="ticket-number">#{{ ticket.ticketNumber }}</strong>
+        <div class="ticket-details">
+          <p class="ticket-patient">{{ ticket.patientName }}</p>
+          <p class="ticket-reason">
+            {{ ticket.visitReason || 'No reason provided' }}
+          </p>
+          <p class="ticket-issued">
+            Issued {{ ticket.issuedAt | date: 'MMM d, y, h:mm a' }}
+          </p>
+          <span class="ticket-status">{{ ticket.status === 'WAITING' ? 'Waiting' : ticket.status }}</span>
+        </div>
+        <p-button
+          type="button"
+          label="New walk-in"
+          icon="pi pi-plus"
+          [outlined]="true"
+          (onClick)="onNewWalkIn()"
+        />
       </div>
-
-      <div class="ticket-details">
-        <div class="ticket-number">#{{ generatedTicket() }}</div>
+    } @else {
+      <div class="ticket-placeholder">
+        <i class="pi pi-ticket" aria-hidden="true"></i>
+        <h3 id="ticket-title">Ticket will appear here</h3>
+        <p>Create a walk-in ticket to see its details.</p>
       </div>
-    </section>
-  }
+    }
+  </section>
 </div>

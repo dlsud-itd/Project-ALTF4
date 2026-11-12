@@ -134,6 +134,21 @@ export class QueueController {
     return this.queueService.getQueueStatus(queueId);
   }
 
+  @Get(':queueId/staff-status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get queue status with patient details (Staff/Admin)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Queue operational status with patient details retrieved',
+  })
+  async getStaffStatus(@Param('queueId', ParseIntPipe) queueId: number) {
+    return this.queueService.getStaffQueueStatus(queueId);
+  }
+
   // Advances the queue and assigns the next waiting patient to a designated counter.
   @Post(':queueId/call-next')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -149,6 +164,16 @@ export class QueueController {
     @Body() dto: CallNextDto,
   ) {
     return this.queueService.callNext(queueId, dto);
+  }
+
+  @Post(':queueId/recall-current')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Re-announce the current called patient' })
+  @ApiResponse({ status: 200, description: 'Current patient recalled' })
+  async recallCurrent(@Param('queueId', ParseIntPipe) queueId: number) {
+    return this.queueService.recallCurrent(queueId);
   }
 
   // Updates the lifecycle status or notes of a specific patient queue entry.

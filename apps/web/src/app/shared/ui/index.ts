@@ -4,4 +4,4 @@ export * from './auth-card/auth-card.component';
 export * from './empty-state/empty-state.component';
 export * from './error-state/error-state.component';
 export * from './loading-skeleton/loading-skeleton.component';
-
+export * from './notice/notice.component';

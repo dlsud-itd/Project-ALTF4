@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { jest } from '@jest/globals';
 import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -136,6 +140,35 @@ describe('QueueService', () => {
     expect(result).not.toHaveProperty('phoneNumber');
   });
 
+  it('continues ticket numbering after the highest existing queue number', async () => {
+    const created = makeEntry({
+      queueNumber: 59,
+      ticketNumber: 'A-059',
+      joinedAt: now,
+    });
+    tx.dailyQueue.update.mockResolvedValue({ ...queue, nextNumber: 2 });
+    tx.queueEntry.findFirst.mockResolvedValue({ queueNumber: 58 });
+    tx.queueEntry.create.mockResolvedValue(created);
+    prisma.queueEntry.findMany.mockResolvedValue([created]);
+
+    const result = await service.joinWalkIn(1, { name: 'Jane Doe' });
+
+    const createArgs = tx.queueEntry.create.mock.calls[0]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    expect(createArgs.data).toEqual(
+      expect.objectContaining({
+        ticketNumber: 'A-059',
+        queueNumber: 59,
+      }),
+    );
+    expect(tx.dailyQueue.update).toHaveBeenNthCalledWith(2, {
+      where: { id: 1 },
+      data: { nextNumber: 60 },
+    });
+    expect(result.ticket_number).toBe('A-059');
+  });
+
   it('calls waiting tickets in ascending ticket-number order', async () => {
     const eventPayloads: unknown[] = [];
     const subscription = service
@@ -170,15 +203,19 @@ describe('QueueService', () => {
       select: { id: true },
     });
     expect(result.ticket_number).toBe('A-002');
-    expect(
-      new Date(result.grace_expires_at).getTime() -
-        new Date(result.called_at).getTime(),
-    ).toBe(180_000);
+    expect(result.status).toBe(QueueStatus.CALLED);
+    expect(result.grace_period_ms).toBe(180_000);
+    expect(new Date(result.grace_expires_at).getTime()).toBe(
+      new Date(result.called_at).getTime() + result.grace_period_ms,
+    );
+    expect(tx.queueStatusHistory.create).toHaveBeenCalledWith({
+      data: { queueEntryId: called.id, status: QueueStatus.CALLED },
+    });
     expect(JSON.stringify(eventPayloads)).not.toContain('Ada Lovelace');
     subscription.unsubscribe();
   });
 
-  it('rejects another call while a patient remains CALLED', async () => {
+  it('rejects another call while a patient is called or in service', async () => {
     tx.queueEntry.findMany.mockResolvedValue([]);
     tx.queueEntry.findFirst.mockResolvedValue(
       makeEntry({
@@ -194,6 +231,48 @@ describe('QueueService', () => {
       }),
     ).rejects.toThrow(ConflictException);
     expect(tx.queueEntry.updateMany).not.toHaveBeenCalled();
+
+    tx.queueEntry.findFirst.mockResolvedValue(
+      makeEntry({ status: QueueStatus.IN_SERVICE }),
+    );
+
+    await expect(
+      service.callNext(1, {
+        roomNumber: 'Counter 1',
+        practitionerId: 'staff-1',
+      }),
+    ).rejects.toThrow(ConflictException);
+    expect(tx.queueEntry.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('recalls the current called patient without changing calledAt', async () => {
+    const eventPayloads: unknown[] = [];
+    const subscription = service
+      .getQueueEvents(1)
+      .subscribe((event) => eventPayloads.push(event.data));
+    const currentEntry = makeEntry({
+      status: QueueStatus.CALLED,
+      calledAt: now,
+      roomNumber: 'Counter 2',
+    });
+    prisma.queueEntry.findFirst.mockResolvedValue(currentEntry);
+    prisma.queueEntry.findMany.mockResolvedValue([]);
+
+    const result = await service.recallCurrent(1);
+
+    expect(result).toEqual({
+      queue_entry_id: currentEntry.id,
+      ticket_number: currentEntry.ticketNumber,
+      status: QueueStatus.CALLED,
+    });
+    expect(JSON.stringify(eventPayloads)).toContain('"recalled":true');
+    expect(prisma.queueEntry.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { dailyQueueId: 1, status: QueueStatus.CALLED },
+      }),
+    );
+    expect(prisma.queueEntry.updateMany).not.toHaveBeenCalled();
+    subscription.unsubscribe();
   });
 
   it('marks an expired CALLED ticket NO_SHOW only once', async () => {
@@ -223,66 +302,116 @@ describe('QueueService', () => {
     expect(prisma.queueStatusHistory.create).toHaveBeenCalledWith({
       data: { queueEntryId: expired.id, status: QueueStatus.NO_SHOW },
     });
+    expect(prisma.queueEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: QueueStatus.NO_SHOW,
+          noShowAt: expect.any(Date),
+        }),
+      }),
+    );
   });
 
-  it('accepts arrival before expiry and clears the deadline', async () => {
+  it('starts consultation before the grace deadline and clears the deadline', async () => {
     const called = makeEntry({
       status: QueueStatus.CALLED,
       graceExpiresAt: new Date(Date.now() + 60_000),
     });
-    const arrived = makeEntry({
+    const inService = makeEntry({
       ...called,
       status: QueueStatus.IN_SERVICE,
       graceExpiresAt: null,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(called);
     prisma.queueEntry.updateMany.mockResolvedValue({ count: 1 });
-    prisma.queueEntry.findUnique.mockResolvedValue(arrived);
+    prisma.queueEntry.findUnique.mockResolvedValue(inService);
     prisma.queueEntry.count.mockResolvedValue(0);
 
     const result = await service.updateEntryStatus(1, 10, {
       status: QueueStatus.IN_SERVICE,
     });
 
-    const updateArgs = prisma.queueEntry.updateMany.mock.calls[0]?.[0] as {
-      where: {
-        status: QueueStatus;
-        graceExpiresAt: { gt: Date };
-      };
-      data: { status: QueueStatus; graceExpiresAt: null };
-    };
-    expect(updateArgs.where.status).toBe(QueueStatus.CALLED);
-    expect(updateArgs.where.graceExpiresAt.gt).toBeInstanceOf(Date);
-    expect(updateArgs.data).toEqual({
-      status: QueueStatus.IN_SERVICE,
-      graceExpiresAt: null,
-    });
+    expect(prisma.queueEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: QueueStatus.CALLED,
+          graceExpiresAt: { gt: expect.any(Date) },
+        }),
+        data: { status: QueueStatus.IN_SERVICE, graceExpiresAt: null },
+      }),
+    );
     expect(result.status).toBe(QueueStatus.IN_SERVICE);
   });
 
-  it('rejects arrival after expiry and expires the ticket as NO_SHOW', async () => {
+  it('marks a called patient as no-show and saves noShowAt', async () => {
     const called = makeEntry({
       status: QueueStatus.CALLED,
-      graceExpiresAt: new Date(Date.now() - 1),
+      graceExpiresAt: new Date(Date.now() + 60_000),
+    });
+    const noShow = makeEntry({
+      ...called,
+      status: QueueStatus.NO_SHOW,
+      noShowAt: now,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(called);
-    prisma.queueEntry.updateMany
-      .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
-    prisma.queueEntry.findMany.mockResolvedValue([
-      { id: called.id, ticketNumber: called.ticketNumber },
-    ]);
+    prisma.queueEntry.updateMany.mockResolvedValue({ count: 1 });
+    prisma.queueEntry.findUnique.mockResolvedValue(noShow);
+    prisma.queueEntry.count.mockResolvedValue(0);
+
+    const result = await service.updateEntryStatus(1, 10, {
+      status: QueueStatus.NO_SHOW,
+    });
+
+    expect(result).toMatchObject({
+      status: QueueStatus.NO_SHOW,
+      no_show_at: expect.any(String),
+    });
+    expect(prisma.queueEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 10,
+          dailyQueueId: 1,
+          status: QueueStatus.CALLED,
+        },
+        data: expect.objectContaining({
+          status: QueueStatus.NO_SHOW,
+          noShowAt: expect.any(Date),
+          graceExpiresAt: null,
+        }),
+      }),
+    );
+  });
+
+  it('completes only the current in-service ticket', async () => {
+    const current = makeEntry({ status: QueueStatus.IN_SERVICE });
+    const done = makeEntry({ ...current, status: QueueStatus.DONE });
+    prisma.queueEntry.findFirst.mockResolvedValue(current);
+    prisma.queueEntry.updateMany.mockResolvedValue({ count: 1 });
+    prisma.queueEntry.findUnique.mockResolvedValue(done);
+    prisma.queueEntry.count.mockResolvedValue(0);
+
+    const result = await service.updateEntryStatus(1, 10, {
+      status: QueueStatus.DONE,
+    });
+
+    const updateArgs = prisma.queueEntry.updateMany.mock.calls[0]?.[0] as {
+      where: { status: QueueStatus };
+      data: { status: QueueStatus };
+    };
+    expect(updateArgs.where.status).toBe(QueueStatus.IN_SERVICE);
+    expect(updateArgs.data.status).toBe(QueueStatus.DONE);
+    expect(result.status).toBe(QueueStatus.DONE);
+  });
+
+  it('rejects starting consultation for a ticket that is not called', async () => {
+    prisma.queueEntry.findFirst.mockResolvedValue(makeEntry());
+    prisma.queueEntry.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
       service.updateEntryStatus(1, 10, { status: QueueStatus.IN_SERVICE }),
     ).rejects.toThrow(ConflictException);
-
-    const expiryArgs = prisma.queueEntry.updateMany.mock.calls[1]?.[0] as {
-      where: { status: QueueStatus };
-      data: { status: QueueStatus };
-    };
-    expect(expiryArgs.where.status).toBe(QueueStatus.CALLED);
-    expect(expiryArgs.data.status).toBe(QueueStatus.NO_SHOW);
+    expect(prisma.queueEntry.updateMany).toHaveBeenCalled();
+    expect(prisma.queueStatusHistory.create).not.toHaveBeenCalled();
   });
 
   it('returns only public ticket status fields from token tracking', async () => {
@@ -347,9 +476,9 @@ describe('QueueService', () => {
         isOpen: false,
       });
 
-      await expect(
-        service.joinWalkIn(1, { name: 'Jane Doe' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.joinWalkIn(1, { name: 'Jane Doe' })).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('rejects queue entry creation when patient already has an active WAITING ticket', async () => {
@@ -449,6 +578,37 @@ describe('QueueService', () => {
       expect(status.avg_wait_time_minutes).toBe(30);
       expect(status.is_active).toBe(true);
       expect(status.last_updated).toBeDefined();
+      expect(status.waiting_tickets[0]).not.toHaveProperty('patient_name');
+      expect(status.waiting_tickets[0]).not.toHaveProperty('reason_for_visit');
+    });
+
+    it('includes patient names and visit reasons in staff queue status only', async () => {
+      const waiting = makeEntry({ id: 20, ticketNumber: 'A-020' });
+      const inService = makeEntry({
+        id: 21,
+        ticketNumber: 'A-021',
+        status: QueueStatus.IN_SERVICE,
+        calledAt: now,
+      });
+      prisma.queueEntry.findMany.mockImplementation((...args: unknown[]) => {
+        const query = args[0] as { where: { status: QueueStatus } };
+        return Promise.resolve(
+          query.where.status === QueueStatus.WAITING ? [waiting] : [],
+        );
+      });
+      prisma.queueEntry.findFirst.mockResolvedValue(inService);
+      prisma.queueEntry.count.mockResolvedValue(0);
+
+      const status = await service.getStaffQueueStatus(1);
+
+      expect(status.currently_serving).toMatchObject({
+        patient_name: 'Ada Lovelace',
+        reason_for_visit: 'private reason',
+      });
+      expect(status.waiting_tickets[0]).toMatchObject({
+        patient_name: 'Ada Lovelace',
+        reason_for_visit: 'private reason',
+      });
     });
 
     it('returns zero wait time and null current serving for an empty queue', async () => {
@@ -463,23 +623,35 @@ describe('QueueService', () => {
       expect(status.avg_wait_time_minutes).toBe(0);
     });
 
-    it('prefers CALLED over IN_SERVICE as current serving ticket', async () => {
+    it('reports the called ticket and its persisted grace deadline as current', async () => {
       prisma.queueEntry.findMany.mockResolvedValue([]);
       const called = makeEntry({
-        id: 5,
-        ticketNumber: 'A-005',
         status: QueueStatus.CALLED,
         calledAt: now,
+        graceExpiresAt: new Date(now.getTime() + 180_000),
       });
       prisma.queueEntry.findFirst.mockResolvedValue(called);
 
       const status = await service.getQueueStatus(1);
 
-      expect(status.currently_serving?.ticket_number).toBe('A-005');
-      expect(status.currently_serving?.status).toBe(QueueStatus.CALLED);
+      expect(status.currently_serving).toMatchObject({
+        ticket_number: called.ticketNumber,
+        status: QueueStatus.CALLED,
+        called_at: now.toISOString(),
+        grace_expires_at: new Date(now.getTime() + 180_000).toISOString(),
+      });
+      expect(status.grace_period_ms).toBe(180_000);
+      expect(prisma.queueEntry.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            dailyQueueId: 1,
+            status: { in: [QueueStatus.CALLED, QueueStatus.IN_SERVICE] },
+          },
+        }),
+      );
     });
 
-    it('falls back to IN_SERVICE as current serving when no CALLED ticket exists', async () => {
+    it('reports the ticket currently in service', async () => {
       prisma.queueEntry.findMany.mockResolvedValue([]);
       const inService = makeEntry({
         id: 6,
@@ -487,9 +659,7 @@ describe('QueueService', () => {
         status: QueueStatus.IN_SERVICE,
         updatedAt: now,
       });
-      prisma.queueEntry.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(inService);
+      prisma.queueEntry.findFirst.mockResolvedValue(inService);
 
       const status = await service.getQueueStatus(1);
 

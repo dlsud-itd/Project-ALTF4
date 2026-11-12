@@ -150,6 +150,7 @@ model QueueEntry {
   joinedAt       DateTime      @default(now()) @map("joined_at")
   calledAt       DateTime?     @map("called_at")
   graceExpiresAt DateTime?     @map("grace_expires_at")
+  noShowAt       DateTime?     @map("no_show_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   dailyQueue    DailyQueue          @relation(fields: [dailyQueueId], references: [id], onDelete: Cascade)
