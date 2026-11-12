@@ -1,0 +1,177 @@
+<section class="live-queue-layout" aria-label="Live queue">
+  <section
+    class="queue-panel live-queue-panel"
+    aria-labelledby="queue-list-title"
+  >
+    @if (!isQueueActive()) {
+      <app-empty-state
+        icon="pi-calendar-times"
+        title="No active queue today"
+        message="The queue opens when a clinic session starts."
+      />
+    } @else {
+      @if (currentTicket(); as ticket) {
+        <div class="now-calling-slot">
+          <div class="now-calling">
+            <span class="now-calling-label">Now calling</span>
+            <strong class="now-calling-ticket">{{
+              ticket.ticket_number
+            }}</strong>
+            <div class="patient-meta">
+              <h3 class="patient-name">
+                {{ ticket.patient_name || "Unnamed patient" }}
+              </h3>
+              <span class="patient-reason">{{
+                ticket.reason_for_visit || "No reason provided"
+              }}</span>
+              <span class="patient-location">
+                {{ ticket.room_number }} ·
+                {{ ticket.provider || "Practitioner" }}
+              </span>
+            </div>
+            @if (isCalled()) {
+              <div class="ticket-actions">
+                <p-button
+                  label="Patient Arrived / Start Consultation"
+                  icon="pi pi-check"
+                  severity="success"
+                  [loading]="isUpdatingStatus()"
+                  [disabled]="isUpdatingStatus()"
+                  (onClick)="onPatientArrived()"
+                />
+                <div class="called-ticket-status">
+                  <span class="current-status current-status--called">
+                    Called - waiting for patient
+                  </span>
+                  <span
+                    class="grace-countdown"
+                    [class.grace-countdown--amber]="isGracePeriodAmber()"
+                    [class.grace-countdown--red]="isGracePeriodRed()"
+                    aria-live="off"
+                  >
+                    {{ graceCountdownText() }}
+                  </span>
+                </div>
+                <p-button
+                  label="Mark as No-show"
+                  severity="danger"
+                  [outlined]="true"
+                  [disabled]="isUpdatingStatus()"
+                  (onClick)="onMarkNoShow()"
+                />
+              </div>
+            } @else {
+              <span class="current-status">In consultation</span>
+            }
+            @if (isCalled() || isInService()) {
+              <div class="ticket-actions">
+                <p-button
+                  label="Cancel"
+                  severity="danger"
+                  [outlined]="true"
+                  [disabled]="isUpdatingStatus()"
+                  (onClick)="onCancelEntry()"
+                />
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="now-calling-slot">
+          <div class="now-calling now-calling--empty">
+            <i class="pi pi-bell empty-calling-icon" aria-hidden="true"></i>
+            <h3>No patient is being called</h3>
+            <p>
+              {{
+                waitingCount() > 0
+                  ? "Click Call Next Patient to start."
+                  : "The queue is empty. New walk-ins will appear here."
+              }}
+            </p>
+            @if (waitingCount() > 0) {
+              <p-button
+                label="Call Next Patient"
+                icon="pi pi-bell"
+                severity="primary"
+                [outlined]="true"
+                [loading]="isGeneratingQueue()"
+                [disabled]="
+                  currentTicket() !== null ||
+                  waitingCount() === 0 ||
+                  isGeneratingQueue()
+                "
+                [title]="
+                  currentTicket()
+                    ? 'A patient is already being called'
+                    : waitingCount() === 0
+                      ? 'The queue is empty'
+                      : ''
+                "
+                (onClick)="onCallNext()"
+              />
+            }
+          </div>
+        </div>
+      }
+
+      <div class="queue-list-heading">
+        <h3 id="queue-list-title">Queue</h3>
+        <span>{{ waitingCount() }} waiting</span>
+      </div>
+      @if (isStatsLoading() && waitingTickets().length === 0) {
+        <app-loading-skeleton [lines]="2" />
+      } @else if (hasStatsError()) {
+        <app-error-state
+          title="Could not load queue stats"
+          message="Check your connection and try again."
+          (retry)="onRetryStats()"
+        />
+      } @else if (waitingTickets().length === 0) {
+        <p class="empty-queue">No patients waiting</p>
+      } @else {
+        <ol
+          class="waiting-list"
+          tabindex="0"
+          aria-label="Patients waiting in the queue"
+        >
+          @for (
+            ticket of waitingTickets();
+            track ticket.queue_entry_id;
+            let isNext = $first
+          ) {
+            <li
+              [class.is-next]="isNext && ticket.status === QueueStatus.WAITING"
+            >
+              <div class="ticket-info">
+                <div class="ticket-heading">
+                  <span class="ticket-id">{{ ticket.ticket_number }}</span>
+                  <strong class="patient-name">{{
+                    ticket.patient_name || "Unnamed patient"
+                  }}</strong>
+                </div>
+                <span class="patient-reason">{{
+                  ticket.reason_for_visit || "No reason provided"
+                }}</span>
+              </div>
+              <span
+                class="ticket-status"
+                [class.ticket-status--next]="
+                  isNext && ticket.status === QueueStatus.WAITING
+                "
+                [class.ticket-status--waiting]="
+                  !isNext || ticket.status !== QueueStatus.WAITING
+                "
+              >
+                {{
+                  isNext && ticket.status === QueueStatus.WAITING
+                    ? "NEXT"
+                    : ticket.status
+                }}
+              </span>
+            </li>
+          }
+        </ol>
+      }
+    }
+  </section>
+</section>

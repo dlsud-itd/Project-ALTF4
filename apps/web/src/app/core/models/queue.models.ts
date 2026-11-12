@@ -1,11 +1,10 @@
 export enum QueueStatus {
   WAITING = 'WAITING',
   CALLED = 'CALLED',
-  IN_SERVICE = 'IN_SERVICE',
-  DONE = 'DONE',
-  SERVED = 'SERVED',
-  CANCELLED = 'CANCELLED',
+  IN_CONSULTATION = 'IN_CONSULTATION',
+  COMPLETED = 'COMPLETED',
   NO_SHOW = 'NO_SHOW',
+  CANCELLED = 'CANCELLED',
 }
 
 export type ServingTicket = {
@@ -17,6 +16,7 @@ export type ServingTicket = {
   called_at: string | null;
   grace_expires_at: string | null;
   room_number: string;
+  provider?: string | null;
 };
 
 export type QueueStatusResponse = {
@@ -61,8 +61,8 @@ export type WalkInResponse = {
 };
 
 export type CallNextRequest = {
-  roomNumber: string;
-  practitionerId: string;
+  room: string;
+  provider: string;
 };
 
 export type CallNextResponse = {
@@ -75,6 +75,7 @@ export type CallNextResponse = {
   grace_expires_at: string | null;
   grace_period_ms: number;
   room_number: string;
+  provider: string;
 };
 
 export type RecallCurrentResponse = {
@@ -95,7 +96,12 @@ export type UpdateEntryStatusResponse = {
   status: QueueStatus;
   updated_at: string;
   notes?: string;
+  called_at?: string | null;
+  grace_expires_at?: string | null;
+  consultation_started_at?: string | null;
+  completed_at?: string | null;
   no_show_at?: string | null;
+  cancelled_at?: string | null;
 };
 
 export type TrackingStatusResponse = {

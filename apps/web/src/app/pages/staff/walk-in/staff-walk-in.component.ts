@@ -37,6 +37,7 @@ type IssuedWalkInTicket = {
   styleUrl: './staff-walk-in.component.scss',
 })
 export class StaffWalkInComponent {
+  readonly QueueStatus = QueueStatus;
   private readonly queueService = inject(QueueService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly validatePatientName = (
