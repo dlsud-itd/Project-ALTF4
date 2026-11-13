@@ -36,41 +36,6 @@ const APPOINTMENT_STATUS_SEVERITIES: Record<
   NO_SHOW: 'danger',
 };
 
-export const SAMPLE_APPOINTMENTS: StaffAppointmentRow[] = [
-  {
-    id: 1,
-    patientName: 'Sample Patient A',
-    clinicDate: '2026-11-12',
-    startTime: '08:00',
-    endTime: '08:30',
-    status: 'BOOKED',
-  },
-  {
-    id: 2,
-    patientName: 'Sample Patient B',
-    clinicDate: '2026-11-12',
-    startTime: '09:30',
-    endTime: '10:00',
-    status: 'BOOKED',
-  },
-  {
-    id: 3,
-    patientName: 'Sample Patient C',
-    clinicDate: '2026-11-13',
-    startTime: '13:00',
-    endTime: '13:30',
-    status: 'COMPLETED',
-  },
-  {
-    id: 4,
-    patientName: 'Sample Patient D',
-    clinicDate: '2026-11-13',
-    startTime: '15:30',
-    endTime: '16:00',
-    status: 'NO_SHOW',
-  },
-];
-
 function formatTime12h(time: string): string {
   const [hourText, minuteText] = time.split(TIME_SEPARATOR);
   const hour = Number(hourText) % HOURS_PER_DAY;

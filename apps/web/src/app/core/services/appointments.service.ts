@@ -8,6 +8,7 @@ import {
   AppointmentsResponse,
   CreateAppointmentRequest,
   RescheduleAppointmentRequest,
+  StaffAppointmentsResponse,
 } from '../models/appointment.models';
 
 @Injectable({
@@ -22,6 +23,12 @@ export class AppointmentsService {
   getMyAppointments(): Observable<AppointmentsResponse> {
     return this.http.get<AppointmentsResponse>(
       `${this.apiConfig.apiUrl}/appointments/my`,
+    );
+  }
+
+  getAppointments(): Observable<StaffAppointmentsResponse> {
+    return this.http.get<StaffAppointmentsResponse>(
+      `${this.apiConfig.apiUrl}/appointments`,
     );
   }
 

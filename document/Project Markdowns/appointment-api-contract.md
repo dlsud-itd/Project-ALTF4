@@ -44,7 +44,10 @@ cancelled, completed, or marked no-show is rejected with `400`. There is no time
 restricting cancellation.
 
 Cancelling sets the status to `CANCELLED` and keeps the row, so the audit record written
-for the appointment remains resolvable.
+for the appointment remains resolvable. In the same transaction, active queue entries
+linked to this appointment are cancelled, their `cancelledAt` timestamp and status history
+are recorded, and a queue refresh event is published after commit. Other standalone queue
+entries for the patient are not changed.
 
 ## Capacity
 
@@ -68,23 +71,35 @@ message.
 The reason for visit is accepted on booking and echoed in the booking response, but it is
 not stored on the appointment, so it is not returned by listing or detail.
 
-## Status values
+## Queue and appointment lifecycle mapping
 
-Appointments carry one of four statuses: `BOOKED`, `CANCELLED`, `COMPLETED`, or `NO_SHOW`.
-Only `BOOKED` is set through the API, on booking. Cancellation moves `BOOKED` to
-`CANCELLED`. `COMPLETED` and `NO_SHOW` are defined but no route produces them. `CANCELLED`
-is terminal because the cancel route rejects any appointment that is not `BOOKED`.
+Booking creates the `BOOKED` appointment, its `WAITING` queue entry, and the initial queue
+status history in one database transaction. Queue refresh events are published after commit
+so clients reload current metrics and serving-ticket information.
 
-## Not yet available
+| Queue transition | Appointment transition | Queue timestamp / behavior |
+| :--- | :--- | :--- |
+| Booking -> `WAITING` | created as `BOOKED` | `joined_at` is set; initial status history is recorded |
+| `WAITING` -> `CALLED` | remains `BOOKED` (there is no appointment `CALLED` status) | `called_at` and the grace deadline are set |
+| `CALLED` -> `IN_CONSULTATION` | remains `BOOKED` | `consultation_started_at` is set and the grace deadline is cleared |
+| `IN_CONSULTATION` -> `COMPLETED` | `BOOKED` -> `COMPLETED` when linked | `completed_at` is set; optional administrative notes are appended with a timestamp |
+| `CALLED` -> `NO_SHOW` | `BOOKED` -> `NO_SHOW` when linked | `no_show_at` is set and the grace deadline is cleared |
+| `WAITING`, `CALLED`, or `IN_CONSULTATION` -> `CANCELLED` | `BOOKED` -> `CANCELLED` when linked | `cancelled_at` is set and the grace deadline is cleared |
 
-Confirming or rejecting an appointment, marking a consultation completed or no-show, and
-rescheduling an appointment have no endpoints. Adding confirmation requires a new value in
-the appointment status enum, and every capacity check keyed on `BOOKED` must include it or
-confirming an appointment would release its seat.
+Queue and appointment changes are guarded against the persisted current state and written
+in the same transaction. Terminal states (`COMPLETED`, `NO_SHOW`, and `CANCELLED`) cannot
+transition again. Standalone queue entries update only their queue state. Appointment
+records do not have `calledAt`, `completedAt`, or `cancelledAt` fields; those timestamps
+are recorded on the linked queue entry.
 
-Rescheduling cannot be added as a new booking, because the duplicate date-and-time rule
-would reject the patient against their own existing appointment. It requires moving the
-existing appointment to another slot.
+The public queue status response contains patient-appropriate ticket status, current ticket,
+room, waiting count, and estimated wait. Administrative counts and patient details are only
+included in the authenticated staff response. Administrative queue notes are excluded from
+patient status, tracking, and presenter output.
+
+Rescheduling moves the existing appointment to another slot rather than creating a second
+appointment, because duplicate date-and-time validation would reject a second booking
+against the patient's existing appointment.
 
 ## Prerequisite
 

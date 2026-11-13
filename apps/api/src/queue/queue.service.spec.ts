@@ -3,6 +3,7 @@ import { jest } from '@jest/globals';
 import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from './queue-events.service';
+import { QueueLifecycleService } from './queue-lifecycle.service';
 import { QueueReadService } from './queue-read.service';
 import { QueueService } from './queue.service';
 
@@ -64,6 +65,10 @@ describe('QueueService', () => {
     queueStatusHistory: {
       create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
+    appointment: {
+      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      updateMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
   };
   const prisma = {
     $transaction: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -83,6 +88,7 @@ describe('QueueService', () => {
   };
   let service: QueueService;
   let events: QueueEventsService;
+  let lifecycle: QueueLifecycleService;
 
   beforeEach(() => {
     for (const model of Object.values(tx)) {
@@ -102,14 +108,23 @@ describe('QueueService', () => {
     });
     prisma.dailyQueue.findUnique.mockResolvedValue(queue);
     tx.queueStatusHistory.create.mockResolvedValue({ id: 1 });
+    tx.appointment.findUnique.mockResolvedValue(null);
+    tx.appointment.updateMany.mockResolvedValue({ count: 1 });
     tx.dailyQueue.findUnique.mockResolvedValue(queue);
     prisma.queueStatusHistory.create.mockResolvedValue({ id: 1 });
     prisma.queueEntry.findMany.mockResolvedValue([]);
     events = new QueueEventsService();
+    lifecycle = new QueueLifecycleService(prisma as unknown as PrismaService);
+    const queueRead = new QueueReadService(
+      prisma as unknown as PrismaService,
+      events,
+      lifecycle,
+    );
     service = new QueueService(
       prisma as unknown as PrismaService,
       events,
-      new QueueReadService(prisma as unknown as PrismaService, events),
+      queueRead,
+      lifecycle,
     );
   });
 
@@ -226,6 +241,37 @@ describe('QueueService', () => {
     });
     expect(JSON.stringify(eventPayloads)).not.toContain('Ada Lovelace');
     subscription.unsubscribe();
+  });
+
+  it('records a linked appointment queue entry as CALLED without completing the appointment', async () => {
+    const waiting = makeEntry({
+      appointmentId: 55,
+      status: QueueStatus.WAITING,
+    });
+    const called = makeEntry({
+      ...waiting,
+      status: QueueStatus.CALLED,
+      calledAt: now,
+    });
+    prisma.queueEntry.findFirst.mockResolvedValue(waiting);
+    tx.queueEntry.findFirst.mockResolvedValue(null);
+    tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
+    tx.queueEntry.findUnique.mockResolvedValue(called);
+
+    await service.callNext(1, {
+      room: 'Counter 1',
+      provider: 'Clinic staff',
+    });
+
+    expect(tx.queueEntry.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: objectContaining({
+          status: QueueStatus.CALLED,
+          calledAt: anyDate(),
+        }),
+      }),
+    );
+    expect(tx.appointment.updateMany).not.toHaveBeenCalled();
   });
 
   it('returns 409 QUEUE_EMPTY without claiming an entry', async () => {
@@ -371,7 +417,9 @@ describe('QueueService', () => {
           : [],
       );
     });
-    prisma.queueEntry.updateMany
+    tx.queueEntry.findFirst.mockResolvedValue(expired);
+    tx.queueEntry.findUnique.mockResolvedValue(expired);
+    tx.queueEntry.updateMany
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 0 });
     prisma.queueEntry.findFirst.mockResolvedValue(null);
@@ -380,12 +428,12 @@ describe('QueueService', () => {
     await service.getQueueStatus(1);
     await service.getQueueStatus(1);
 
-    expect(prisma.queueEntry.updateMany).toHaveBeenCalledTimes(2);
-    expect(prisma.queueStatusHistory.create).toHaveBeenCalledTimes(1);
-    expect(prisma.queueStatusHistory.create).toHaveBeenCalledWith({
+    expect(tx.queueEntry.updateMany).toHaveBeenCalledTimes(2);
+    expect(tx.queueStatusHistory.create).toHaveBeenCalledTimes(1);
+    expect(tx.queueStatusHistory.create).toHaveBeenCalledWith({
       data: { queueEntryId: expired.id, status: QueueStatus.NO_SHOW },
     });
-    expect(prisma.queueEntry.updateMany).toHaveBeenCalledWith(
+    expect(tx.queueEntry.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: objectContaining({
           status: QueueStatus.NO_SHOW,
@@ -406,6 +454,7 @@ describe('QueueService', () => {
       graceExpiresAt: null,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(called);
+    tx.queueEntry.findFirst.mockResolvedValue(called);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique.mockResolvedValue(inService);
     prisma.queueEntry.count.mockResolvedValue(0);
@@ -442,6 +491,7 @@ describe('QueueService', () => {
       noShowAt: now,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(called);
+    tx.queueEntry.findFirst.mockResolvedValue(called);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique.mockResolvedValue(noShow);
     prisma.queueEntry.count.mockResolvedValue(0);
@@ -481,6 +531,7 @@ describe('QueueService', () => {
       notes: `Earlier note\n[${now.toISOString()}] Follow-up needed`,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(called);
+    tx.queueEntry.findFirst.mockResolvedValue(called);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique.mockResolvedValue(updated);
     prisma.queueEntry.count.mockResolvedValue(0);
@@ -509,6 +560,7 @@ describe('QueueService', () => {
       status: QueueStatus.IN_CONSULTATION,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(called);
+    tx.queueEntry.findFirst.mockResolvedValue(called);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique.mockResolvedValue(updated);
     prisma.queueEntry.count.mockResolvedValue(0);
@@ -564,6 +616,7 @@ describe('QueueService', () => {
       cancelledAt: now,
     });
     prisma.queueEntry.findFirst.mockResolvedValue(waiting);
+    tx.queueEntry.findFirst.mockResolvedValue(waiting);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique.mockResolvedValue(cancelled);
     prisma.queueEntry.count.mockResolvedValue(0);
@@ -587,6 +640,7 @@ describe('QueueService', () => {
     const current = makeEntry({ status: QueueStatus.IN_CONSULTATION });
     const done = makeEntry({ ...current, status: QueueStatus.COMPLETED });
     prisma.queueEntry.findFirst.mockResolvedValue(current);
+    tx.queueEntry.findFirst.mockResolvedValue(current);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique.mockResolvedValue(done);
     prisma.queueEntry.count.mockResolvedValue(0);
@@ -621,7 +675,10 @@ describe('QueueService', () => {
       .mockResolvedValueOnce(waiting)
       .mockResolvedValueOnce(called)
       .mockResolvedValueOnce(consulting);
-    tx.queueEntry.findFirst.mockResolvedValue(null);
+    tx.queueEntry.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(called)
+      .mockResolvedValueOnce(consulting);
     tx.queueEntry.updateMany.mockResolvedValue({ count: 1 });
     tx.queueEntry.findUnique
       .mockResolvedValueOnce(called)
@@ -653,7 +710,7 @@ describe('QueueService', () => {
   });
 
   it('rejects starting consultation for a ticket that is not called', async () => {
-    prisma.queueEntry.findFirst.mockResolvedValue(makeEntry());
+    tx.queueEntry.findFirst.mockResolvedValue(makeEntry());
     await expect(
       service.updateEntryStatus(1, 10, {
         status: QueueStatus.IN_CONSULTATION,
@@ -672,7 +729,7 @@ describe('QueueService', () => {
   });
 
   it('rejects any transition out of a terminal status with current and allowed statuses', async () => {
-    prisma.queueEntry.findFirst.mockResolvedValue(
+    tx.queueEntry.findFirst.mockResolvedValue(
       makeEntry({ status: QueueStatus.COMPLETED }),
     );
 
@@ -842,7 +899,7 @@ describe('QueueService', () => {
       prisma.queueEntry.findFirst.mockResolvedValue(null);
       prisma.queueEntry.count.mockResolvedValue(5);
 
-      const status = await service.getQueueStatus(1);
+      const status = await service.getStaffQueueStatus(1);
 
       expect(status.total_waiting).toBe(3);
       expect(status.waiting_breakdown).toEqual({
@@ -854,8 +911,8 @@ describe('QueueService', () => {
       expect(status.avg_wait_time_minutes).toBe(30);
       expect(status.is_active).toBe(true);
       expect(status.last_updated).toBeDefined();
-      expect(status.waiting_tickets[0]).not.toHaveProperty('patient_name');
-      expect(status.waiting_tickets[0]).not.toHaveProperty('reason_for_visit');
+      expect(status.waiting_tickets[0]).toHaveProperty('patient_name');
+      expect(status.waiting_tickets[0]).toHaveProperty('reason_for_visit');
       expect(prisma.queueEntry.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { dailyQueueId: 1, status: QueueStatus.WAITING },
@@ -918,7 +975,7 @@ describe('QueueService', () => {
       });
       prisma.queueEntry.findFirst.mockResolvedValue(called);
 
-      const status = await service.getQueueStatus(1);
+      const status = await service.getStaffQueueStatus(1);
 
       expect(status.currently_serving).toMatchObject({
         ticket_number: called.ticketNumber,
