@@ -16,10 +16,7 @@ import {
   GRACE_PERIOD_MS,
   QueueReadService,
 } from './queue-read.service';
-import {
-  QUEUE_STATUS_TRANSITIONS,
-  isQueueStatusTransitionAllowed,
-} from './queue-status';
+import { QueueLifecycleService } from './queue-lifecycle.service';
 
 @Injectable()
 export class QueueService {
@@ -29,6 +26,7 @@ export class QueueService {
     private readonly prisma: PrismaService,
     private readonly events: QueueEventsService,
     private readonly queueRead: QueueReadService,
+    private readonly lifecycle: QueueLifecycleService,
   ) {}
 
   getQueueEvents(queueId: number) {
@@ -266,11 +264,6 @@ export class QueueService {
 
   async callNext(queueId: number, dto: CallNextDto) {
     await this.queueRead.getQueueOrThrow(queueId);
-    if (
-      !isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.CALLED)
-    ) {
-      throw this.invalidTransition(QueueStatus.WAITING, QueueStatus.CALLED);
-    }
     const calledAt = new Date();
     const room = typeof dto.room === 'string' ? dto.room.trim() : '';
     const provider =
@@ -452,113 +445,28 @@ export class QueueService {
   ) {
     const now = new Date();
     await this.queueRead.expireCalledEntries(queueId, now);
-    const entry = await this.prisma.queueEntry.findFirst({
-      where: {
-        id: entryId,
-        dailyQueueId: queueId,
-      },
-      select: { id: true, status: true, notes: true },
-    });
-
-    if (!entry) {
-      throw new NotFoundException({
-        code: 'ENTRY_NOT_FOUND',
-        message: 'Queue entry not found.',
-      });
-    }
-
-    if (dto.status === QueueStatus.CALLED && dto.notes !== undefined) {
-      throw new BadRequestException({
-        code: 'VALIDATION_ERROR',
-        message: 'Notes are not allowed when status is CALLED.',
-      });
-    }
-
     if (dto.status === QueueStatus.CALLED) {
+      if (dto.notes !== undefined) {
+        throw new BadRequestException({
+          code: 'VALIDATION_ERROR',
+          message: 'Notes are not allowed when status is CALLED.',
+        });
+      }
       throw new BadRequestException({
         code: 'VALIDATION_ERROR',
         message: 'Use call-next to transition a waiting entry to CALLED.',
       });
     }
 
-    if (!isQueueStatusTransitionAllowed(entry.status, dto.status)) {
-      throw this.invalidTransition(entry.status, dto.status);
-    }
-
-    const cleanedNotes =
-      dto.notes === undefined ? '' : dto.notes.replace(/<[^>]*>/g, '').trim();
-    const appendedNotes = cleanedNotes
-      ? `${entry.notes?.trim() ? `${entry.notes.trim()}\n` : ''}[${now.toISOString()}] ${cleanedNotes}`
-      : undefined;
-    const updateData: Prisma.QueueEntryUpdateManyMutationInput = {
-      status: dto.status,
-      ...(dto.status === QueueStatus.IN_CONSULTATION
-        ? { consultationStartedAt: now, graceExpiresAt: null }
-        : {}),
-      ...(dto.status === QueueStatus.COMPLETED ? { completedAt: now } : {}),
-      ...(dto.status === QueueStatus.NO_SHOW
-        ? { noShowAt: now, graceExpiresAt: null }
-        : {}),
-      ...(dto.status === QueueStatus.CANCELLED
-        ? { cancelledAt: now, graceExpiresAt: null }
-        : {}),
-      ...(appendedNotes ? { notes: appendedNotes } : {}),
-    };
-
-    const updateResult = await this.prisma.$transaction(async (tx) => {
-      const changed = await tx.queueEntry.updateMany({
-        where: {
-          id: entryId,
-          dailyQueueId: queueId,
-          status: entry.status,
-        },
-        data: updateData,
-      });
-      if (changed.count !== 1) {
-        const latest = await tx.queueEntry.findFirst({
-          where: { id: entryId, dailyQueueId: queueId },
-          select: { status: true },
-        });
-        return { latestStatus: latest?.status ?? null };
-      }
-
-      const updated = await tx.queueEntry.findUnique({
-        where: { id: entryId },
-        select: {
-          id: true,
-          ticketNumber: true,
-          status: true,
-          updatedAt: true,
-          notes: true,
-          calledAt: true,
-          graceExpiresAt: true,
-          consultationStartedAt: true,
-          completedAt: true,
-          noShowAt: true,
-          cancelledAt: true,
-        },
-      });
-      if (!updated) {
-        return { latestStatus: null };
-      }
-      await this.queueRead.recordStatusHistory(tx, updated.id, dto.status);
-      return { updated };
-    });
-
-    if ('latestStatus' in updateResult) {
-      if (
-        updateResult.latestStatus === null ||
-        updateResult.latestStatus === undefined
-      ) {
-        throw new NotFoundException({
-          code: 'ENTRY_NOT_FOUND',
-          message: 'Queue entry not found.',
-        });
-      }
-      throw this.invalidTransition(updateResult.latestStatus, dto.status);
-    }
-
-    const updated = updateResult.updated;
+    const updated = await this.prisma.$transaction((tx) =>
+      this.lifecycle.transitionEntry(tx, {
+        queueId,
+        entryId,
+        requestedStatus: dto.status,
+        now,
+        notes: dto.notes,
+      }),
+    );
     if (!updated) {
       throw new NotFoundException({
         code: 'ENTRY_NOT_FOUND',
@@ -604,20 +512,6 @@ export class QueueService {
       no_show_at: updated.noShowAt?.toISOString() ?? null,
       cancelled_at: updated.cancelledAt?.toISOString() ?? null,
     };
-  }
-
-  private invalidTransition(
-    currentStatus: QueueStatus,
-    requestedStatus: QueueStatus,
-  ) {
-    const allowedNextStatuses = QUEUE_STATUS_TRANSITIONS[currentStatus];
-    return new ConflictException({
-      code: 'INVALID_TRANSITION',
-      message: `Cannot transition from ${currentStatus} to ${requestedStatus}.`,
-      currentStatus,
-      requestedStatus,
-      allowedNextStatuses,
-    });
   }
 
   async getTrackingStatus(trackingToken: string) {

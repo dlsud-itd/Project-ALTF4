@@ -4,19 +4,110 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { QueueStatus } from '@core/models';
-import { QueueService } from '@core/services';
+import { AppointmentsService, QueueService } from '@core/services';
 import { StaffDashboardComponent } from '../staff-dashboard.component';
 
 export async function setupStaffDashboard(): Promise<{
   component: StaffDashboardComponent;
   fixture: ComponentFixture<StaffDashboardComponent>;
 }> {
+  const futureDate = new Date();
+  futureDate.setDate(futureDate.getDate() + 3);
+  const pastDate = new Date();
+  pastDate.setDate(pastDate.getDate() - 3);
+  const clinicDate = (date: Date): string =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const queueServiceMock = jasmine.createSpyObj('QueueService', [
     'getStaffQueueStatus',
     'callNext',
     'recallCurrent',
     'updateEntryStatus',
   ]);
+  const appointmentsServiceMock = jasmine.createSpyObj('AppointmentsService', [
+    'getAppointments',
+  ]);
+  appointmentsServiceMock.getAppointments.and.returnValue(
+    of({
+      appointments: [
+        {
+          id: 1,
+          status: 'BOOKED',
+          createdAt: '2026-11-01T00:00:00.000Z',
+          patient: {
+            id: 101,
+            fullName: 'John Albert Masangkay',
+            affiliation: 'STUDENT',
+          },
+          slot: {
+            id: 10,
+            clinicDate: clinicDate(futureDate),
+            startTime: '08:00',
+            endTime: '08:30',
+            capacity: 1,
+            remainingCapacity: 1,
+            isBookable: true,
+          },
+        },
+        {
+          id: 2,
+          status: 'BOOKED',
+          createdAt: '2026-11-01T00:00:00.000Z',
+          patient: {
+            id: 102,
+            fullName: 'Patient Two',
+            affiliation: 'FACULTY',
+          },
+          slot: {
+            id: 11,
+            clinicDate: clinicDate(futureDate),
+            startTime: '09:30',
+            endTime: '10:00',
+            capacity: 1,
+            remainingCapacity: 1,
+            isBookable: true,
+          },
+        },
+        {
+          id: 3,
+          status: 'COMPLETED',
+          createdAt: '2026-11-01T00:00:00.000Z',
+          patient: {
+            id: 103,
+            fullName: 'Patient Three',
+            affiliation: 'STAFF',
+          },
+          slot: {
+            id: 12,
+            clinicDate: clinicDate(futureDate),
+            startTime: '13:00',
+            endTime: '13:30',
+            capacity: 1,
+            remainingCapacity: 0,
+            isBookable: false,
+          },
+        },
+        {
+          id: 4,
+          status: 'CANCELLED',
+          createdAt: '2026-11-01T00:00:00.000Z',
+          patient: {
+            id: 104,
+            fullName: 'Past Cancelled Patient',
+            affiliation: 'STAFF',
+          },
+          slot: {
+            id: 13,
+            clinicDate: clinicDate(pastDate),
+            startTime: '14:00',
+            endTime: '14:30',
+            capacity: 1,
+            remainingCapacity: 1,
+            isBookable: false,
+          },
+        },
+      ],
+    }),
+  );
 
   queueServiceMock.getStaffQueueStatus.and.returnValue(
     of({
@@ -77,6 +168,7 @@ export async function setupStaffDashboard(): Promise<{
       provideHttpClient(),
       provideNoopAnimations(),
       { provide: QueueService, useValue: queueServiceMock },
+      { provide: AppointmentsService, useValue: appointmentsServiceMock },
     ],
   }).compileComponents();
 
