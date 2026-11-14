@@ -9,9 +9,20 @@ import {
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { interval } from 'rxjs';
 import { merge } from 'rxjs';
+import { ConfirmationService } from 'primeng/api';
 import { Button } from 'primeng/button';
+import { ConfirmDialog } from 'primeng/confirmdialog';
+import { Dialog } from 'primeng/dialog';
+import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
 import { AuthService, QueueService, SseService } from '@core/services';
 import {
@@ -21,6 +32,7 @@ import {
   QueueTicketSummary,
   ServingTicket,
 } from '@core/models';
+import { getErrorMessage } from '@core/utils';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
@@ -39,6 +51,32 @@ type StaffAppointmentRow = {
 };
 
 const HTTP_NOT_FOUND = 404;
+const HTTP_CONFLICT = 409;
+// TODO(Lim, Jereign): enable once the API accepts these statuses
+const IS_NO_SHOW_CANCEL_ENABLED = false;
+const NOTES_MAX_LENGTH = 500;
+const ROOM_MAX_LENGTH = 50;
+const PRACTITIONER_MAX_LENGTH = 100;
+const ROOM_PREFIX = 'Counter';
+const DEFAULT_PRACTITIONER_NAME = 'Staff Nurse';
+const CALL_NEXT_ERROR = 'Could not call the next patient.';
+const START_ERROR = 'Could not start the consultation.';
+const COMPLETE_ERROR = 'Could not complete the consultation.';
+const NO_SHOW_ERROR = 'Could not mark the patient as no-show.';
+const CANCEL_ERROR = 'Could not cancel the ticket.';
+
+type StatusErrorTarget = 'page' | 'complete-dialog';
+
+type StatusUpdateOptions = {
+  notes?: string;
+  fallbackMessage: string;
+  errorTarget: StatusErrorTarget;
+};
+
+// Rejects values that are empty or only whitespace.
+function notBlank(control: AbstractControl<string>): ValidationErrors | null {
+  return control.value.trim().length > 0 ? null : { required: true };
+}
 const QUEUE_NOT_FOUND_CODE = 'QUEUE_NOT_FOUND';
 const DATE_DISPLAY_FORMAT = 'EEE, MMM d';
 const MINUTES_PER_HOUR = 60;
@@ -117,12 +155,17 @@ function formatTime12h(time: string): string {
   standalone: true,
   imports: [
     Button,
+    ConfirmDialog,
     DatePipe,
+    Dialog,
+    Message,
+    ReactiveFormsModule,
     Tag,
     EmptyStateComponent,
     ErrorStateComponent,
     LoadingSkeletonComponent,
   ],
+  providers: [ConfirmationService],
   templateUrl: './staff-dashboard.component.html',
   styleUrl: './staff-dashboard.component.scss',
 })
@@ -131,6 +174,8 @@ export class StaffDashboardComponent implements OnInit {
   private readonly queueService = inject(QueueService);
   private readonly sseService = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly formBuilder = inject(FormBuilder);
+  private readonly confirmationService = inject(ConfirmationService);
   readonly queueId = signal<number>(1);
   readonly counterNumber = signal<number>(1);
   readonly servingTicket = signal<string>('—');
@@ -141,6 +186,28 @@ export class StaffDashboardComponent implements OnInit {
   readonly waitingTickets = signal<QueueTicketSummary[]>([]);
   readonly completedCount = signal<number>(0);
   readonly isGeneratingQueue = signal<boolean>(false);
+  readonly isUpdatingStatus = signal<boolean>(false);
+  readonly isCallNextDialogOpen = signal<boolean>(false);
+  readonly isCompleteDialogOpen = signal<boolean>(false);
+  readonly isNoShowCancelEnabled = IS_NO_SHOW_CANCEL_ENABLED;
+  readonly notesMaxLength = NOTES_MAX_LENGTH;
+  readonly roomMaxLength = ROOM_MAX_LENGTH;
+  readonly practitionerMaxLength = PRACTITIONER_MAX_LENGTH;
+  // Page level message, only for actions that have no dialog of their own.
+  readonly actionError = signal<string | null>(null);
+  readonly callNextError = signal<string | null>(null);
+  readonly completeError = signal<string | null>(null);
+  readonly completeTicketNumber = signal<string>('');
+  readonly callNextForm = this.formBuilder.nonNullable.group({
+    roomNumber: ['', [notBlank, Validators.maxLength(ROOM_MAX_LENGTH)]],
+    practitionerName: [
+      '',
+      [notBlank, Validators.maxLength(PRACTITIONER_MAX_LENGTH)],
+    ],
+  });
+  readonly completeNotes = this.formBuilder.nonNullable.control('', [
+    Validators.maxLength(NOTES_MAX_LENGTH),
+  ]);
   readonly dateFormat = DATE_DISPLAY_FORMAT;
   // TODO(Lim, Jereign): replace with GET /appointments (staff)
   readonly appointments = signal<StaffAppointmentRow[]>(SAMPLE_APPOINTMENTS);
@@ -250,13 +317,43 @@ export class StaffDashboardComponent implements OnInit {
     (): boolean => this.currentTicket()?.status === QueueStatus.IN_SERVICE,
   );
 
+  // Opens the call next dialog with the room and practitioner prefilled.
   onCallNext(): void {
+    this.callNextForm.reset({
+      roomNumber: `${ROOM_PREFIX} ${this.counterNumber()}`,
+      practitionerName:
+        this.authService.currentUser()?.fullName ?? DEFAULT_PRACTITIONER_NAME,
+    });
+    this.callNextError.set(null);
+    this.isCallNextDialogOpen.set(true);
+  }
+
+  onCancelCallNext(): void {
+    this.isCallNextDialogOpen.set(false);
+  }
+
+  onCallNextVisibleChange(isVisible: boolean): void {
+    if (!isVisible) {
+      this.onCancelCallNext();
+    }
+  }
+
+  onConfirmCallNext(): void {
+    if (this.callNextForm.invalid) {
+      this.callNextForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.callNextForm.getRawValue();
     this.isGeneratingQueue.set(true);
+    this.callNextError.set(null);
 
     this.queueService
       .callNext(this.queueId(), {
-        roomNumber: `Counter ${this.counterNumber()}`,
-        practitionerId: this.authService.currentUser()?.id?.toString() ?? 'staff',
+        roomNumber: formValue.roomNumber.trim(),
+        // TODO(Lim, Jereign): confirm with Sabino whether this should be a
+        // user id or a name
+        practitionerId: formValue.practitionerName.trim(),
       })
       .subscribe({
         next: (response): void => {
@@ -271,11 +368,17 @@ export class StaffDashboardComponent implements OnInit {
           this.currentTicket.set(calledTicket);
           this.servingTicket.set(response.ticket_number);
           this.waitingCount.update((count: number): number => Math.max(0, count - 1));
+          this.actionError.set(null);
+          this.isCallNextDialogOpen.set(false);
           this.updateCountdown();
           this.loadQueueStatus();
         },
-        error: (): void => {
-          this.hasStatsError.set(true);
+        error: (error: HttpErrorResponse): void => {
+          this.callNextError.set(getErrorMessage(error, CALL_NEXT_ERROR));
+          this.isGeneratingQueue.set(false);
+          if (error.status === HTTP_CONFLICT) {
+            this.loadQueueStatus();
+          }
         },
         complete: (): void => {
           this.isGeneratingQueue.set(false);
@@ -284,36 +387,131 @@ export class StaffDashboardComponent implements OnInit {
   }
 
   onPatientArrived(): void {
-    this.updateCurrentStatus(QueueStatus.IN_SERVICE);
+    this.updateCurrentStatus(QueueStatus.IN_SERVICE, {
+      fallbackMessage: START_ERROR,
+      errorTarget: 'page',
+    });
   }
 
+  // Opens the dialog that doubles as the confirmation for completing.
   onComplete(): void {
-    this.updateCurrentStatus(QueueStatus.DONE);
+    const ticket = this.currentTicket();
+    if (!ticket) {
+      return;
+    }
+    this.completeTicketNumber.set(ticket.ticket_number);
+    this.completeNotes.reset('');
+    this.completeError.set(null);
+    this.isCompleteDialogOpen.set(true);
   }
 
-  private updateCurrentStatus(status: QueueStatus): void {
+  onCancelComplete(): void {
+    this.isCompleteDialogOpen.set(false);
+  }
+
+  onCompleteVisibleChange(isVisible: boolean): void {
+    if (!isVisible) {
+      this.onCancelComplete();
+    }
+  }
+
+  onConfirmComplete(): void {
+    if (this.completeNotes.invalid) {
+      this.completeNotes.markAsTouched();
+      return;
+    }
+
+    const notes = this.completeNotes.value.trim();
+    this.updateCurrentStatus(QueueStatus.DONE, {
+      notes: notes || undefined,
+      fallbackMessage: COMPLETE_ERROR,
+      errorTarget: 'complete-dialog',
+    });
+  }
+
+  onMarkNoShow(): void {
+    this.confirmStatusChange(
+      'Mark no-show',
+      'Mark this ticket as a no-show?',
+      QueueStatus.NO_SHOW,
+      NO_SHOW_ERROR,
+    );
+  }
+
+  onCancelEntry(): void {
+    this.confirmStatusChange(
+      'Cancel ticket',
+      'Cancel this ticket?',
+      QueueStatus.CANCELLED,
+      CANCEL_ERROR,
+    );
+  }
+
+  private confirmStatusChange(
+    header: string,
+    message: string,
+    status: QueueStatus,
+    fallbackMessage: string,
+  ): void {
+    this.confirmationService.confirm({
+      header,
+      message,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Confirm',
+      rejectLabel: 'Cancel',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: (): void =>
+        this.updateCurrentStatus(status, {
+          fallbackMessage,
+          errorTarget: 'page',
+        }),
+    });
+  }
+
+  private updateCurrentStatus(
+    status: QueueStatus,
+    options: StatusUpdateOptions,
+  ): void {
     const ticket = this.currentTicket();
     if (!ticket) {
       return;
     }
 
+    this.isUpdatingStatus.set(true);
     this.queueService
-      .updateEntryStatus(this.queueId(), ticket.queue_entry_id, { status })
+      .updateEntryStatus(this.queueId(), ticket.queue_entry_id, {
+        status,
+        ...(options.notes ? { notes: options.notes } : {}),
+      })
       .subscribe({
         next: (): void => {
           if (status === QueueStatus.DONE) {
             this.currentTicket.set(null);
             this.servingTicket.set('—');
             this.completedCount.update((count: number): number => count + 1);
+            this.isCompleteDialogOpen.set(false);
           } else if (status === QueueStatus.IN_SERVICE) {
             this.currentTicket.update((current) =>
               current ? { ...current, status: QueueStatus.IN_SERVICE, grace_expires_at: null } : null,
             );
           }
+          this.actionError.set(null);
+          this.completeError.set(null);
+          this.isUpdatingStatus.set(false);
           this.loadQueueStatus();
         },
-        error: (): void => {
-          this.hasStatsError.set(true);
+        error: (error: HttpErrorResponse): void => {
+          const message = getErrorMessage(error, options.fallbackMessage);
+          if (options.errorTarget === 'complete-dialog') {
+            this.completeError.set(message);
+          } else {
+            this.actionError.set(message);
+          }
+          this.isUpdatingStatus.set(false);
+          if (error.status === HTTP_CONFLICT) {
+            this.loadQueueStatus();
+          }
         },
       });
   }
