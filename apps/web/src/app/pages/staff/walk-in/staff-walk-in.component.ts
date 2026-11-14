@@ -8,7 +8,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Button } from 'primeng/button';
-import { QueueService } from '@core/services';
+import { QueueService, AppConfirmService } from '@core/services';
 import { QueueStatus, WalkInRequest, WalkInResponse } from '@core/models';
 
 const NAME_PATTERN = /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u;
@@ -40,6 +40,7 @@ export class StaffWalkInComponent {
   readonly QueueStatus = QueueStatus;
   private readonly queueService = inject(QueueService);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly confirmService = inject(AppConfirmService);
   private readonly validatePatientName = (
     control: AbstractControl<string>,
   ): ValidationErrors | null => {
@@ -74,6 +75,16 @@ export class StaffWalkInComponent {
       reasonForVisit: formValue.reasonForVisit.trim() || undefined,
     };
 
+    this.confirmService.confirmReview({
+      header: 'Issue Walk-in Ticket',
+      message: `Issue a new queue ticket for patient "${payload.name}"?`,
+      acceptLabel: 'Issue Ticket',
+      rejectLabel: 'Review',
+      accept: () => this.executeGenerateTicket(payload),
+    });
+  }
+
+  private executeGenerateTicket(payload: WalkInRequest): void {
     this.issuedTicket.set(null);
     this.isGeneratingQueue.set(true);
     this.walkInError.set(null);
