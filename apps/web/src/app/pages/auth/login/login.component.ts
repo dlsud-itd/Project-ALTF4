@@ -45,6 +45,8 @@ export class LoginComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly justRegistered = this.route.snapshot.queryParamMap.has('registered');
   readonly accountInactive = this.route.snapshot.queryParamMap.get('error') === 'inactive';
+  readonly sessionTimedOut = this.route.snapshot.queryParamMap.get('reason') === 'timeout';
+  readonly sessionTerminated = this.route.snapshot.queryParamMap.get('reason') === 'session_terminated';
 
   readonly form = this.fb.nonNullable.group({
     email: ['', { validators: [Validators.required, Validators.email] }],

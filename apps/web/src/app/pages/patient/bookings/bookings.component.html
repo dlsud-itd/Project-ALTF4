@@ -362,4 +362,76 @@
       </aside>
     </div>
   }
+
+  <!-- Enhanced Appointment Review & Confirmation Modal -->
+  <p-dialog
+    [header]="isRescheduling() ? 'Confirm Appointment Reschedule' : 'Confirm Appointment Booking'"
+    [visible]="isReviewModalOpen()"
+    (visibleChange)="onReviewModalVisibleChange($event)"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="booking-review-dialog"
+  >
+    @if (selectedSlot(); as slot) {
+      <div class="review-modal-content">
+        <!-- Attending Doctor Badge -->
+        <div class="doctor-badge-card">
+          <div class="doctor-icon" aria-hidden="true">
+            <i class="pi pi-user-plus"></i>
+          </div>
+          <div class="doctor-meta">
+            <span class="doctor-name">{{ clinicDoctor }}</span>
+            <span class="doctor-desc">{{ doctorSpecialty }}</span>
+          </div>
+        </div>
+
+        <!-- Appointment Details Box -->
+        <div class="booking-details-box">
+          <div class="detail-item">
+            <span class="item-label"><i class="pi pi-calendar"></i> Date</span>
+            <span class="item-value">{{ activeDate().fullDate }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="item-label"><i class="pi pi-clock"></i> Time Window</span>
+            <span class="item-value time-highlight">{{ slot.timeRange }} ({{ slot.session }})</span>
+          </div>
+          <div class="detail-item">
+            <span class="item-label"><i class="pi pi-map-marker"></i> Location</span>
+            <span class="item-value">{{ clinicLocation }}</span>
+          </div>
+          @if (reasonForVisit().trim(); as reason) {
+            <div class="detail-item reason-item">
+              <span class="item-label"><i class="pi pi-file-edit"></i> Reason for Consultation</span>
+              <span class="item-value">{{ reason }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Guidelines Note -->
+        <div class="review-notice">
+          <i class="pi pi-info-circle"></i>
+          <span>Please bring your valid University ID and arrive 10 minutes prior to your consultation.</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="modal-actions">
+          <p-button
+            label="Review Details"
+            severity="secondary"
+            [outlined]="true"
+            [disabled]="isBooking()"
+            (onClick)="isReviewModalOpen.set(false)"
+          />
+          <p-button
+            [label]="isRescheduling() ? 'Confirm Reschedule' : 'Confirm & Book'"
+            icon="pi pi-check"
+            severity="primary"
+            [loading]="isBooking()"
+            (onClick)="executeConfirmedBooking()"
+          />
+        </div>
+      </div>
+    }
+  </p-dialog>
 </div>
