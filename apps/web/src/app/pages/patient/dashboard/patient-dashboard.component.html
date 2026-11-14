@@ -107,7 +107,7 @@
           <i class="pi pi-calendar"></i>
           Your Appointments
         </h3>
-        <p class="section-desc">Manage upcoming consultations and view available doctor slots</p>
+        <p class="section-desc">Here's what coming!</p>
       </div>
     </div>
 
@@ -157,7 +157,7 @@
               <div class="appointment-body">
                 <div class="info-row">
                   <i class="pi pi-clock"></i>
-                  <span class="time-text">{{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
+                  <span class="time-text">{{ formatTimeRange(appt.slot.startTime, appt.slot.endTime) }}</span>
                 </div>
                 <div class="info-row">
                   <i class="pi pi-user"></i>
@@ -238,7 +238,7 @@
                 <div class="appointment-body">
                   <div class="info-row">
                     <i class="pi pi-clock"></i>
-                    <span>{{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
+                    <span>{{ formatTimeRange(appt.slot.startTime, appt.slot.endTime) }}</span>
                   </div>
                   <div class="info-row">
                     <i class="pi pi-user"></i>
