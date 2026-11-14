@@ -8,6 +8,14 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+type ApiErrorPayload = {
+  code?: string;
+  message: string;
+  currentStatus?: string;
+  requestedStatus?: string;
+  allowedNextStatuses?: string[];
+};
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ApiExceptionFilter.name);
@@ -32,10 +40,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     response.status(status).json(payload);
   }
 
-  private getErrorPayload(
-    exception: unknown,
-    status: number,
-  ): { code?: string; message: string } {
+  private getErrorPayload(exception: unknown, status: number): ApiErrorPayload {
     if (status === 500) {
       return { message: 'Internal server error' };
     }
@@ -52,7 +57,22 @@ export class ApiExceptionFilter implements ExceptionFilter {
       const code = 'code' in body ? body.code : undefined;
       const message = 'message' in body ? body.message : undefined;
       if (typeof code === 'string' && typeof message === 'string') {
-        return { code, message };
+        return {
+          code,
+          message,
+          ...('currentStatus' in body && typeof body.currentStatus === 'string'
+            ? { currentStatus: body.currentStatus }
+            : {}),
+          ...('requestedStatus' in body &&
+          typeof body.requestedStatus === 'string'
+            ? { requestedStatus: body.requestedStatus }
+            : {}),
+          ...('allowedNextStatuses' in body &&
+          Array.isArray(body.allowedNextStatuses) &&
+          body.allowedNextStatuses.every((item) => typeof item === 'string')
+            ? { allowedNextStatuses: body.allowedNextStatuses }
+            : {}),
+        };
       }
       if (typeof message === 'string') {
         return { message };
@@ -61,7 +81,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
         Array.isArray(message) &&
         message.every((item) => typeof item === 'string')
       ) {
-        return { message: message.join('; ') };
+        return {
+          code: 'VALIDATION_ERROR',
+          message: message.join('; '),
+        };
       }
       const error = 'error' in body ? body.error : undefined;
       if (typeof error === 'string') {

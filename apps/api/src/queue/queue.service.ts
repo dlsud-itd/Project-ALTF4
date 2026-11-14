@@ -16,6 +16,10 @@ import {
   GRACE_PERIOD_MS,
   QueueReadService,
 } from './queue-read.service';
+import {
+  QUEUE_STATUS_TRANSITIONS,
+  isQueueStatusTransitionAllowed,
+} from './queue-status';
 
 @Injectable()
 export class QueueService {
@@ -157,7 +161,7 @@ export class QueueService {
               },
               select: {
                 id: true,
-                joinedAt: true,
+                createdAt: true,
                 status: true,
                 ticketNumber: true,
               },
@@ -194,7 +198,7 @@ export class QueueService {
         source,
         positionInQueue: position,
         estimatedWaitMinutes,
-        timestamp: createdEntry.joinedAt.toISOString(),
+        timestamp: createdEntry.createdAt.toISOString(),
       });
 
       return {
@@ -205,7 +209,7 @@ export class QueueService {
         estimated_wait_minutes: estimatedWaitMinutes,
         status: createdEntry.status,
         tracking_token: rawTrackingToken,
-        joined_at: createdEntry.joinedAt.toISOString(),
+        joined_at: createdEntry.createdAt.toISOString(),
       };
     } catch (error) {
       if (
@@ -262,98 +266,120 @@ export class QueueService {
 
   async callNext(queueId: number, dto: CallNextDto) {
     await this.queueRead.getQueueOrThrow(queueId);
-    const callResult = await this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw`SELECT "id" FROM "daily_queue" WHERE "id" = ${queueId} FOR UPDATE`;
-        const calledAt = new Date();
-        await this.queueRead.expireCalledEntries(queueId, calledAt, tx);
+    if (
+      !isQueueStatusTransitionAllowed(QueueStatus.WAITING, QueueStatus.CALLED)
+    ) {
+      throw this.invalidTransition(QueueStatus.WAITING, QueueStatus.CALLED);
+    }
+    const calledAt = new Date();
+    const room = typeof dto.room === 'string' ? dto.room.trim() : '';
+    const provider =
+      typeof dto.provider === 'string' ? dto.provider.trim() : '';
+    const invalidFields = [
+      ...(room.length === 0 || room.length > 60 ? ['room'] : []),
+      ...(provider.length === 0 || provider.length > 60 ? ['provider'] : []),
+    ];
+    if (invalidFields.length > 0) {
+      throw new BadRequestException({
+        code: 'VALIDATION_ERROR',
+        message: `Invalid fields: ${invalidFields.join(', ')}.`,
+      });
+    }
+    await this.queueRead.expireCalledEntries(queueId, calledAt);
 
-        const activeCall = await tx.queueEntry.findFirst({
-          where: {
-            dailyQueueId: queueId,
-            status: { in: [QueueStatus.CALLED, QueueStatus.IN_SERVICE] },
+    const nextEntry = await this.prisma.queueEntry.findFirst({
+      where: { dailyQueueId: queueId, status: QueueStatus.WAITING },
+      orderBy: [{ createdAt: 'asc' }, { queueNumber: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+
+    if (!nextEntry) {
+      const activeCall = await this.prisma.queueEntry.findFirst({
+        where: {
+          dailyQueueId: queueId,
+          status: {
+            in: [QueueStatus.CALLED, QueueStatus.IN_CONSULTATION],
           },
-          select: { id: true },
-        });
-        if (activeCall) {
-          return { error: 'QUEUE_CALL_IN_PROGRESS' as const };
-        }
-
-        const nextEntry = await tx.queueEntry.findFirst({
-          where: { dailyQueueId: queueId, status: QueueStatus.WAITING },
-          orderBy: { queueNumber: 'asc' },
-          select: { id: true },
-        });
-        if (!nextEntry) {
-          return { error: 'QUEUE_EMPTY' as const };
-        }
-
-        const graceExpiresAt = new Date(calledAt.getTime() + GRACE_PERIOD_MS);
-        const claimed = await tx.queueEntry.updateMany({
-          where: {
-            id: nextEntry.id,
-            dailyQueueId: queueId,
-            status: QueueStatus.WAITING,
-          },
-          data: {
-            status: QueueStatus.CALLED,
-            calledAt,
-            graceExpiresAt,
-            roomNumber: dto.roomNumber,
-          },
-        });
-        if (claimed.count !== 1) {
-          throw new ConflictException({
-            code: 'QUEUE_ENTRY_CHANGED',
-            message:
-              'The next waiting ticket changed; refresh the queue and try again.',
-          });
-        }
-
-        const entry = await tx.queueEntry.findUnique({
-          where: { id: nextEntry.id },
-          select: {
-            id: true,
-            ticketNumber: true,
-            status: true,
-            firstName: true,
-            lastName: true,
-            reasonForVisit: true,
-            calledAt: true,
-            graceExpiresAt: true,
-          },
-        });
-        if (!entry) {
-          throw new NotFoundException({
-            code: 'ENTRY_NOT_FOUND',
-            message: 'Queue entry not found.',
-          });
-        }
-        await this.queueRead.recordStatusHistory(
-          tx,
-          entry.id,
-          QueueStatus.CALLED,
-        );
-        return { entry, calledAt, graceExpiresAt };
-      },
-      { maxWait: 5000, timeout: 15000 },
-    );
-
-    if ('error' in callResult) {
-      if (callResult.error === 'QUEUE_CALL_IN_PROGRESS') {
+        },
+        select: { id: true },
+      });
+      if (activeCall) {
         throw new ConflictException({
-          code: callResult.error,
-          message:
-            'The current patient must arrive, be marked no-show, or complete the consultation before calling the next patient.',
+          code: 'STATION_BUSY',
+          message: 'A patient is already called or in consultation.',
         });
       }
-      throw new BadRequestException({
-        code: callResult.error,
-        message: 'No waiting patients currently in the queue to call.',
+      throw new ConflictException({
+        code: 'QUEUE_EMPTY',
+        message: 'No patients are waiting.',
       });
     }
 
-    const updatedEntry = callResult.entry;
+    const graceExpiresAt = new Date(calledAt.getTime() + GRACE_PERIOD_MS);
+    const updatedEntry = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.queueEntry.updateMany({
+        where: {
+          id: nextEntry.id,
+          dailyQueueId: queueId,
+          status: QueueStatus.WAITING,
+        },
+        data: {
+          status: QueueStatus.CALLED,
+          calledAt,
+          graceExpiresAt,
+          roomNumber: room,
+          provider,
+        },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException({
+          code: 'ALREADY_CALLED',
+          message: 'Another staff member already called the next patient.',
+        });
+      }
+
+      const activeCall = await tx.queueEntry.findFirst({
+        where: {
+          dailyQueueId: queueId,
+          id: { not: nextEntry.id },
+          status: {
+            in: [QueueStatus.CALLED, QueueStatus.IN_CONSULTATION],
+          },
+        },
+        select: { id: true },
+      });
+      if (activeCall) {
+        throw new ConflictException({
+          code: 'STATION_BUSY',
+          message: 'A patient is already called or in consultation.',
+        });
+      }
+
+      const entry = await tx.queueEntry.findUnique({
+        where: { id: nextEntry.id },
+        select: {
+          id: true,
+          ticketNumber: true,
+          status: true,
+          firstName: true,
+          lastName: true,
+          reasonForVisit: true,
+        },
+      });
+      if (!entry) {
+        throw new NotFoundException({
+          code: 'ENTRY_NOT_FOUND',
+          message: 'Queue entry not found.',
+        });
+      }
+      await this.queueRead.recordStatusHistory(
+        tx,
+        entry.id,
+        QueueStatus.CALLED,
+      );
+      return entry;
+    });
+
     const patientName =
       `${updatedEntry.firstName || ''} ${updatedEntry.lastName || ''}`.trim();
 
@@ -361,9 +387,10 @@ export class QueueService {
       queueId,
       queueEntryId: updatedEntry.id,
       ticketNumber: updatedEntry.ticketNumber,
-      roomNumber: dto.roomNumber,
-      calledAt: callResult.calledAt.toISOString(),
-      graceExpiresAt: callResult.graceExpiresAt.toISOString(),
+      roomNumber: room,
+      provider,
+      calledAt: calledAt.toISOString(),
+      graceExpiresAt: graceExpiresAt.toISOString(),
     });
 
     return {
@@ -372,10 +399,11 @@ export class QueueService {
       patient_name: patientName || null,
       reason_for_visit: updatedEntry.reasonForVisit || null,
       status: updatedEntry.status,
-      called_at: callResult.calledAt.toISOString(),
-      grace_expires_at: callResult.graceExpiresAt.toISOString(),
+      called_at: calledAt.toISOString(),
+      grace_expires_at: graceExpiresAt.toISOString(),
       grace_period_ms: GRACE_PERIOD_MS,
-      room_number: dto.roomNumber,
+      room_number: room,
+      provider,
     };
   }
 
@@ -422,12 +450,14 @@ export class QueueService {
     entryId: number,
     dto: UpdateEntryStatusDto,
   ) {
+    const now = new Date();
+    await this.queueRead.expireCalledEntries(queueId, now);
     const entry = await this.prisma.queueEntry.findFirst({
       where: {
         id: entryId,
         dailyQueueId: queueId,
       },
-      select: { id: true },
+      select: { id: true, status: true, notes: true },
     });
 
     if (!entry) {
@@ -437,80 +467,104 @@ export class QueueService {
       });
     }
 
-    if (
-      dto.status !== QueueStatus.IN_SERVICE &&
-      dto.status !== QueueStatus.DONE &&
-      dto.status !== QueueStatus.NO_SHOW
-    ) {
+    if (dto.status === QueueStatus.CALLED && dto.notes !== undefined) {
       throw new BadRequestException({
-        code: 'INVALID_QUEUE_TRANSITION',
-        message:
-          'Only arrival, no-show, and completion transitions are accepted here.',
+        code: 'VALIDATION_ERROR',
+        message: 'Notes are not allowed when status is CALLED.',
       });
     }
 
-    const now = new Date();
-    const updatedResult = await this.prisma.queueEntry.updateMany({
-      where: {
-        id: entryId,
-        dailyQueueId: queueId,
-        status:
-          dto.status === QueueStatus.DONE
-            ? QueueStatus.IN_SERVICE
-            : QueueStatus.CALLED,
-        ...(dto.status === QueueStatus.IN_SERVICE
-          ? { graceExpiresAt: { gt: now } }
-          : {}),
-      },
-      data: {
-        status: dto.status,
-        ...(dto.status === QueueStatus.IN_SERVICE
-          ? { graceExpiresAt: null }
-          : {}),
-        ...(dto.status === QueueStatus.NO_SHOW ? { graceExpiresAt: null } : {}),
-        ...(dto.status === QueueStatus.NO_SHOW ? { noShowAt: now } : {}),
-        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
-      },
-    });
+    if (dto.status === QueueStatus.CALLED) {
+      throw new BadRequestException({
+        code: 'VALIDATION_ERROR',
+        message: 'Use call-next to transition a waiting entry to CALLED.',
+      });
+    }
 
-    if (updatedResult.count !== 1) {
-      if (dto.status === QueueStatus.IN_SERVICE) {
-        await this.queueRead.expireCalledEntries(queueId, now);
+    if (!isQueueStatusTransitionAllowed(entry.status, dto.status)) {
+      throw this.invalidTransition(entry.status, dto.status);
+    }
+
+    const cleanedNotes =
+      dto.notes === undefined ? '' : dto.notes.replace(/<[^>]*>/g, '').trim();
+    const appendedNotes = cleanedNotes
+      ? `${entry.notes?.trim() ? `${entry.notes.trim()}\n` : ''}[${now.toISOString()}] ${cleanedNotes}`
+      : undefined;
+    const updateData: Prisma.QueueEntryUpdateManyMutationInput = {
+      status: dto.status,
+      ...(dto.status === QueueStatus.IN_CONSULTATION
+        ? { consultationStartedAt: now, graceExpiresAt: null }
+        : {}),
+      ...(dto.status === QueueStatus.COMPLETED ? { completedAt: now } : {}),
+      ...(dto.status === QueueStatus.NO_SHOW
+        ? { noShowAt: now, graceExpiresAt: null }
+        : {}),
+      ...(dto.status === QueueStatus.CANCELLED
+        ? { cancelledAt: now, graceExpiresAt: null }
+        : {}),
+      ...(appendedNotes ? { notes: appendedNotes } : {}),
+    };
+
+    const updateResult = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.queueEntry.updateMany({
+        where: {
+          id: entryId,
+          dailyQueueId: queueId,
+          status: entry.status,
+        },
+        data: updateData,
+      });
+      if (changed.count !== 1) {
+        const latest = await tx.queueEntry.findFirst({
+          where: { id: entryId, dailyQueueId: queueId },
+          select: { status: true },
+        });
+        return { latestStatus: latest?.status ?? null };
       }
-      throw new ConflictException({
-        code: 'INVALID_QUEUE_TRANSITION',
-        message:
-          dto.status === QueueStatus.IN_SERVICE
-            ? 'The grace period has expired or this ticket is no longer waiting for arrival.'
-            : dto.status === QueueStatus.NO_SHOW
-              ? 'Only a called patient can be marked no-show.'
-              : 'Only an in-service patient can be marked done.',
+
+      const updated = await tx.queueEntry.findUnique({
+        where: { id: entryId },
+        select: {
+          id: true,
+          ticketNumber: true,
+          status: true,
+          updatedAt: true,
+          notes: true,
+          calledAt: true,
+          graceExpiresAt: true,
+          consultationStartedAt: true,
+          completedAt: true,
+          noShowAt: true,
+          cancelledAt: true,
+        },
       });
+      if (!updated) {
+        return { latestStatus: null };
+      }
+      await this.queueRead.recordStatusHistory(tx, updated.id, dto.status);
+      return { updated };
+    });
+
+    if ('latestStatus' in updateResult) {
+      if (
+        updateResult.latestStatus === null ||
+        updateResult.latestStatus === undefined
+      ) {
+        throw new NotFoundException({
+          code: 'ENTRY_NOT_FOUND',
+          message: 'Queue entry not found.',
+        });
+      }
+      throw this.invalidTransition(updateResult.latestStatus, dto.status);
     }
 
-    const updated = await this.prisma.queueEntry.findUnique({
-      where: { id: entryId },
-      select: {
-        id: true,
-        ticketNumber: true,
-        status: true,
-        updatedAt: true,
-        notes: true,
-        noShowAt: true,
-      },
-    });
+    const updated = updateResult.updated;
     if (!updated) {
       throw new NotFoundException({
         code: 'ENTRY_NOT_FOUND',
         message: 'Queue entry not found.',
       });
     }
-
-    await this.queueRead.recordStatusHistory(
-      this.prisma,
-      updated.id,
-      dto.status,
-    );
 
     const totalWaiting = await this.prisma.queueEntry.count({
       where: {
@@ -526,7 +580,13 @@ export class QueueService {
       status: updated.status,
       totalWaiting,
       timestamp: updated.updatedAt.toISOString(),
+      calledAt: updated.calledAt?.toISOString() ?? null,
+      graceExpiresAt: updated.graceExpiresAt?.toISOString() ?? null,
+      consultationStartedAt:
+        updated.consultationStartedAt?.toISOString() ?? null,
+      completedAt: updated.completedAt?.toISOString() ?? null,
       noShowAt: updated.noShowAt?.toISOString() ?? null,
+      cancelledAt: updated.cancelledAt?.toISOString() ?? null,
     });
 
     return {
@@ -536,8 +596,28 @@ export class QueueService {
       status: updated.status,
       updated_at: updated.updatedAt.toISOString(),
       notes: updated.notes,
+      called_at: updated.calledAt?.toISOString() ?? null,
+      grace_expires_at: updated.graceExpiresAt?.toISOString() ?? null,
+      consultation_started_at:
+        updated.consultationStartedAt?.toISOString() ?? null,
+      completed_at: updated.completedAt?.toISOString() ?? null,
       no_show_at: updated.noShowAt?.toISOString() ?? null,
+      cancelled_at: updated.cancelledAt?.toISOString() ?? null,
     };
+  }
+
+  private invalidTransition(
+    currentStatus: QueueStatus,
+    requestedStatus: QueueStatus,
+  ) {
+    const allowedNextStatuses = QUEUE_STATUS_TRANSITIONS[currentStatus];
+    return new ConflictException({
+      code: 'INVALID_TRANSITION',
+      message: `Cannot transition from ${currentStatus} to ${requestedStatus}.`,
+      currentStatus,
+      requestedStatus,
+      allowedNextStatuses,
+    });
   }
 
   async getTrackingStatus(trackingToken: string) {

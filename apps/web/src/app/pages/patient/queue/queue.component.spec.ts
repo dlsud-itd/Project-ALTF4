@@ -67,6 +67,7 @@ const buildStatus = (
     called_at: '2026-11-04T02:30:00.000Z',
     grace_expires_at: '2026-11-04T02:33:00.000Z',
     room_number: 'Counter 2',
+    provider: 'Dr. Ana Santos',
   },
   total_waiting: 5,
   waiting_tickets: [],
@@ -177,9 +178,9 @@ describe('PatientQueueComponent', () => {
       expect(
         getElement().querySelector('.position-value')?.textContent,
       ).toContain(String(positionInQueue));
-      expect(
-        getElement().querySelector('.wait-value')?.textContent,
-      ).toContain(String(estimatedWaitMinutes));
+      expect(getElement().querySelector('.wait-value')?.textContent).toContain(
+        String(estimatedWaitMinutes),
+      );
       expect(
         getElement().querySelector('.entry-status')?.textContent,
       ).toContain('Waiting');
@@ -218,9 +219,8 @@ describe('PatientQueueComponent', () => {
       const expected: [QueueStatus, string][] = [
         [QueueStatus.WAITING, 'Waiting'],
         [QueueStatus.CALLED, 'Called'],
-        [QueueStatus.IN_SERVICE, 'In consultation'],
-        [QueueStatus.DONE, 'Completed'],
-        [QueueStatus.SERVED, 'Completed'],
+        [QueueStatus.IN_CONSULTATION, 'In consultation'],
+        [QueueStatus.COMPLETED, 'Completed'],
         [QueueStatus.CANCELLED, 'Cancelled'],
         [QueueStatus.NO_SHOW, 'No-show'],
       ];
@@ -232,7 +232,7 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should mark every step done once the ticket is completed', () => {
-      setEntry({ status: QueueStatus.DONE });
+      setEntry({ status: QueueStatus.COMPLETED });
 
       const element = getElement();
       expect(element.querySelectorAll('.tracker-step.done').length).toBe(4);

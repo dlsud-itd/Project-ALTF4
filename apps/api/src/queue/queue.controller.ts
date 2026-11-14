@@ -158,7 +158,12 @@ export class QueueController {
     summary: 'Advance queue and call next patient (Staff/Admin)',
   })
   @ApiResponse({ status: 200, description: 'Next patient called successfully' })
-  @ApiResponse({ status: 400, description: 'No waiting patients in queue' })
+  @ApiResponse({ status: 400, description: 'Room or provider is invalid' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Queue is empty, the station is busy, or another staff member won the claim',
+  })
   async callNext(
     @Param('queueId', ParseIntPipe) queueId: number,
     @Body() dto: CallNextDto,
@@ -185,6 +190,18 @@ export class QueueController {
     summary: 'Update status of specific queue entry (Staff/Admin)',
   })
   @ApiResponse({ status: 200, description: 'Queue entry updated successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Status or notes validation failed',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Queue entry not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Requested status transition is not allowed',
+  })
   async updateEntryStatus(
     @Param('queueId', ParseIntPipe) queueId: number,
     @Param('entryId', ParseIntPipe) entryId: number,

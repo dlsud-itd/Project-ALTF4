@@ -39,11 +39,10 @@ enum QueueSource {
 enum QueueStatus {
   WAITING
   CALLED
-  IN_SERVICE
-  DONE
-  SERVED
-  CANCELLED
+  IN_CONSULTATION
+  COMPLETED
   NO_SHOW
+  CANCELLED
 }
 
 enum QueuePriority {
@@ -86,13 +85,13 @@ model RevokedToken {
 }
 
 model DailyQueue {
-  id                     Int          @id @default(autoincrement())
-  clinicDate             DateTime     @unique @map("clinic_date") @db.Date
-  nextNumber             Int          @default(1) @map("next_number")
-  isOpen                 Boolean      @default(true) @map("is_open")
-  fallbackServiceMinutes Int          @default(15) @map("fallback_service_minutes")
-  createdAt              DateTime     @default(now()) @map("created_at")
-  updatedAt              DateTime     @updatedAt @map("updated_at")
+  id                     Int      @id @default(autoincrement())
+  clinicDate             DateTime @unique @map("clinic_date") @db.Date
+  nextNumber             Int      @default(1) @map("next_number")
+  isOpen                 Boolean  @default(true) @map("is_open")
+  fallbackServiceMinutes Int      @default(15) @map("fallback_service_minutes")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
   queueEntries QueueEntry[]
 
@@ -100,14 +99,14 @@ model DailyQueue {
 }
 
 model ClinicSlot {
-  id         Int           @id @default(autoincrement())
-  clinicDate DateTime      @map("clinic_date") @db.Date
-  startTime  String        @map("start_time") @db.VarChar(10)
-  endTime    String        @map("end_time") @db.VarChar(10)
-  capacity   Int           @default(1)
-  isBookable Boolean       @default(true) @map("is_bookable")
-  createdAt  DateTime      @default(now()) @map("created_at")
-  updatedAt  DateTime      @updatedAt @map("updated_at")
+  id         Int      @id @default(autoincrement())
+  clinicDate DateTime @map("clinic_date") @db.Date
+  startTime  String   @map("start_time") @db.VarChar(10)
+  endTime    String   @map("end_time") @db.VarChar(10)
+  capacity   Int      @default(1)
+  isBookable Boolean  @default(true) @map("is_bookable")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   appointments Appointment[]
 
@@ -122,56 +121,61 @@ model Appointment {
   createdAt DateTime          @default(now()) @map("created_at")
   updatedAt DateTime          @updatedAt @map("updated_at")
 
-  patient      User           @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  slot         ClinicSlot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  queueEntries QueueEntry[]
+  patient       User           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  slot          ClinicSlot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  queueEntries  QueueEntry[]
   notifications Notification[]
 
   @@map("appointment")
 }
 
 model QueueEntry {
-  id             Int           @id @default(autoincrement())
-  dailyQueueId   Int           @map("daily_queue_id")
-  patientId      Int?          @map("patient_id")
-  appointmentId  Int?          @map("appointment_id")
-  queueNumber    Int           @map("queue_number")
-  ticketNumber   String        @map("ticket_number") @db.VarChar(20)
-  source         QueueSource   @default(WALK_IN) @map("source")
-  status         QueueStatus   @default(WAITING)
-  priority       QueuePriority @default(NORMAL)
-  trackingToken  String?       @map("tracking_token") @db.VarChar(64)
-  firstName      String?       @map("first_name") @db.VarChar(100)
-  lastName       String?       @map("last_name") @db.VarChar(100)
-  phoneNumber    String?       @map("phone_number") @db.VarChar(30)
-  reasonForVisit String?       @map("reason_for_visit") @db.Text
-  roomNumber     String?       @map("room_number") @db.VarChar(50)
-  notes          String?       @db.Text
-  joinedAt       DateTime      @default(now()) @map("joined_at")
-  calledAt       DateTime?     @map("called_at")
-  graceExpiresAt DateTime?     @map("grace_expires_at")
-  noShowAt       DateTime?     @map("no_show_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  id                    Int           @id @default(autoincrement())
+  dailyQueueId          Int           @map("daily_queue_id")
+  patientId             Int?          @map("patient_id")
+  appointmentId         Int?          @map("appointment_id")
+  queueNumber           Int           @map("queue_number")
+  ticketNumber          String        @map("ticket_number") @db.VarChar(20)
+  source                QueueSource   @default(WALK_IN) @map("source")
+  status                QueueStatus   @default(WAITING)
+  priority              QueuePriority @default(NORMAL)
+  trackingToken         String?       @map("tracking_token") @db.VarChar(64)
+  firstName             String?       @map("first_name") @db.VarChar(100)
+  lastName              String?       @map("last_name") @db.VarChar(100)
+  phoneNumber           String?       @map("phone_number") @db.VarChar(30)
+  reasonForVisit        String?       @map("reason_for_visit") @db.Text
+  roomNumber            String?       @map("room_number") @db.VarChar(60)
+  provider              String?       @db.VarChar(60)
+  notes                 String?       @db.Text
+  createdAt             DateTime      @default(now()) @map("joined_at")
+  calledAt              DateTime?     @map("called_at")
+  graceExpiresAt        DateTime?     @map("grace_expires_at")
+  consultationStartedAt DateTime?     @map("consultation_started_at")
+  completedAt           DateTime?     @map("completed_at")
+  noShowAt              DateTime?     @map("no_show_at")
+  cancelledAt           DateTime?     @map("cancelled_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
 
-  dailyQueue    DailyQueue          @relation(fields: [dailyQueueId], references: [id], onDelete: Cascade)
-  patient       User?               @relation(fields: [patientId], references: [id], onDelete: SetNull)
-  appointment   Appointment?        @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  dailyQueue    DailyQueue           @relation(fields: [dailyQueueId], references: [id], onDelete: Cascade)
+  patient       User?                @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  appointment   Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   notifications Notification[]
   statusHistory QueueStatusHistory[]
 
   @@unique([dailyQueueId, queueNumber])
   @@unique([trackingToken])
   @@index([dailyQueueId, status, queueNumber], map: "queue_entry_daily_queue_status_queue_number_idx")
-  @@index([dailyQueueId, status, joinedAt])
+  @@index([dailyQueueId, status, createdAt])
+  @@index([dailyQueueId, status, createdAt, queueNumber, id], map: "queue_entry_daily_queue_status_created_queue_id_idx")
   @@index([dailyQueueId, patientId, status])
   @@map("queue_entry")
 }
 
 model QueueStatusHistory {
-  id          Int        @id @default(autoincrement())
-  queueEntryId Int        @map("queue_entry_id")
-  status      QueueStatus
-  createdAt   DateTime   @default(now()) @map("created_at")
+  id           Int         @id @default(autoincrement())
+  queueEntryId Int         @map("queue_entry_id")
+  status       QueueStatus
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   queueEntry QueueEntry @relation(fields: [queueEntryId], references: [id], onDelete: Cascade)
 

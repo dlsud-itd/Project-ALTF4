@@ -17,7 +17,9 @@
         placeholder="e.g. Juan Dela Cruz"
         autocomplete="off"
       />
-      @if (walkInForm.controls.name.touched && walkInForm.controls.name.invalid) {
+      @if (
+        walkInForm.controls.name.touched && walkInForm.controls.name.invalid
+      ) {
         <small class="field-error">
           Enter 2–60 characters using letters, spaces, hyphens, or apostrophes.
         </small>
@@ -45,7 +47,11 @@
     </form>
   </section>
 
-  <section class="ticket-card" aria-live="polite" aria-labelledby="ticket-title">
+  <section
+    class="ticket-card"
+    aria-live="polite"
+    aria-labelledby="ticket-title"
+  >
     @if (issuedTicket(); as ticket) {
       <div class="ticket-content">
         <h3 id="ticket-title">Walk-in ticket</h3>
@@ -53,12 +59,14 @@
         <div class="ticket-details">
           <p class="ticket-patient">{{ ticket.patientName }}</p>
           <p class="ticket-reason">
-            {{ ticket.visitReason || 'No reason provided' }}
+            {{ ticket.visitReason || "No reason provided" }}
           </p>
           <p class="ticket-issued">
-            Issued {{ ticket.issuedAt | date: 'MMM d, y, h:mm a' }}
+            Issued {{ ticket.issuedAt | date: "MMM d, y, h:mm a" }}
           </p>
-          <span class="ticket-status">{{ ticket.status === 'WAITING' ? 'Waiting' : ticket.status }}</span>
+          <span class="ticket-status">{{
+            ticket.status === QueueStatus.WAITING ? "Waiting" : ticket.status
+          }}</span>
         </div>
         <p-button
           type="button"
