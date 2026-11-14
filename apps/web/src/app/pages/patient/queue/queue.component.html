@@ -20,24 +20,25 @@
 </header>
 
 <div class="queue-page">
-  <div class="queue-grid">
-    <div class="ticket-column">
-      @if (isNextInLine()) {
-        <p class="queue-banner next-banner" role="status">
-          <i class="pi pi-bell"></i>
-          You are next in line. Please head to the clinic.
-        </p>
-      }
+  @if (entry(); as ticket) {
+    <!-- In-Queue Layout: Ticket & Live Queue Summary side-by-side -->
+    <div class="queue-grid in-queue-grid">
+      <div class="ticket-column">
+        @if (isNextInLine()) {
+          <p class="queue-banner next-banner" role="status">
+            <i class="pi pi-bell"></i>
+            You are next in line. Please head to the clinic.
+          </p>
+        }
 
-      @if (hasDuplicateEntry() && entry(); as current) {
-        <p class="queue-banner duplicate-banner" role="status">
-          <i class="pi pi-info-circle"></i>
-          You are already in the queue. Your current position is
-          {{ current.positionInQueue }}.
-        </p>
-      }
+        @if (hasDuplicateEntry()) {
+          <p class="queue-banner duplicate-banner" role="status">
+            <i class="pi pi-info-circle"></i>
+            You are already in the queue. Your current position is
+            {{ ticket.positionInQueue }}.
+          </p>
+        }
 
-      @if (entry(); as ticket) {
         <!-- Ticket Card -->
         <section class="queue-card ticket-card" aria-label="Your ticket">
           <div class="ticket-head">
@@ -96,86 +97,153 @@
             </ol>
           }
         </section>
-      } @else {
-        <section class="queue-card" aria-label="Your ticket">
-          <app-empty-state
-            class="no-entry"
-            icon="pi-ticket"
-            title="You are not in the queue"
-            message="You can join the queue on the day of your appointment."
-          >
-            <a class="bookings-link" routerLink="/patient/bookings">
-              <p-button label="Go to Bookings" icon="pi pi-calendar" />
-            </a>
-          </app-empty-state>
-        </section>
-      }
+      </div>
+
+      <!-- Queue Summary Card (displayed ONLY when in queue) -->
+      <section class="queue-card summary-card" aria-label="Queue summary">
+        <h3 class="card-label">Queue Summary</h3>
+
+        @if (isLoading()) {
+          <div role="status" aria-label="Loading queue summary">
+            <app-loading-skeleton [lines]="loadingLineCount" />
+          </div>
+        } @else if (hasError()) {
+          <app-error-state
+            title="Could not load the queue"
+            message="Check your connection and try again."
+            (retry)="onRetry()"
+          />
+        } @else if (hasNoQueue()) {
+          <p class="closed-note" role="status">
+            <i class="pi pi-calendar-times"></i>
+            No queue is open today
+          </p>
+        } @else if (isQueueClosed()) {
+          <p class="closed-note" role="status">
+            <i class="pi pi-lock"></i>
+            The queue is closed
+          </p>
+        } @else {
+          <ul class="summary-list">
+            <li class="summary-item">
+              <span class="summary-icon">
+                <i class="pi pi-megaphone"></i>
+              </span>
+              <span class="summary-text">
+                <span class="summary-key">Now Serving</span>
+                <span class="summary-value now-serving">
+                  {{ nowServingLabel() }}
+                </span>
+                @if (summary()?.roomNumber) {
+                  <span class="summary-hint">{{ summary()?.roomNumber }}</span>
+                }
+              </span>
+            </li>
+            <li class="summary-item">
+              <span class="summary-icon waiting-icon">
+                <i class="pi pi-users"></i>
+              </span>
+              <span class="summary-text">
+                <span class="summary-key">Patients Waiting</span>
+                <span class="summary-value patients-waiting">
+                  {{ summary()?.patientsWaiting }}
+                </span>
+              </span>
+            </li>
+            <li class="summary-item">
+              <span class="summary-icon time-icon">
+                <i class="pi pi-clock"></i>
+              </span>
+              <span class="summary-text">
+                <span class="summary-key">Last Updated</span>
+                <span class="summary-value last-updated">
+                  As of {{ summary()?.lastUpdated | date: 'shortTime' }}
+                </span>
+              </span>
+            </li>
+          </ul>
+
+          <div class="summary-notice">
+            <i class="pi pi-info-circle"></i>
+            <span>Please stay in the clinic waiting area once you are next in line.</span>
+          </div>
+        }
+      </section>
     </div>
+  } @else {
+    <!-- Not in Queue View: Queue summary is hidden; layout utilizes space with empty state + helpful guidance -->
+    <div class="not-in-queue-layout">
+      <!-- Main Status Card -->
+      <section class="queue-card no-entry-card" aria-label="Your ticket">
+        <app-empty-state
+          class="no-entry"
+          icon="pi-ticket"
+          title="You are not in the queue"
+          message="You can join the queue on the day of your appointment."
+        >
+          <a class="bookings-link" routerLink="/patient/bookings">
+            <p-button label="Go to Bookings" icon="pi pi-calendar" />
+          </a>
+        </app-empty-state>
+      </section>
 
-    <!-- Queue Summary Card (real data) -->
-    <section class="queue-card summary-card" aria-label="Queue summary">
-      <h3 class="card-label">Queue Summary</h3>
-
-      @if (isLoading()) {
-        <div role="status" aria-label="Loading queue summary">
-          <app-loading-skeleton [lines]="loadingLineCount" />
+      <!-- Space-utilization Guide Cards -->
+      <div class="queue-guide-grid">
+        <div class="guide-card">
+          <div class="guide-header">
+            <div class="guide-icon">
+              <i class="pi pi-compass"></i>
+            </div>
+            <h4>How Queueing Works</h4>
+          </div>
+          <ol class="guide-steps">
+            <li>
+              <strong>1. Book an Appointment</strong>
+              <p>Reserve an available clinic date and time slot from the Bookings page.</p>
+            </li>
+            <li>
+              <strong>2. Automatic Queueing</strong>
+              <p>After securing a date, you are automatically queued for your consultation.</p>
+            </li>
+            <li>
+              <strong>3. Real-Time Tracking</strong>
+              <p>Monitor your ticket number, queue position, and live updates here.</p>
+            </li>
+          </ol>
         </div>
-      } @else if (hasError()) {
-        <app-error-state
-          title="Could not load the queue"
-          message="Check your connection and try again."
-          (retry)="onRetry()"
-        />
-      } @else if (hasNoQueue()) {
-        <p class="closed-note" role="status">
-          <i class="pi pi-calendar-times"></i>
-          No queue is open today
-        </p>
-      } @else if (isQueueClosed()) {
-        <p class="closed-note" role="status">
-          <i class="pi pi-lock"></i>
-          The queue is closed
-        </p>
-      } @else {
-        <ul class="summary-list">
-          <li class="summary-item">
-            <span class="summary-icon">
-              <i class="pi pi-megaphone"></i>
-            </span>
-            <span class="summary-text">
-              <span class="summary-key">Now Serving</span>
-              <span class="summary-value now-serving">
-                {{ nowServingLabel() }}
-              </span>
-              @if (summary()?.roomNumber) {
-                <span class="summary-hint">{{ summary()?.roomNumber }}</span>
-              }
-            </span>
-          </li>
-          <li class="summary-item">
-            <span class="summary-icon waiting-icon">
-              <i class="pi pi-users"></i>
-            </span>
-            <span class="summary-text">
-              <span class="summary-key">Patients Waiting</span>
-              <span class="summary-value patients-waiting">
-                {{ summary()?.patientsWaiting }}
-              </span>
-            </span>
-          </li>
-          <li class="summary-item">
-            <span class="summary-icon time-icon">
+
+        <div class="guide-card">
+          <div class="guide-header">
+            <div class="guide-icon clinic-icon">
+              <i class="pi pi-building"></i>
+            </div>
+            <h4>Clinic Guidelines</h4>
+          </div>
+          <ul class="guide-info-list">
+            <li>
               <i class="pi pi-clock"></i>
-            </span>
-            <span class="summary-text">
-              <span class="summary-key">Last Updated</span>
-              <span class="summary-value last-updated">
-                As of {{ summary()?.lastUpdated | date: 'shortTime' }}
-              </span>
-            </span>
-          </li>
-        </ul>
-      }
-    </section>
-  </div>
+              <div>
+                <strong>Operating Hours</strong>
+                <p>Monday &ndash; Friday: 8:00 AM &ndash; 5:00 PM</p>
+              </div>
+            </li>
+            <li>
+              <i class="pi pi-map-marker"></i>
+              <div>
+                <strong>Location</strong>
+                <p>DLSUD-D Clinic, Ground Floor</p>
+              </div>
+            </li>
+            <li>
+              <i class="pi pi-id-card"></i>
+              <div>
+                <strong>Identification</strong>
+                <p>Present your validated University Student or Employee ID upon arrival.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  }
 </div>
