@@ -112,7 +112,7 @@ describe('PatientDashboardComponent', () => {
   it('should render the welcome banner and dashboard cards', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.welcome-banner')).toBeTruthy();
-    expect(element.querySelectorAll('.dashboard-card').length).toBe(3);
+    expect(element.querySelectorAll('.dashboard-card').length).toBe(2);
   });
 
   it('should show an empty state when patient has no appointments', () => {

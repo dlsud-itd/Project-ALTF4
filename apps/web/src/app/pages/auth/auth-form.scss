@@ -144,8 +144,13 @@ app-auth-card {
 }
 
 .field-error {
-  font-size: 0.8125rem;
-  color: var(--danger-color);
+  font-size: 0.775rem;
+  font-weight: 500;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 2px;
 }
 
 p-message {

@@ -90,22 +90,11 @@
       </div>
       <div class="card-content">
         <h3>Now Serving</h3>
-        <p class="status-highlight">{{ nowServingTicket() }}</p>
+        <p [class.status-highlight]="nowServingTicket() !== 'None yet'" [class.status-value]="nowServingTicket() === 'None yet'">
+          {{ nowServingTicket() }}
+        </p>
         <span class="status-hint">{{ nowServingRoom() }}</span>
         <span class="status-hint">General Consultation</span>
-      </div>
-    </div>
-
-    <!-- Clinic Hours Card -->
-    <div class="dashboard-card">
-      <div class="card-icon time-icon">
-        <i class="pi pi-clock"></i>
-      </div>
-      <div class="card-content">
-        <h3>Clinic Schedule</h3>
-        <p class="schedule-text">8 AM &ndash; 5 PM</p>
-        <span class="status-hint">Monday &ndash; Friday</span>
-        <span class="status-hint">Ground Floor</span>
       </div>
     </div>
   </div>
