@@ -12,7 +12,13 @@ import {
   SlotStatus,
 } from '@core/models';
 import { SlotsService } from '@core/services';
-import { getErrorMessage, getSlotStatus, toDateParam } from '@core/utils';
+import {
+  formatTime12h,
+  formatTimeRange,
+  getErrorMessage,
+  getSlotStatus,
+  toDateParam,
+} from '@core/utils';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
@@ -116,7 +122,7 @@ export class StaffScheduleComponent implements OnInit {
   onDeleteSlot(slot: ClinicSlot): void {
     this.confirmationService.confirm({
       header: 'Delete slot',
-      message: `Delete the ${slot.clinicDate} slot at ${slot.startTime}?`,
+      message: `Delete the ${slot.clinicDate} slot at ${this.formatTime(slot.startTime)}?`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Delete',
       rejectLabel: 'Cancel',
@@ -170,5 +176,13 @@ export class StaffScheduleComponent implements OnInit {
 
   statusSeverity(slot: ClinicSlot): TagSeverity {
     return STATUS_SEVERITIES[getSlotStatus(slot)];
+  }
+
+  formatTimeRange(startTime: string, endTime: string): string {
+    return formatTimeRange(startTime, endTime);
+  }
+
+  formatTime(timeStr: string): string {
+    return formatTime12h(timeStr);
   }
 }

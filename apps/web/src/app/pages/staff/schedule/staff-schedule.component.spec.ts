@@ -66,7 +66,7 @@ describe('StaffScheduleComponent', () => {
     const rows = element.querySelectorAll('tbody tr');
 
     expect(rows.length).toBe(3);
-    expect(rows[0].textContent).toContain('10:15 - 10:45');
+    expect(rows[0].textContent).toContain('10:15 AM - 10:45 AM');
     expect(rows[0].textContent).toContain('Open');
     expect(rows[1].textContent).toContain('Full');
     expect(rows[2].textContent).toContain('Closed');
@@ -176,7 +176,11 @@ describe('StaffScheduleComponent', () => {
 
     component.onDeleteSlot(component.slots()[0]);
 
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        message: jasmine.stringMatching(/10:15 AM/),
+      }),
+    );
   });
 
   it('shows the empty state when there are no slots', () => {
