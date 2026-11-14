@@ -97,17 +97,41 @@ and compliance with the defined system requirements.
 | :------ | :------------ | :------------ | :-------- | :-------------- | :----- |
 | QUEUE-01 | Unit | Generate a queue number for a patient | Patient with confirmed appt or walk-in | Unique queue number is generated for patient | Success  |
 | QUEUE-02 | Integration | Add a patient to queue after a successful booking | Valid appt and available slot | Patient added to correct queue and associated with appt | Success  |
-| QUEUE-03 | E2E | Patient joins queue successfully | Registered patient with valid appt | Patient receives queue number and confirmation | Pending  |
+| QUEUE-03 | E2E | Patient joins queue successfully | Registered patient with valid appt | Patient receives queue number and confirmation | Success  |
 | QUEUE-04 | Unit | Maintain the correct queue order | Multiple patients with differing positions | Patients arranged according to defined queue rules | Fail     |
 | QUEUE-05 | Integration | Update a patient's queue status | Patient marked as Waiting | Status updated correctly and reflected in display | Success  |
 | QUEUE-06 | E2E | Staff notify next patient | Multiple patients waiting | Next eligible patient found, status changes to Called | Success  |
-| QUEUE-07 | Integration | Prevent duplicate queue entries | Patient already has active entry | System prevents unintended duplicate entry | Pending  |
-| QUEUE-08 | Unit | Handle an empty queue | No patients waiting | Displays empty message, doesn't call nonexistent | Pending  |
-| QUEUE-09 | E2E | Mark a patient as served | Patient called, consult completed | Status changes to Served, queue advances to next | Pending  |
-| QUEUE-10 | Integration | Handle a skipped or absent patient | Patient notified but no response | Staff marks as Skipped/ No-show, queue proceeds | Pending  |
-| QUEUE-11 | Integration | Synchronize queue updates across UIs | Staff updates status | Displays show updated info, no conflict | Pending  |
+| QUEUE-07 | Integration | Prevent duplicate queue entries | Patient already has active entry | System prevents unintended duplicate entry | Success  |
+| QUEUE-08 | Unit | Handle an empty queue | No patients waiting | Displays empty message, doesn't call nonexistent | Success  |
+| QUEUE-09 | E2E | Mark a patient as served | Patient called, consult completed | Status changes to Served, queue advances to next | Success  |
+| QUEUE-10 | Integration | Handle a skipped or absent patient | Patient notified but no response | Staff marks as Skipped/ No-show, queue proceeds | Success  |
+| QUEUE-11 | Integration | Synchronize queue updates across UIs | Staff updates status | Displays show updated info, no conflict | Success  |
 
 <br>
+
+
+### CQ-S5-5.6 - QUEUE OPERATIONS AND STATE TRANSITIONS
+
+| Test ID | Testing level | Test scenario | Test data | Expected Result | Status |
+| :------ | :------------ | :------------ | :-------- | :-------------- | :----- |
+| CQ-S5-5.6.01 | Integration | Call next with no waiting entries | Empty queue | Rejected with `QUEUE_EMPTY` (409) | Success |
+| CQ-S5-5.6.02 | Integration | Call next with an empty room | `room: ""` | Validation error (400) | Success |
+| CQ-S5-5.6.03 | Integration | Call next with an empty provider | `provider: ""` | Validation error (400) | Success |
+| CQ-S5-5.6.04 | Integration | Call next with a room over 60 characters | 61-character room | Validation error (400) | Success |
+| CQ-S5-5.6.05 | Integration | Call next with a whitespace-only provider | `provider: "   "` | Validation error (400) | Success |
+| CQ-S5-5.6.06 | Integration | Call next moves a waiting entry to CALLED | WAITING entry | Status becomes CALLED, grace countdown starts | Success |
+| CQ-S5-5.6.07 | Integration | Start consultation from CALLED | CALLED entry | Status becomes IN_CONSULTATION | Success |
+| CQ-S5-5.6.08 | Integration | Complete consultation from IN_CONSULTATION | IN_CONSULTATION entry | Status becomes COMPLETED | Success |
+| CQ-S5-5.6.09 | Integration | Mark a called entry as no-show | CALLED entry | Status becomes NO_SHOW | Success |
+| CQ-S5-5.6.10 | Integration | Cancel a waiting entry | WAITING entry | Status becomes CANCELLED | Success |
+| CQ-S5-5.6.11 | Integration | Blocked: WAITING to COMPLETED | WAITING entry | `INVALID_TRANSITION` (409) | Success |
+| CQ-S5-5.6.12 | Integration | Blocked: WAITING to NO_SHOW | WAITING entry | `INVALID_TRANSITION` (409) | Success |
+| CQ-S5-5.6.13 | Integration | Blocked: WAITING to IN_CONSULTATION | WAITING entry | `INVALID_TRANSITION` (409) | Success |
+| CQ-S5-5.6.14 | Integration | Blocked: transition from COMPLETED | COMPLETED entry | Rejected, terminal state | Success |
+| CQ-S5-5.6.15 | Integration | Blocked: transition from NO_SHOW | NO_SHOW entry | Rejected, terminal state | Success |
+| CQ-S5-5.6.16 | Integration | Second call-next while a patient is called | Existing CALLED entry | `STATION_BUSY` (409) | Success |
+| CQ-S5-5.6.17 | E2E | Recall current re-announces the called entry | CALLED entry | SSE `queue:called` re-emitted with `recalled: true`; status remains CALLED and the grace countdown is **not** extended | Success |
+| CQ-S5-5.6.18 | Integration | Recall with no called patient | No CALLED entry | `NO_CALLED_PATIENT` (409) | Success |
 
 ### NOTIFICATION MANAGEMENT
 
