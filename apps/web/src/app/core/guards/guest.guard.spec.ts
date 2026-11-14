@@ -63,10 +63,10 @@ describe('guestGuard', () => {
     expect(navigateByUrlSpy).toHaveBeenCalledWith('/staff');
   });
 
-  it('should treat a token without a cached user as a patient', () => {
+  it('should let a visitor with a token but no cached user see the guest page', () => {
     localStorage.setItem(TOKEN_KEY, 'abc');
 
-    expect(runGuard()).toBeFalse();
-    expect(navigateByUrlSpy).toHaveBeenCalledWith('/patient');
+    expect(runGuard()).toBeTrue();
+    expect(navigateByUrlSpy).not.toHaveBeenCalled();
   });
 });

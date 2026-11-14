@@ -1,0 +1,79 @@
+:host {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 180ms ease,
+    opacity 180ms ease;
+}
+
+:host.notice-visible {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.notice-content {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.notice--info {
+  border-color: #9dcbd0;
+  color: #075a5b;
+  background: #eef8f7;
+}
+
+.notice--success {
+  border-color: #9ed5be;
+  color: #176345;
+  background: #effaf4;
+}
+
+.notice--warning {
+  border-color: #f0d27c;
+  color: #854d0e;
+  background: #fff8e6;
+}
+
+.notice--error {
+  border-color: #f0a7a7;
+  color: #b42318;
+  background: #fff0ef;
+}
+
+$notice-close-size: 2rem;
+
+.notice-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 $notice-close-size;
+  width: $notice-close-size;
+  height: $notice-close-size;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: currentColor;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+
+  &:hover {
+    background: rgb(0 0 0 / 0.08);
+  }
+
+  &:focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 2px;
+  }
+}
