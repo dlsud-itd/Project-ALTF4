@@ -25,9 +25,10 @@ describe('StaffDashboardComponent presentation', () => {
       element.querySelector('.appointments-panel #appointments-title')
         ?.textContent,
     ).toContain('Upcoming appointments');
-    expect(element.querySelector('.sample-data-tag')?.textContent).toContain(
-      'Sample data',
-    );
+    expect(element.querySelector('.sample-data-tag')).toBeNull();
+    expect(
+      TestBed.inject(QueueService).getStaffQueueStatus,
+    ).toHaveBeenCalledWith(1);
   });
 
   it('renders actual patient names and visit reasons in the active and waiting tickets', () => {
@@ -100,19 +101,22 @@ describe('StaffDashboardComponent presentation', () => {
     );
   });
 
-  it('lists sample appointments with 12-hour times and status tags', () => {
+  it('lists online appointments with 12-hour times and status tags', () => {
     const element = fixture.nativeElement as HTMLElement;
     const rows = element.querySelectorAll('.appointment-list li');
 
+    expect(rows.length).toBe(2);
     expect(rows.length).toBe(component.dashboard.appointments().length);
-    expect(rows[0].textContent).toContain('Sample Patient A');
+    expect(rows[0].textContent).toContain('John Albert Masangkay');
     expect(rows[0].querySelector('.appointment-time')?.textContent).toContain(
       '8:00 AM to 8:30 AM',
     );
-    expect(rows[2].querySelector('.appointment-time')?.textContent).toContain(
-      '1:00 PM to 1:30 PM',
+    expect(rows[1].querySelector('.appointment-time')?.textContent).toContain(
+      '9:30 AM to 10:00 AM',
     );
     expect(rows[0].querySelector('p-tag')).toBeTruthy();
+    expect(element.textContent).not.toContain('Patient Three');
+    expect(element.textContent).not.toContain('Past Cancelled Patient');
   });
 
   it('shows a loading skeleton for the appointments panel', () => {

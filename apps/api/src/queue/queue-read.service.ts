@@ -3,6 +3,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, PrismaClient, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from './queue-events.service';
+import { QueueLifecycleService } from './queue-lifecycle.service';
+import { presentServingTicket, presentWaitingTicket } from './queue-presenter';
 
 export const GRACE_PERIOD_MS = 3 * 60 * 1000;
 
@@ -17,6 +19,7 @@ export class QueueReadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: QueueEventsService,
+    private readonly lifecycle: QueueLifecycleService,
   ) {}
 
   async getQueueOrThrow(queueId: number) {
@@ -61,9 +64,8 @@ export class QueueReadService {
   async expireCalledEntries(
     queueId: number,
     now = new Date(),
-    tx: Prisma.TransactionClient | PrismaClient = this.prisma,
   ): Promise<string[]> {
-    const expiredEntries = await tx.queueEntry.findMany({
+    const expiredEntries = await this.prisma.queueEntry.findMany({
       where: {
         dailyQueueId: queueId,
         status: QueueStatus.CALLED,
@@ -74,32 +76,27 @@ export class QueueReadService {
     const newlyNoShowTickets: string[] = [];
 
     for (const entry of expiredEntries) {
-      const expired = await tx.queueEntry.updateMany({
-        where: {
-          id: entry.id,
-          dailyQueueId: queueId,
-          status: QueueStatus.CALLED,
-          graceExpiresAt: { lte: now },
-        },
-        data: {
-          status: QueueStatus.NO_SHOW,
-          noShowAt: now,
-          graceExpiresAt: null,
-        },
-      });
-
-      if (expired.count === 0) {
+      const updated = await this.prisma.$transaction((tx) =>
+        this.lifecycle.transitionEntry(tx, {
+          queueId,
+          entryId: entry.id,
+          requestedStatus: QueueStatus.NO_SHOW,
+          now,
+          ignoreConcurrentChange: true,
+        }),
+      );
+      if (!updated) {
         continue;
       }
 
-      newlyNoShowTickets.push(entry.ticketNumber);
-      await this.recordStatusHistory(tx, entry.id, QueueStatus.NO_SHOW);
+      newlyNoShowTickets.push(updated.ticketNumber);
       this.events.emit(queueId, 'queue:updated', {
         queueId,
-        queueEntryId: entry.id,
-        ticketNumber: entry.ticketNumber,
+        queueEntryId: updated.id,
+        ticketNumber: updated.ticketNumber,
         status: QueueStatus.NO_SHOW,
         timestamp: now.toISOString(),
+        noShowAt: updated.noShowAt?.toISOString() ?? null,
       });
     }
 
@@ -160,34 +157,41 @@ export class QueueReadService {
       },
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const totalCompletedToday = await this.prisma.queueEntry.count({
-      where: {
-        dailyQueueId: queueId,
-        status: QueueStatus.COMPLETED,
-        completedAt: { gte: today },
-      },
-    });
-    const totalNoShowsToday = await this.prisma.queueEntry.count({
-      where: {
-        dailyQueueId: queueId,
-        status: QueueStatus.NO_SHOW,
-        noShowAt: { gte: today },
-      },
-    });
-
-    const waitingBreakdown = {
-      ONLINE: waitingEntries.filter(
-        (entry) => entry.source === QueueSource.ONLINE,
-      ).length,
-      WALK_IN: waitingEntries.filter(
-        (entry) => entry.source === QueueSource.WALK_IN,
-      ).length,
-      STAFF_GENERATED: waitingEntries.filter(
-        (entry) => entry.source === QueueSource.STAFF_GENERATED,
-      ).length,
-    };
+    let totalCompletedToday = 0;
+    let totalNoShowsToday = 0;
+    let waitingBreakdown:
+      { ONLINE: number; WALK_IN: number; STAFF_GENERATED: number } | undefined;
+    if (includePatientDetails) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      [totalCompletedToday, totalNoShowsToday] = await Promise.all([
+        this.prisma.queueEntry.count({
+          where: {
+            dailyQueueId: queueId,
+            status: QueueStatus.COMPLETED,
+            completedAt: { gte: today },
+          },
+        }),
+        this.prisma.queueEntry.count({
+          where: {
+            dailyQueueId: queueId,
+            status: QueueStatus.NO_SHOW,
+            noShowAt: { gte: today },
+          },
+        }),
+      ]);
+      waitingBreakdown = {
+        ONLINE: waitingEntries.filter(
+          (entry) => entry.source === QueueSource.ONLINE,
+        ).length,
+        WALK_IN: waitingEntries.filter(
+          (entry) => entry.source === QueueSource.WALK_IN,
+        ).length,
+        STAFF_GENERATED: waitingEntries.filter(
+          (entry) => entry.source === QueueSource.STAFF_GENERATED,
+        ).length,
+      };
+    }
 
     const averageWaitMinutes = waitingEntries.length
       ? Math.round(
@@ -199,57 +203,36 @@ export class QueueReadService {
         )
       : 0;
     const serverTime = new Date().toISOString();
-    const servingTicket = currentServing
-      ? {
-          ticket_number: currentServing.ticketNumber,
-          queue_entry_id: currentServing.id,
-          status: currentServing.status,
-          called_at: currentServing.calledAt?.toISOString() || null,
-          grace_expires_at:
-            currentServing.graceExpiresAt?.toISOString() || null,
-          room_number: currentServing.roomNumber || 'Counter 1',
-          provider: currentServing.provider,
-          ...(includePatientDetails
-            ? {
-                patient_name:
-                  `${currentServing.firstName || ''} ${currentServing.lastName || ''}`.trim() ||
-                  null,
-                reason_for_visit: currentServing.reasonForVisit || null,
-              }
-            : {}),
-        }
-      : null;
+    const servingTicket = presentServingTicket(
+      currentServing,
+      includePatientDetails,
+    );
 
-    return {
+    const response = {
       queue_id: queueId,
       clinic_date: queue.clinicDate.toISOString().split('T')[0],
       is_active: queue.isOpen,
       currently_serving: servingTicket,
       current_serving: servingTicket,
       total_waiting: waitingEntries.length,
-      waiting_tickets: waitingEntries.map((entry) => ({
-        queue_entry_id: entry.id,
-        ticket_number: entry.ticketNumber,
-        status: entry.status,
-        ...(includePatientDetails
-          ? {
-              patient_name:
-                `${entry.firstName || ''} ${entry.lastName || ''}`.trim() ||
-                null,
-              reason_for_visit: entry.reasonForVisit || null,
-            }
-          : {}),
-      })),
-      waiting_breakdown: waitingBreakdown,
-      total_completed_today: totalCompletedToday,
-      total_no_shows_today: totalNoShowsToday,
-      grace_period_ms: GRACE_PERIOD_MS,
-      newly_no_show_ticket_numbers: newlyNoShowTickets,
+      waiting_tickets: waitingEntries.map((entry) =>
+        presentWaitingTicket(entry, includePatientDetails),
+      ),
       avg_wait_time_minutes: averageWaitMinutes,
       average_wait_minutes: averageWaitMinutes,
       server_time: serverTime,
       last_updated: serverTime,
     };
+    return includePatientDetails
+      ? {
+          ...response,
+          waiting_breakdown: waitingBreakdown,
+          total_completed_today: totalCompletedToday,
+          total_no_shows_today: totalNoShowsToday,
+          grace_period_ms: GRACE_PERIOD_MS,
+          newly_no_show_ticket_numbers: newlyNoShowTickets,
+        }
+      : response;
   }
 
   async getTrackingStatus(trackingToken: string) {

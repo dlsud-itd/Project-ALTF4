@@ -8,6 +8,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueueEventsService } from '../queue/queue-events.service';
+import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
@@ -15,6 +17,7 @@ describe('AppointmentsService', () => {
   let service: AppointmentsService;
 
   const mockPrismaService = {
+    $transaction: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     clinicSlot: {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
@@ -25,9 +28,28 @@ describe('AppointmentsService', () => {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       update: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
+    dailyQueue: {
+      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      update: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
+    user: {
+      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
+    queueEntry: {
+      create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      count: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
+    queueStatusHistory: {
+      create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
     auditLog: {
       create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
+  };
+  const mockQueueEvents = { emit: jest.fn() };
+  const mockQueueLifecycle = {
+    cancelAppointment: jest.fn<(...args: unknown[]) => Promise<unknown[]>>(),
   };
 
   beforeEach(async () => {
@@ -40,11 +62,33 @@ describe('AppointmentsService', () => {
     Object.values(mockPrismaService.auditLog).forEach((mock) =>
       mock.mockReset(),
     );
+    Object.values(mockPrismaService.dailyQueue).forEach((mock) =>
+      mock.mockReset(),
+    );
+    Object.values(mockPrismaService.user).forEach((mock) => mock.mockReset());
+    Object.values(mockPrismaService.queueEntry).forEach((mock) =>
+      mock.mockReset(),
+    );
+    Object.values(mockPrismaService.queueStatusHistory).forEach((mock) =>
+      mock.mockReset(),
+    );
+    mockPrismaService.$transaction.mockImplementation(
+      async (...args: unknown[]) => {
+        const callback = args[0] as (
+          tx: typeof mockPrismaService,
+        ) => Promise<unknown>;
+        return callback(mockPrismaService);
+      },
+    );
+    mockQueueLifecycle.cancelAppointment.mockResolvedValue([]);
+    mockQueueEvents.emit.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AppointmentsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: QueueEventsService, useValue: mockQueueEvents },
+        { provide: QueueLifecycleService, useValue: mockQueueLifecycle },
       ],
     }).compile();
 
@@ -76,6 +120,25 @@ describe('AppointmentsService', () => {
         status: AppointmentStatus.BOOKED,
         createdAt: new Date('2026-10-31T00:00:00.000Z'),
       });
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        fullName: 'Patient One',
+      });
+      mockPrismaService.dailyQueue.findUnique.mockResolvedValue({
+        id: 21,
+        nextNumber: 1,
+        fallbackServiceMinutes: 15,
+      });
+      mockPrismaService.dailyQueue.update.mockResolvedValue({
+        id: 21,
+        nextNumber: 2,
+        fallbackServiceMinutes: 15,
+      });
+      mockPrismaService.queueEntry.create.mockResolvedValue({
+        id: 70,
+        ticketNumber: 'A-001',
+        createdAt: new Date('2026-10-31T00:00:00.000Z'),
+      });
+      mockPrismaService.queueEntry.count.mockResolvedValue(0);
       mockPrismaService.auditLog.create.mockResolvedValue({ id: 1 });
 
       const result = await service.bookAppointment(patientId, dto);
@@ -83,14 +146,20 @@ describe('AppointmentsService', () => {
       expect(result.message).toBe('Appointment booked successfully');
       expect(result.appointment.id).toBe(50);
       expect(result.appointment.slot.remainingCapacity).toBe(1);
-      expect(mockPrismaService.appointment.create).toHaveBeenCalledWith({
-        data: {
-          patientId,
-          slotId: 10,
-          status: AppointmentStatus.BOOKED,
-        },
-        include: { slot: true },
-      });
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
+      expect(mockPrismaService.queueEntry.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            appointmentId: 50,
+            status: 'WAITING',
+          }),
+        }),
+      );
+      expect(mockQueueEvents.emit).toHaveBeenCalledWith(
+        21,
+        'queue:updated',
+        expect.objectContaining({ status: 'WAITING' }),
+      );
     });
 
     it('rejects booking when slot does not exist', async () => {
@@ -305,18 +374,27 @@ describe('AppointmentsService', () => {
         status: AppointmentStatus.BOOKED,
         slot: { id: 10 },
       });
-      mockPrismaService.appointment.update.mockResolvedValue({
-        id: 1,
-        status: AppointmentStatus.CANCELLED,
-      });
+      mockQueueLifecycle.cancelAppointment.mockResolvedValue([
+        {
+          id: 70,
+          dailyQueueId: 21,
+          ticketNumber: 'A-001',
+          status: 'CANCELLED',
+        },
+      ]);
       mockPrismaService.auditLog.create.mockResolvedValue({ id: 2 });
 
       const result = await service.cancelAppointment(101, 1);
       expect(result.message).toBe('Appointment cancelled successfully');
-      expect(mockPrismaService.appointment.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { status: AppointmentStatus.CANCELLED },
-      });
+      expect(mockQueueLifecycle.cancelAppointment).toHaveBeenCalledWith(
+        1,
+        expect.any(Date),
+      );
+      expect(mockQueueEvents.emit).toHaveBeenCalledWith(
+        21,
+        'queue:updated',
+        expect.objectContaining({ status: 'CANCELLED' }),
+      );
     });
 
     it('rejects cancelling an appointment that does not exist', async () => {

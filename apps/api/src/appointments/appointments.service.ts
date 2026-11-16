@@ -12,12 +12,18 @@ import {
   QueueStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueueEventsService } from '../queue/queue-events.service';
+import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: QueueEventsService,
+    private readonly queueLifecycle: QueueLifecycleService,
+  ) {}
 
   async bookAppointment(patientId: number, dto: CreateAppointmentDto) {
     const slot = await this.prisma.clinicSlot.findUnique({
@@ -71,96 +77,88 @@ export class AppointmentsService {
       );
     }
 
-    const appointment = await this.prisma.appointment.create({
-      data: {
-        patientId,
-        slotId: slot.id,
-        status: AppointmentStatus.BOOKED,
-      },
-      include: {
-        slot: true,
-      },
-    });
-
-    // Per Section 2 of Queue Plan: immediately assign a queue number upon booking
-    let reservedQueueEntry: {
-      ticketNumber: string;
-      queueNumber: number;
-      positionInQueue: number;
-      estimatedWaitMinutes: number;
-    } | null = null;
-
-    try {
-      const patientRecord = await this.prisma.user.findUnique({
-        where: { id: patientId },
-        select: { fullName: true },
-      });
-
-      // Find or create DailyQueue for the slot's clinic date
-      const slotDateOnly = new Date(slot.clinicDate);
-      slotDateOnly.setHours(0, 0, 0, 0);
-
-      let dailyQueue = await this.prisma.dailyQueue.findFirst({
-        where: {
-          clinicDate: slotDateOnly,
-        },
-      });
-
-      if (!dailyQueue) {
-        dailyQueue = await this.prisma.dailyQueue.create({
+    const { appointment, queueId, queueEntry, reservedQueueEntry } =
+      await this.prisma.$transaction(async (tx) => {
+        const appointment = await tx.appointment.create({
           data: {
-            clinicDate: slotDateOnly,
-            isOpen: true,
-            nextNumber: 1,
-            fallbackServiceMinutes: 15,
+            patientId,
+            slotId: slot.id,
+            status: AppointmentStatus.BOOKED,
+          },
+          include: { slot: true },
+        });
+        const patientRecord = await tx.user.findUnique({
+          where: { id: patientId },
+          select: { fullName: true },
+        });
+        const slotDateOnly = new Date(slot.clinicDate);
+        slotDateOnly.setHours(0, 0, 0, 0);
+        let dailyQueue = await tx.dailyQueue.findUnique({
+          where: { clinicDate: slotDateOnly },
+        });
+        if (!dailyQueue) {
+          dailyQueue = await tx.dailyQueue.create({
+            data: {
+              clinicDate: slotDateOnly,
+              isOpen: true,
+              nextNumber: 1,
+              fallbackServiceMinutes: 15,
+            },
+          });
+        }
+        const allocatedQueue = await tx.dailyQueue.update({
+          where: { id: dailyQueue.id },
+          data: { nextNumber: { increment: 1 } },
+        });
+        const nextNumber = allocatedQueue.nextNumber - 1;
+        const ticketNumber = `A-${String(nextNumber).padStart(3, '0')}`;
+        const queueEntry = await tx.queueEntry.create({
+          data: {
+            dailyQueueId: dailyQueue.id,
+            patientId,
+            appointmentId: appointment.id,
+            queueNumber: nextNumber,
+            ticketNumber,
+            source: QueueSource.ONLINE,
+            status: QueueStatus.WAITING,
+            firstName: patientRecord?.fullName ?? 'Patient',
+            reasonForVisit: dto.reasonForVisit ?? 'Scheduled Consultation',
           },
         });
-      }
-
-      // Atomically allocate sequential ticket number
-      const allocatedQueue = await this.prisma.dailyQueue.update({
-        where: { id: dailyQueue.id },
-        data: { nextNumber: { increment: 1 } },
+        await tx.queueStatusHistory.create({
+          data: {
+            queueEntryId: queueEntry.id,
+            status: QueueStatus.WAITING,
+          },
+        });
+        const waitingAhead = await tx.queueEntry.count({
+          where: {
+            dailyQueueId: dailyQueue.id,
+            status: QueueStatus.WAITING,
+            queueNumber: { lt: nextNumber },
+          },
+        });
+        return {
+          appointment,
+          queueId: dailyQueue.id,
+          queueEntry,
+          reservedQueueEntry: {
+            ticketNumber,
+            queueNumber: nextNumber,
+            positionInQueue: waitingAhead + 1,
+            estimatedWaitMinutes:
+              waitingAhead * dailyQueue.fallbackServiceMinutes,
+          },
+        };
       });
-      const nextNumber = allocatedQueue.nextNumber - 1;
-      const ticketNumber = `A-${String(nextNumber).padStart(3, '0')}`;
 
-      // Create QueueEntry linked to this appointment
-      await this.prisma.queueEntry.create({
-        data: {
-          dailyQueueId: dailyQueue.id,
-          patientId,
-          appointmentId: appointment.id,
-          queueNumber: nextNumber,
-          ticketNumber,
-          source: QueueSource.ONLINE,
-          status: QueueStatus.WAITING,
-          firstName: patientRecord?.fullName ?? 'Patient',
-          reasonForVisit: dto.reasonForVisit ?? 'Scheduled Consultation',
-        },
-      });
-
-      // Calculate position in queue and wait time (patients ahead * duration)
-      const waitingAhead = await this.prisma.queueEntry.count({
-        where: {
-          dailyQueueId: dailyQueue.id,
-          status: QueueStatus.WAITING,
-          queueNumber: { lt: nextNumber },
-        },
-      });
-      const positionInQueue = waitingAhead + 1;
-      const estimatedWaitMinutes =
-        waitingAhead * dailyQueue.fallbackServiceMinutes;
-
-      reservedQueueEntry = {
-        ticketNumber,
-        queueNumber: nextNumber,
-        positionInQueue,
-        estimatedWaitMinutes,
-      };
-    } catch {
-      // Non-blocking: if queue creation fails, booking still succeeds
-    }
+    this.events.emit(queueId, 'queue:updated', {
+      queueId,
+      queueEntryId: queueEntry.id,
+      ticketNumber: queueEntry.ticketNumber,
+      status: QueueStatus.WAITING,
+      timestamp: queueEntry.createdAt.toISOString(),
+    });
 
     try {
       await this.prisma.auditLog.create({
@@ -411,37 +409,19 @@ export class AppointmentsService {
       );
     }
 
-    await this.prisma.appointment.update({
-      where: { id: appointmentId },
-      data: {
-        status: AppointmentStatus.CANCELLED,
-      },
-    });
-
-    // Remove any active queue entries associated with this patient for this appointment/date
-    try {
-      await this.prisma.queueEntry.updateMany({
-        where: {
-          appointmentId,
-          status: { in: [QueueStatus.WAITING, QueueStatus.CALLED] },
-        },
-        data: {
-          status: QueueStatus.CANCELLED,
-        },
+    const cancelledAt = new Date();
+    const cancelledEntries = await this.queueLifecycle.cancelAppointment(
+      appointmentId,
+      cancelledAt,
+    );
+    for (const entry of cancelledEntries) {
+      this.events.emit(entry.dailyQueueId, 'queue:updated', {
+        queueId: entry.dailyQueueId,
+        queueEntryId: entry.id,
+        ticketNumber: entry.ticketNumber,
+        status: entry.status,
+        cancelledAt: cancelledAt.toISOString(),
       });
-
-      // Also cancel any standalone active queue entries this patient might have
-      await this.prisma.queueEntry.updateMany({
-        where: {
-          patientId,
-          status: { in: [QueueStatus.WAITING, QueueStatus.CALLED] },
-        },
-        data: {
-          status: QueueStatus.CANCELLED,
-        },
-      });
-    } catch {
-      // Non-blocking
     }
 
     try {

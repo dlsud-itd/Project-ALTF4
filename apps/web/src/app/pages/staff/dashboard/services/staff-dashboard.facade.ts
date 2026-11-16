@@ -14,8 +14,14 @@ import {
   Validators,
 } from '@angular/forms';
 import { interval, merge } from 'rxjs';
-import { AuthService, QueueService, SseService } from '@core/services';
 import {
+  AppointmentsService,
+  AuthService,
+  QueueService,
+  SseService,
+} from '@core/services';
+import {
+  AppointmentStatus,
   QueueStatus,
   QueueStatusResponse,
   QueueTicketSummary,
@@ -23,12 +29,11 @@ import {
 } from '@core/models';
 import { NoticeVariant } from '@shared/ui';
 import { StaffDashboardQueueActions } from './staff-dashboard-queue-actions';
-import {
-  SAMPLE_APPOINTMENTS,
-  StaffAppointmentRow,
-} from '../data/staff-dashboard.data';
+import { StaffAppointmentRow } from '../data/staff-dashboard.data';
 
 const HTTP_NOT_FOUND = 404;
+const APPOINTMENT_REFRESH_INTERVAL_MS = 30_000;
+const UPCOMING_APPOINTMENT_STATUS: AppointmentStatus = 'BOOKED';
 const NOTES_MAX_LENGTH = 500;
 const ROOM_MAX_LENGTH = 60;
 const PROVIDER_MAX_LENGTH = 60;
@@ -43,6 +48,14 @@ type DashboardNotice = {
 function notBlank(control: AbstractControl<string>): ValidationErrors | null {
   return control.value.trim().length > 0 ? null : { required: true };
 }
+
+function formatClinicDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const QUEUE_NOT_FOUND_CODE = 'QUEUE_NOT_FOUND';
 const SECONDS_PER_MINUTE = 60;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -52,6 +65,7 @@ const RED_THRESHOLD_SECONDS = 15;
 @Injectable()
 export class StaffDashboardFacade {
   private readonly authService = inject(AuthService);
+  private readonly appointmentsService = inject(AppointmentsService);
   private readonly queueService = inject(QueueService);
   private readonly sseService = inject(SseService);
   private readonly destroyRef = inject(DestroyRef);
@@ -91,11 +105,8 @@ export class StaffDashboardFacade {
   readonly completeNotes = this.formBuilder.nonNullable.control('', [
     Validators.maxLength(NOTES_MAX_LENGTH),
   ]);
-  // TODO(Lim, Jereign): replace with GET /appointments (staff)
-  readonly appointments = signal<StaffAppointmentRow[]>(SAMPLE_APPOINTMENTS);
-  // TODO(Lim, Jereign): set from the appointments request state
+  readonly appointments = signal<StaffAppointmentRow[]>([]);
   readonly isAppointmentsLoading = signal<boolean>(false);
-  // TODO(Lim, Jereign): set from the appointments request state
   readonly hasAppointmentsError = signal<boolean>(false);
   readonly hasAppointments = computed(
     (): boolean => this.appointments().length > 0,
@@ -118,16 +129,60 @@ export class StaffDashboardFacade {
     interval(MILLISECONDS_PER_SECOND)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((): void => this.refreshGracePeriod());
+    interval(APPOINTMENT_REFRESH_INTERVAL_MS)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((): void => this.loadAppointments());
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
     this.destroyRef.onDestroy(() => this.clearNoticeTimer());
     this.sseService.subscribeToQueue(this.queueId());
+    this.loadAppointments();
     this.loadQueueStatus();
   }
 
   private listenForSseEvents(): void {
     merge(this.sseService.queueUpdated$, this.sseService.queueCalled$)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.loadQueueStatus());
+      .subscribe(() => {
+        this.loadQueueStatus();
+        this.loadAppointments();
+      });
+  }
+
+  loadAppointments(): void {
+    this.isAppointmentsLoading.set(true);
+    this.hasAppointmentsError.set(false);
+    this.appointmentsService.getAppointments().subscribe({
+      next: (response): void => {
+        const today = formatClinicDate(new Date());
+        this.appointments.set(
+          response.appointments
+            .filter(
+              (appointment) =>
+                appointment.status === UPCOMING_APPOINTMENT_STATUS &&
+                appointment.slot.clinicDate >= today,
+            )
+            .map((appointment): StaffAppointmentRow => ({
+              id: appointment.id,
+              patientName: appointment.patient.fullName,
+              clinicDate: appointment.slot.clinicDate,
+              startTime: appointment.slot.startTime,
+              endTime: appointment.slot.endTime,
+              status: appointment.status,
+            }))
+            .sort(
+              (first, second) =>
+                first.clinicDate.localeCompare(second.clinicDate) ||
+                first.startTime.localeCompare(second.startTime),
+            ),
+        );
+        this.isAppointmentsLoading.set(false);
+      },
+      error: (error: HttpErrorResponse): void => {
+        console.error('Could not load appointments.', error);
+        this.hasAppointmentsError.set(true);
+        this.isAppointmentsLoading.set(false);
+      },
+    });
   }
 
   loadQueueStatus(): void {
@@ -140,7 +195,7 @@ export class StaffDashboardFacade {
         this.serverClockOffsetMs =
           new Date(response.server_time).getTime() - Date.now();
         this.currentTimeMs.set(Date.now() + this.serverClockOffsetMs);
-        this.gracePeriodMs.set(response.grace_period_ms);
+        this.gracePeriodMs.set(response.grace_period_ms ?? 0);
         this.isQueueActive.set(response.is_active);
         this.currentTicket.set(currentTicket);
         this.waitingCount.set(response.total_waiting ?? 0);
@@ -280,10 +335,8 @@ export class StaffDashboardFacade {
     this.actions.onConfirmStatusAction();
   }
 
-  // TODO(Lim, Jereign): call GET /appointments (staff) again
   onRetryAppointments(): void {
-    this.hasAppointmentsError.set(false);
-    this.isAppointmentsLoading.set(false);
+    this.loadAppointments();
   }
 
   // Clears the stats error so the queue numbers can load again.

@@ -14,7 +14,7 @@ export type ServingTicket = {
   patient_name?: string | null;
   reason_for_visit?: string | null;
   called_at: string | null;
-  grace_expires_at: string | null;
+  grace_expires_at?: string | null;
   room_number: string;
   provider?: string | null;
 };
@@ -26,10 +26,10 @@ export type QueueStatusResponse = {
   currently_serving: ServingTicket | null;
   total_waiting: number;
   waiting_tickets: QueueTicketSummary[];
-  total_completed_today: number;
-  total_no_shows_today: number;
-  grace_period_ms: number;
-  newly_no_show_ticket_numbers: string[];
+  total_completed_today?: number;
+  total_no_shows_today?: number;
+  grace_period_ms?: number;
+  newly_no_show_ticket_numbers?: string[];
   avg_wait_time_minutes: number;
   server_time: string;
   last_updated: string;

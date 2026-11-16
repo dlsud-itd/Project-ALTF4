@@ -178,14 +178,15 @@
         </div>
       </div>
     }
-    <app-staff-appointments-panel
-      [appointments]="dashboard.appointments()"
-      [isAppointmentsLoading]="dashboard.isAppointmentsLoading()"
-      [hasAppointmentsError]="dashboard.hasAppointmentsError()"
-      [hasAppointments]="dashboard.hasAppointments()"
-      (retryAppointments)="dashboard.onRetryAppointments()"
-    />
   </section>
+
+  <app-staff-appointments-panel
+    [appointments]="dashboard.appointments()"
+    [isAppointmentsLoading]="dashboard.isAppointmentsLoading()"
+    [hasAppointmentsError]="dashboard.hasAppointmentsError()"
+    [hasAppointments]="dashboard.hasAppointments()"
+    (retryAppointments)="dashboard.onRetryAppointments()"
+  />
 </div>
 
 <app-staff-dashboard-dialogs

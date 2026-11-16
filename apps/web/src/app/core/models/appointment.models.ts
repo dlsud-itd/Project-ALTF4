@@ -17,6 +17,18 @@ export type PatientAppointment = {
   reservedQueueEntry?: ReservedQueueEntry | null;
 };
 
+export type StaffAppointment = PatientAppointment & {
+  patient: {
+    id: number;
+    fullName: string;
+    affiliation: string;
+  };
+};
+
+export type StaffAppointmentsResponse = {
+  appointments: StaffAppointment[];
+};
+
 export type AppointmentsResponse = {
   appointments: PatientAppointment[];
 };
