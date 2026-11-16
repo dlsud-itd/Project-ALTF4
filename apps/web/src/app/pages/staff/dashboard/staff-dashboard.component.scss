@@ -2,6 +2,7 @@
 
 $card-radius: 16px;
 $touch-target-min: 44px;
+$next-row-bleed: 0.85rem;
 
 :host {
   display: block;
@@ -80,6 +81,7 @@ $touch-target-min: 44px;
   color: var(--text-muted);
 
   strong { color: var(--text-main); font-size: 2rem; }
+  .patient-meta { justify-content: center; }
 }
 
 .queue-list-heading {
@@ -101,6 +103,43 @@ $touch-target-min: 44px;
   list-style: none;
 
   li { display: flex; justify-content: space-between; padding: 0.65rem 0; border-bottom: 1px solid var(--surface-200); color: var(--text-main); }
+
+  .ticket-info {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  .ticket-status { align-self: center; }
+
+  // First waiting ticket: the next patient to be called.
+  // The box bleeds into the card padding so the text lines up with the rows.
+  li.is-next {
+    margin: 0 calc(-1 * #{$next-row-bleed});
+    padding: 0.65rem calc(#{$next-row-bleed} - 1px);
+    background: var(--primary-light);
+    border: 1px solid var(--secondary-color);
+    border-radius: var(--border-radius);
+    font-weight: 700;
+
+    .ticket-status {
+      color: var(--primary-color);
+      letter-spacing: 0.04em;
+    }
+  }
+}
+
+// Placeholder lines for the patient name and visit reason.
+.patient-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  font-style: italic;
+
+  .patient-name { font-weight: 600; }
 }
 
 .empty-queue { margin: 0.75rem 0 0; color: var(--text-muted); }
@@ -136,7 +175,7 @@ $touch-target-min: 44px;
 // ---- Stat cards: icon circle left, label and number right ----
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
 
   .stat-card {
@@ -150,23 +189,6 @@ $touch-target-min: 44px;
     border: 1px solid var(--surface-900);
     border-radius: $card-radius;
     box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
-
-    // Soft decorative circle in the bottom-right corner.
-    &::after {
-      content: '';
-      position: absolute;
-      right: -28px;
-      bottom: -44px;
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: rgb(21 155 154 / 0.12);
-      pointer-events: none;
-    }
-
-    &:nth-child(2)::after {
-      background: rgb(245 158 11 / 0.14);
-    }
 
     .stat-icon {
       position: relative;
@@ -316,6 +338,70 @@ $touch-target-min: 44px;
   }
 }
 
+// ---- Queue dialogs and inline action message ----
+.action-error {
+  min-width: 0;
+}
+
+.ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.625rem;
+}
+
+:host ::ng-deep .queue-dialog {
+  width: 28rem;
+  max-width: 95vw;
+}
+
+.dialog-form {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+
+  label {
+    margin-top: 0.35rem;
+    color: var(--text-main);
+    font-size: 0.88rem;
+    font-weight: 600;
+
+    span { color: var(--text-muted); font-weight: 400; }
+  }
+
+  input,
+  textarea {
+    width: 100%;
+    padding: 0.8rem;
+    color: var(--text-main);
+    background: var(--surface-0);
+    border: 1px solid var(--surface-300);
+    border-radius: 9px;
+    font: inherit;
+  }
+
+  textarea { resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid var(--primary-color); }
+
+  .dialog-lead { margin: 0; color: var(--text-main); }
+
+  .field-error { color: #b42318; font-size: 0.82rem; }
+
+  .notes-count {
+    justify-self: end;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
+}
+
 @include bp.below-tablet {
   .dashboard-page {
     padding: 1.25rem 1rem;
@@ -365,6 +451,28 @@ $touch-target-min: 44px;
         grid-row: 1 / span 3;
       }
     }
+  }
+
+  // Dialogs use the full width below tablet.
+  :host ::ng-deep .queue-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    border-radius: 0;
+  }
+
+  .dialog-form {
+    input,
+    textarea {
+      min-height: $touch-target-min;
+    }
+  }
+
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  :host ::ng-deep .dialog-actions .p-button {
+    width: 100%;
   }
 
   // Touch targets: at least 44px tall below tablet width.

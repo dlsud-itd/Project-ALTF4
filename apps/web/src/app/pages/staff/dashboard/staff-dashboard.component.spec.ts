@@ -3,7 +3,9 @@ import {
   TestBed,
 } from '@angular/core/testing';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
+import { ConfirmationService } from 'primeng/api';
 import { of, throwError } from 'rxjs';
 import { QueueStatus } from '@core/models';
 import { QueueService } from '@core/services';
@@ -59,6 +61,7 @@ describe('StaffDashboardComponent', () => {
       providers: [
         provideRouter([]),
         provideHttpClient(),
+        provideNoopAnimations(),
         { provide: QueueService, useValue: queueServiceMock },
       ],
     }).compileComponents();
@@ -243,26 +246,258 @@ describe('StaffDashboardComponent', () => {
     expect(component.hasStatsError()).toBeFalse();
   });
 
-  it('should call next patient and mark the active patient arrived or done', () => {
-    component.onCallNext();
-    expect(component.servingTicket()).toBe('A-105');
-    expect(component.waitingCount()).toBeGreaterThanOrEqual(0);
+  describe('queue controls', () => {
+    const queryDocument = (selector: string): HTMLElement | null =>
+      document.body.querySelector<HTMLElement>(selector);
 
-    component.onPatientArrived();
-    expect(TestBed.inject(QueueService).updateEntryStatus).toHaveBeenCalledWith(
-      1,
-      42,
-      { status: QueueStatus.IN_SERVICE },
-    );
-    component.currentTicket.update((ticket) =>
-      ticket ? { ...ticket, status: QueueStatus.IN_SERVICE } : ticket,
-    );
-    component.onComplete();
-    expect(TestBed.inject(QueueService).updateEntryStatus).toHaveBeenCalledWith(
-      1,
-      42,
-      { status: QueueStatus.DONE },
-    );
+    const conflictError = (code: string, message: string): HttpErrorResponse =>
+      new HttpErrorResponse({ status: 409, error: { code, message } });
+
+    const spyOnUpdate = (): jasmine.Spy =>
+      TestBed.inject(QueueService).updateEntryStatus as jasmine.Spy;
+
+    const spyOnCallNext = (): jasmine.Spy =>
+      TestBed.inject(QueueService).callNext as jasmine.Spy;
+
+    it('opens the call next dialog with the room and staff prefilled', () => {
+      component.onCallNext();
+      fixture.detectChanges();
+
+      expect(component.isCallNextDialogOpen()).toBeTrue();
+      expect(component.callNextForm.getRawValue()).toEqual({
+        roomNumber: 'Counter 1',
+        practitionerName: 'Staff Nurse',
+      });
+      expect(queryDocument('#call-room')?.hasAttribute('autofocus')).toBeTrue();
+      expect(spyOnCallNext()).not.toHaveBeenCalled();
+    });
+
+    it('does not call next when a field is blank', () => {
+      component.onCallNext();
+      component.callNextForm.patchValue({ roomNumber: '   ' });
+
+      component.onConfirmCallNext();
+
+      expect(spyOnCallNext()).not.toHaveBeenCalled();
+      expect(component.callNextForm.controls.roomNumber.touched).toBeTrue();
+      expect(component.isCallNextDialogOpen()).toBeTrue();
+    });
+
+    it('calls next with the entered room and practitioner', () => {
+      component.onCallNext();
+      component.callNextForm.setValue({
+        roomNumber: ' Room 2 ',
+        practitionerName: ' Dr. Test ',
+      });
+
+      component.onConfirmCallNext();
+
+      expect(spyOnCallNext()).toHaveBeenCalledWith(1, {
+        roomNumber: 'Room 2',
+        practitionerId: 'Dr. Test',
+      });
+      expect(component.servingTicket()).toBe('A-105');
+      expect(component.isCallNextDialogOpen()).toBeFalse();
+    });
+
+    it('closes the call next dialog on cancel without a request', () => {
+      component.onCallNext();
+      component.onCancelCallNext();
+
+      expect(component.isCallNextDialogOpen()).toBeFalse();
+      expect(spyOnCallNext()).not.toHaveBeenCalled();
+    });
+
+    it('shows a 409 call next error inside the open dialog', () => {
+      spyOnCallNext().and.returnValue(
+        throwError(() =>
+          conflictError('QUEUE_CALL_IN_PROGRESS', 'A patient is being called.'),
+        ),
+      );
+      component.onCallNext();
+
+      component.onConfirmCallNext();
+      fixture.detectChanges();
+
+      const alert = queryDocument('.dialog-form [role="alert"]');
+      expect(component.isCallNextDialogOpen()).toBeTrue();
+      expect(alert?.textContent).toContain('A patient is being called.');
+      expect(component.hasStatsError()).toBeFalse();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('.stats-grid'),
+      ).toBeTruthy();
+    });
+
+    it('joins array messages from a 400 call next error', () => {
+      spyOnCallNext().and.returnValue(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 400,
+              error: {
+                message: ['roomNumber should not be empty', 'practitionerId is bad'],
+              },
+            }),
+        ),
+      );
+      component.onCallNext();
+
+      component.onConfirmCallNext();
+      fixture.detectChanges();
+
+      expect(component.callNextError()).toBe(
+        'roomNumber should not be empty practitionerId is bad',
+      );
+      expect(component.isCallNextDialogOpen()).toBeTrue();
+      expect(component.hasStatsError()).toBeFalse();
+    });
+
+    it('renames the arrival button to Start consultation', () => {
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(element.textContent).toContain('Start consultation');
+      expect(element.textContent).not.toContain('Patient arrived');
+
+      component.onPatientArrived();
+      expect(spyOnUpdate()).toHaveBeenCalledWith(1, 42, {
+        status: QueueStatus.IN_SERVICE,
+      });
+    });
+
+    it('shows a start error in the page alert and keeps the stats', () => {
+      spyOnUpdate().and.returnValue(
+        throwError(() =>
+          conflictError('INVALID_QUEUE_TRANSITION', 'The grace period expired.'),
+        ),
+      );
+
+      component.onPatientArrived();
+      fixture.detectChanges();
+
+      const element = fixture.nativeElement as HTMLElement;
+      expect(element.querySelector('.action-error[role="alert"]')?.textContent)
+        .toContain('The grace period expired.');
+      expect(component.hasStatsError()).toBeFalse();
+      expect(element.querySelector('.stats-grid')).toBeTruthy();
+
+      spyOnUpdate().and.returnValue(of({}));
+      component.onPatientArrived();
+      fixture.detectChanges();
+
+      expect(component.actionError()).toBeNull();
+      expect(element.querySelector('.action-error')).toBeNull();
+    });
+
+    it('opens the complete dialog as the confirmation', () => {
+      component.onComplete();
+      fixture.detectChanges();
+
+      expect(component.isCompleteDialogOpen()).toBeTrue();
+      expect(queryDocument('.dialog-lead')?.textContent).toContain(
+        'Mark ticket A-105 as completed? Notes are optional.',
+      );
+      expect(spyOnUpdate()).not.toHaveBeenCalled();
+    });
+
+    it('passes the trimmed notes when completing', () => {
+      component.onComplete();
+      component.completeNotes.setValue('  Follow-up in 2 weeks  ');
+
+      component.onConfirmComplete();
+
+      expect(spyOnUpdate()).toHaveBeenCalledWith(1, 42, {
+        status: QueueStatus.DONE,
+        notes: 'Follow-up in 2 weeks',
+      });
+      expect(component.isCompleteDialogOpen()).toBeFalse();
+      expect(component.currentTicket()?.status).not.toBe(QueueStatus.DONE);
+    });
+
+    it('completes without notes when the field is empty', () => {
+      component.onComplete();
+
+      component.onConfirmComplete();
+
+      expect(spyOnUpdate()).toHaveBeenCalledWith(1, 42, {
+        status: QueueStatus.DONE,
+      });
+    });
+
+    it('does not complete when the notes are over 500 characters', () => {
+      component.onComplete();
+      component.completeNotes.setValue('a'.repeat(501));
+
+      component.onConfirmComplete();
+
+      expect(spyOnUpdate()).not.toHaveBeenCalled();
+      expect(component.isCompleteDialogOpen()).toBeTrue();
+    });
+
+    it('closes the complete dialog on cancel without a request', () => {
+      component.onComplete();
+      component.onCancelComplete();
+
+      expect(component.isCompleteDialogOpen()).toBeFalse();
+      expect(spyOnUpdate()).not.toHaveBeenCalled();
+    });
+
+    it('shows a 409 complete error inside the dialog and keeps stats', () => {
+      spyOnUpdate().and.returnValue(
+        throwError(() =>
+          conflictError(
+            'INVALID_QUEUE_TRANSITION',
+            'Only an in-service patient can be marked done.',
+          ),
+        ),
+      );
+      component.onComplete();
+
+      component.onConfirmComplete();
+      fixture.detectChanges();
+
+      expect(component.isCompleteDialogOpen()).toBeTrue();
+      expect(queryDocument('.dialog-form [role="alert"]')?.textContent)
+        .toContain('Only an in-service patient can be marked done.');
+      expect(component.hasStatsError()).toBeFalse();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('.stats-grid'),
+      ).toBeTruthy();
+    });
+
+    it('hides no-show and cancel while the flag is off', () => {
+      const text = (fixture.nativeElement as HTMLElement).textContent;
+
+      expect(component.isNoShowCancelEnabled).toBeFalse();
+      expect(text).not.toContain('Mark no-show');
+    });
+
+    it('asks for confirmation before no-show and cancel when enabled', () => {
+      Object.assign(component, { isNoShowCancelEnabled: true });
+      fixture.detectChanges();
+      const confirmation = fixture.debugElement.injector.get(
+        ConfirmationService,
+      );
+      const confirmSpy = spyOn(confirmation, 'confirm');
+
+      expect(
+        (fixture.nativeElement as HTMLElement).textContent,
+      ).toContain('Mark no-show');
+
+      component.onMarkNoShow();
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      expect(spyOnUpdate()).not.toHaveBeenCalled();
+
+      confirmSpy.calls.mostRecent().args[0].accept?.();
+      expect(spyOnUpdate()).toHaveBeenCalledWith(1, 42, {
+        status: QueueStatus.NO_SHOW,
+      });
+
+      component.onCancelEntry();
+      confirmSpy.calls.mostRecent().args[0].accept?.();
+      expect(spyOnUpdate()).toHaveBeenCalledWith(1, 42, {
+        status: QueueStatus.CANCELLED,
+      });
+    });
   });
 
   it('renders the countdown and marks the last 30 seconds urgent', () => {
