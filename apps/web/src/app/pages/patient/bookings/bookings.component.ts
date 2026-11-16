@@ -2,10 +2,11 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Button } from 'primeng/button';
+import { Dialog } from 'primeng/dialog';
 import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
 import { ClinicSlot, PatientAppointment } from '@core/models';
-import { SlotsService, AppointmentsService } from '@core/services';
+import { SlotsService, AppointmentsService, AppConfirmService } from '@core/services';
 import { getErrorMessage, toDateParam } from '@core/utils';
 import {
 
@@ -67,6 +68,7 @@ function parseCalendarDay(dateStr: string): CalendarDay {
   imports: [
     RouterLink,
     Button,
+    Dialog,
     Message,
     Tag,
   
@@ -79,6 +81,7 @@ function parseCalendarDay(dateStr: string): CalendarDay {
 export class BookingsComponent implements OnInit {
   private readonly slotsService = inject(SlotsService);
   private readonly appointmentsService = inject(AppointmentsService);
+  private readonly confirmService = inject(AppConfirmService);
   private readonly route = inject(ActivatedRoute);
 
   // Single clinic doctor profile
@@ -105,6 +108,7 @@ export class BookingsComponent implements OnInit {
   } | null>(null);
   readonly bookingConflictError = signal<string | null>(null);
   readonly bookingGeneralError = signal<string | null>(null);
+  readonly isReviewModalOpen = signal<boolean>(false);
 
   // Appointment being moved when the page is opened with ?reschedule=<id>.
   readonly rescheduleId = signal<number | null>(null);
@@ -261,6 +265,23 @@ export class BookingsComponent implements OnInit {
     const slot = this.selectedSlot();
     if (!slot) return;
 
+    if (!this.isRescheduling() && !this.reasonForVisit().trim()) {
+      return;
+    }
+
+    this.isReviewModalOpen.set(true);
+  }
+
+  onReviewModalVisibleChange(visible: boolean): void {
+    this.isReviewModalOpen.set(visible);
+  }
+
+  executeConfirmedBooking(): void {
+    const slot = this.selectedSlot();
+    if (!slot) return;
+
+    this.isReviewModalOpen.set(false);
+
     const rescheduleId = this.rescheduleId();
     if (rescheduleId !== null) {
       this.onConfirmReschedule(rescheduleId, slot);
@@ -270,13 +291,17 @@ export class BookingsComponent implements OnInit {
     const trimmedReason = this.reasonForVisit().trim();
     if (!trimmedReason) return;
 
+    this.executeBooking(slot, trimmedReason);
+  }
+
+  private executeBooking(slot: DisplaySlotItem, reason: string): void {
     this.isBooking.set(true);
     this.clearErrors();
 
     this.appointmentsService
       .bookAppointment({
         slotId: slot.id,
-        reasonForVisit: trimmedReason,
+        reasonForVisit: reason,
       })
       .subscribe({
         next: (response): void => {
@@ -295,7 +320,6 @@ export class BookingsComponent implements OnInit {
                 'This slot is no longer available or was just filled. Please select another slot.',
               ),
             );
-            // Refresh slots to eliminate the full slot
             this.loadSlots();
           } else {
             this.bookingGeneralError.set(

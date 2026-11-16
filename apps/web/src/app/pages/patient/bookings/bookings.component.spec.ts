@@ -5,7 +5,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { BookingsComponent } from './bookings.component';
-import { SlotsService, AppointmentsService } from '@core/services';
+import { SlotsService, AppointmentsService, AppConfirmService } from '@core/services';
 import { ClinicSlot, PatientAppointment } from '@core/models';
 
 describe('BookingsComponent', () => {
@@ -13,6 +13,7 @@ describe('BookingsComponent', () => {
   let fixture: ComponentFixture<BookingsComponent>;
   let slotsServiceSpy: jasmine.SpyObj<SlotsService>;
   let appointmentsServiceSpy: jasmine.SpyObj<AppointmentsService>;
+  let confirmServiceSpy: jasmine.SpyObj<AppConfirmService>;
 
   const mockSlots: ClinicSlot[] = [
     {
@@ -58,6 +59,12 @@ describe('BookingsComponent', () => {
     appointmentsServiceSpy = jasmine.createSpyObj('AppointmentsService', [
       'bookAppointment',
     ]);
+    confirmServiceSpy = jasmine.createSpyObj('AppConfirmService', [
+      'confirmReview',
+      'confirmDestructive',
+      'confirmWarning',
+    ]);
+    confirmServiceSpy.confirmReview.and.callFake((opts: any) => opts.accept());
 
     slotsServiceSpy.getSlots.and.returnValue(of({ slots: mockSlots }));
 
@@ -69,6 +76,7 @@ describe('BookingsComponent', () => {
         provideNoopAnimations(),
         { provide: SlotsService, useValue: slotsServiceSpy },
         { provide: AppointmentsService, useValue: appointmentsServiceSpy },
+        { provide: AppConfirmService, useValue: confirmServiceSpy },
       ],
     }).compileComponents();
 
@@ -147,6 +155,7 @@ describe('BookingsComponent', () => {
 
     appointmentsServiceSpy.bookAppointment.and.returnValue(of(mockResponse));
     component.onConfirmBooking();
+    component.executeConfirmedBooking();
     fixture.detectChanges();
 
     expect(appointmentsServiceSpy.bookAppointment).toHaveBeenCalledWith({
@@ -158,6 +167,16 @@ describe('BookingsComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.confirmation-card')).toBeTruthy();
     expect(element.textContent).toContain('Appointment Confirmed!');
+  });
+
+  it('should open review confirmation modal before sending booking request', () => {
+    const slot = component.filteredSlots()[0];
+    component.onSelectSlot(slot);
+    component.reasonForVisit.set('Pre-employment checkup');
+
+    component.onConfirmBooking();
+
+    expect(component.isReviewModalOpen()).toBeTrue();
   });
 
   it('should disable confirm button when reason is empty and enable when reason is provided', () => {
@@ -187,6 +206,7 @@ describe('BookingsComponent', () => {
 
     appointmentsServiceSpy.bookAppointment.and.returnValue(throwError(() => conflictError));
     component.onConfirmBooking();
+    component.executeConfirmedBooking();
     fixture.detectChanges();
 
     expect(component.bookingConflictError()).toContain('fully booked');

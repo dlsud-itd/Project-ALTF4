@@ -2,18 +2,25 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { QueueStatus } from '@core/models';
-import { QueueService } from '@core/services';
+import { QueueService, AppConfirmService } from '@core/services';
 import { StaffWalkInComponent } from './staff-walk-in.component';
 
 describe('StaffWalkInComponent', () => {
   let component: StaffWalkInComponent;
   let fixture: ComponentFixture<StaffWalkInComponent>;
   let queueServiceMock: jasmine.SpyObj<QueueService>;
+  let confirmServiceMock: jasmine.SpyObj<AppConfirmService>;
 
   beforeEach(async () => {
     queueServiceMock = jasmine.createSpyObj('QueueService', [
       'generateStaffQueueNumber',
     ]);
+    confirmServiceMock = jasmine.createSpyObj('AppConfirmService', [
+      'confirmReview',
+      'confirmDestructive',
+      'confirmWarning',
+    ]);
+    confirmServiceMock.confirmReview.and.callFake((opts: any) => opts.accept());
     queueServiceMock.generateStaffQueueNumber.and.returnValue(
       of({
         queue_entry_id: 43,
@@ -32,6 +39,7 @@ describe('StaffWalkInComponent', () => {
       providers: [
         provideHttpClient(),
         { provide: QueueService, useValue: queueServiceMock },
+        { provide: AppConfirmService, useValue: confirmServiceMock },
       ],
     }).compileComponents();
 

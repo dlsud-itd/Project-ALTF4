@@ -11,6 +11,12 @@
     @if (accountInactive) {
       <p-message severity="warn" text="Your account is currently inactive. Please contact clinic administration." />
     }
+    @if (sessionTimedOut) {
+      <p-message severity="warn" text="You have been signed out due to inactivity. Please sign in again." />
+    }
+    @if (sessionTerminated) {
+      <p-message severity="info" text="Your session was closed in another browser tab. Please sign in again." />
+    }
     @if (errorMessage(); as message) {
       <p-message severity="error" [text]="message" />
     }
