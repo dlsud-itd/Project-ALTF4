@@ -48,7 +48,10 @@ describe('StaffWalkInComponent', () => {
       'Walk-in',
     );
     expect(element.querySelector('#walk-in-name')).toBeTruthy();
-    expect(element.querySelector('.ticket-card')).toBeNull();
+    expect(element.querySelector('.ticket-placeholder')?.textContent).toContain(
+      'Ticket will appear here',
+    );
+    expect(element.querySelector('.ticket-card img')).toBeNull();
   });
 
   it('creates a walk-in ticket using the name and optional reason only', () => {
@@ -64,11 +67,45 @@ describe('StaffWalkInComponent', () => {
       name: 'Jane Doe',
       reasonForVisit: 'Headache',
     });
-    expect(component.generatedTicket()).toBe('A-106');
+    expect(component.issuedTicket()).toEqual({
+      ticketNumber: 'A-106',
+      patientName: 'Jane Doe',
+      visitReason: 'Headache',
+      issuedAt: '2026-11-06T00:00:00.000Z',
+      status: QueueStatus.WAITING,
+    });
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('.ticket-number')
         ?.textContent,
     ).toContain('A-106');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.ticket-patient')
+        ?.textContent,
+    ).toContain('Jane Doe');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.ticket-reason')
+        ?.textContent,
+    ).toContain('Headache');
+  });
+
+  it('shows a no-reason label and clears the old ticket for a new walk-in', () => {
+    component.walkInForm.setValue({ name: 'Jane Doe', reasonForVisit: '' });
+    component.onGenerateQueueNumber();
+    fixture.detectChanges();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.ticket-reason')
+        ?.textContent,
+    ).toContain('No reason provided');
+
+    component.onNewWalkIn();
+    fixture.detectChanges();
+
+    expect(component.issuedTicket()).toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.ticket-placeholder')
+        ?.textContent,
+    ).toContain('Ticket will appear here');
   });
 
   it('does not submit an invalid name', () => {

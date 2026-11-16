@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import {
   AbstractControl,
   FormBuilder,
@@ -6,32 +7,32 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import QRCode from 'qrcode';
 import { Button } from 'primeng/button';
 import { QueueService } from '@core/services';
-import { WalkInRequest } from '@core/models';
+import { QueueStatus, WalkInRequest, WalkInResponse } from '@core/models';
 
 const NAME_PATTERN = /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u;
 const NAME_MIN_LENGTH = 2;
 const NAME_MAX_LENGTH = 60;
 const REASON_MAX_LENGTH = 200;
-const QR_MARGIN = 1;
-const QR_WIDTH = 180;
-const QR_DARK_COLOR = '#0d4e52';
-const QR_LIGHT_COLOR = '#ffffff';
-const PRINT_START_DELAY_MS = 50;
-const TITLE_RESTORE_DELAY_MS = 200;
 const FALLBACK_ERROR = 'Could not create the walk-in ticket.';
-const FALLBACK_ORIGIN = 'http://localhost:4200';
 
 // TODO(Lim, Jereign): replace with the active queue id for today
 const QUEUE_ID = 1;
 
-// Staff page for creating on-site walk-in tickets with a tracking QR code.
+type IssuedWalkInTicket = {
+  ticketNumber: string;
+  patientName: string;
+  visitReason: string;
+  issuedAt: string;
+  status: QueueStatus;
+};
+
+// Staff page for creating on-site walk-in tickets.
 @Component({
   selector: 'app-staff-walk-in',
   standalone: true,
-  imports: [Button, ReactiveFormsModule],
+  imports: [Button, DatePipe, ReactiveFormsModule],
   templateUrl: './staff-walk-in.component.html',
   styleUrl: './staff-walk-in.component.scss',
 })
@@ -52,33 +53,13 @@ export class StaffWalkInComponent {
   };
 
   readonly queueId = signal<number>(QUEUE_ID);
-  readonly generatedTicket = signal<string | null>(null);
-  readonly qrCodeDataUrl = signal<string | null>(null);
+  readonly issuedTicket = signal<IssuedWalkInTicket | null>(null);
   readonly isGeneratingQueue = signal<boolean>(false);
   readonly walkInError = signal<string | null>(null);
   readonly walkInForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, this.validatePatientName]],
     reasonForVisit: ['', [Validators.maxLength(REASON_MAX_LENGTH)]],
   });
-
-  private getTrackingUrl(token: string): string {
-    const origin =
-      typeof window !== 'undefined' ? window.location.origin : FALLBACK_ORIGIN;
-    return `${origin}/patient/queue?token=${encodeURIComponent(token)}`;
-  }
-
-  private async generateQrCode(token: string): Promise<void> {
-    try {
-      const dataUrl = await QRCode.toDataURL(this.getTrackingUrl(token), {
-        margin: QR_MARGIN,
-        width: QR_WIDTH,
-        color: { dark: QR_DARK_COLOR, light: QR_LIGHT_COLOR },
-      });
-      this.qrCodeDataUrl.set(dataUrl);
-    } catch {
-      this.qrCodeDataUrl.set(null);
-    }
-  }
 
   onGenerateQueueNumber(): void {
     if (this.walkInForm.invalid) {
@@ -92,19 +73,20 @@ export class StaffWalkInComponent {
       reasonForVisit: formValue.reasonForVisit.trim() || undefined,
     };
 
+    this.issuedTicket.set(null);
     this.isGeneratingQueue.set(true);
     this.walkInError.set(null);
     this.queueService
       .generateStaffQueueNumber(this.queueId(), payload)
       .subscribe({
-        next: (response): void => {
-          this.generatedTicket.set(response.ticket_number);
-          this.qrCodeDataUrl.set(null);
-
-          if (response.tracking_token) {
-            void this.generateQrCode(response.tracking_token);
-          }
-
+        next: (response: WalkInResponse): void => {
+          this.issuedTicket.set({
+            ticketNumber: response.ticket_number,
+            patientName: payload.name,
+            visitReason: payload.reasonForVisit ?? '',
+            issuedAt: response.joined_at,
+            status: response.status,
+          });
           this.walkInForm.reset();
         },
         error: (error: { error?: { message?: string | string[] } }): void => {
@@ -122,19 +104,9 @@ export class StaffWalkInComponent {
       });
   }
 
-  onPrintQueueTicket(): void {
-    if (!this.generatedTicket()) {
-      return;
-    }
-
-    const originalTitle = document.title;
-    document.title = `ClinicQueue Ticket ${this.generatedTicket()}`;
-
-    window.setTimeout(() => {
-      window.print();
-      window.setTimeout(() => {
-        document.title = originalTitle;
-      }, TITLE_RESTORE_DELAY_MS);
-    }, PRINT_START_DELAY_MS);
+  onNewWalkIn(): void {
+    this.issuedTicket.set(null);
+    this.walkInError.set(null);
+    this.walkInForm.reset();
   }
 }

@@ -10,12 +10,12 @@ $touch-target-min: 44px;
 }
 
 .walk-in-page {
-  padding: 1.5rem 2rem 2rem;
+  padding: 1.25rem 2rem 2rem;
   max-width: 1280px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
+  gap: 1rem;
   align-items: stretch;
 }
 
@@ -55,14 +55,15 @@ $touch-target-min: 44px;
 .queue-panel {
   min-width: 0;
   max-width: 560px;
-  padding: 1.25rem;
+  padding: 1.125rem;
+  min-height: 21rem;
   background: var(--surface-0);
   border: 1px solid var(--surface-200);
   border-radius: $card-radius;
   box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
 
-  h3 { margin: 0 0 1rem; color: var(--text-main); font-size: 1.1rem; }
-  form { display: grid; gap: 0.6rem; }
+  h3 { margin: 0 0 0.75rem; color: var(--text-main); font-size: 1.1rem; }
+  form { display: grid; gap: 0.5rem; }
   label { margin-top: 0.35rem; color: var(--text-main); font-size: 0.88rem; font-weight: 600; }
   label span { color: var(--text-muted); font-weight: 400; }
   input,
@@ -83,79 +84,85 @@ $touch-target-min: 44px;
 .field-error,
 .form-error { color: #b42318; font-size: 0.82rem; }
 
-// ---- Generated ticket slip ----
 .ticket-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
-  gap: 1.5rem;
-  align-items: center;
+  place-items: center;
+  min-width: 0;
+  min-height: 21rem;
+  padding: 1.25rem;
   background: var(--surface-0);
   border: 1px solid var(--surface-900);
   border-radius: $card-radius;
-  padding: 1.5rem;
   box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+  text-align: center;
 
-  .ticket-qr-box {
-    order: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 180px;
-    border: 1px solid var(--surface-900);
-    border-radius: 18px;
-    background: #ffffff;
-    overflow: hidden;
+  .ticket-content,
+  .ticket-placeholder {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    width: 100%;
   }
 
-  .ticket-qr,
-  .ticket-qr-placeholder {
-    width: 170px;
-    height: 170px;
+  h3 {
+    color: var(--text-main);
+    font-size: 1.05rem;
   }
 
-  .ticket-qr-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: var(--primary-color);
-    background: var(--surface-100);
-  }
-
-  .ticket-details {
-    min-width: 0;
-  }
-
-  .ticket-label {
-    margin: 0.5rem 0 0.25rem;
+  .ticket-placeholder {
     color: var(--text-muted);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-weight: 700;
+
+    i {
+      color: var(--secondary-color);
+      font-size: 2rem;
+    }
+
+    p { font-size: 0.9rem; }
   }
 
   .ticket-number {
-    font-size: clamp(2.2rem, 4vw, 4rem);
-    line-height: 1;
-    font-weight: 800;
-    letter-spacing: -0.04em;
     color: var(--primary-color);
-    margin-bottom: 0.75rem;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
   }
 
-  .ticket-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 1rem;
+  .ticket-details {
+    display: grid;
+    justify-items: center;
+    gap: 0.35rem;
+  }
+
+  .ticket-patient {
+    color: var(--text-main);
+    font-size: 1.1rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .ticket-reason,
+  .ticket-issued {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .ticket-reason { font-style: italic; }
+
+  .ticket-status {
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    color: var(--primary-hover);
+    background: var(--primary-light);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
   }
 }
 
 
 @include bp.below-tablet {
   .walk-in-page {
-    padding: 1.25rem 1rem;
+    padding: 1rem;
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -172,6 +179,7 @@ $touch-target-min: 44px;
 
   .queue-panel {
     max-width: none;
+    min-height: 0;
 
     input,
     textarea {
@@ -184,72 +192,7 @@ $touch-target-min: 44px;
   }
 
   .ticket-card {
-    grid-template-columns: 1fr;
+    min-height: 17rem;
     padding: 1rem;
-
-    .ticket-qr-box {
-      order: 0;
-      min-height: 150px;
-    }
-  }
-}
-
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm;
-  }
-
-  :host {
-    background: #ffffff !important;
-    color: #0d4e52 !important;
-  }
-
-  body {
-    background: #ffffff !important;
-  }
-
-  .page-top,
-  .queue-panel {
-    display: none !important;
-  }
-
-  .walk-in-page {
-    display: block !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .ticket-card {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 1rem !important;
-    border: 1.5px solid var(--surface-900) !important;
-    box-shadow: none !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
-    border-radius: 18px !important;
-  }
-
-  .ticket-card .ticket-qr-box {
-    order: 0 !important;
-    width: 200px !important;
-    height: 200px !important;
-    margin: 0 auto 1rem auto !important;
-    border-radius: 12px !important;
-  }
-
-  .ticket-card .ticket-details {
-    text-align: center !important;
-    width: 100% !important;
-  }
-
-  .ticket-card .ticket-number {
-    font-size: 2.75rem !important;
-    margin-bottom: 0.5rem !important;
-    letter-spacing: -0.04em !important;
   }
 }

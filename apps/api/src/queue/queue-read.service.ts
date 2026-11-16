@@ -4,6 +4,8 @@ import { Prisma, PrismaClient, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from './queue-events.service';
 
+export const GRACE_PERIOD_MS = 3 * 60 * 1000;
+
 export const ACTIVE_QUEUE_STATUSES = [
   QueueStatus.WAITING,
   QueueStatus.CALLED,
@@ -49,6 +51,9 @@ export class QueueReadService {
         source: true,
         ticketNumber: true,
         status: true,
+        firstName: true,
+        lastName: true,
+        reasonForVisit: true,
       },
     });
   }
@@ -57,7 +62,7 @@ export class QueueReadService {
     queueId: number,
     now = new Date(),
     tx: Prisma.TransactionClient | PrismaClient = this.prisma,
-  ) {
+  ): Promise<string[]> {
     const expiredEntries = await tx.queueEntry.findMany({
       where: {
         dailyQueueId: queueId,
@@ -66,6 +71,7 @@ export class QueueReadService {
       },
       select: { id: true, ticketNumber: true },
     });
+    const newlyNoShowTickets: string[] = [];
 
     for (const entry of expiredEntries) {
       const expired = await tx.queueEntry.updateMany({
@@ -75,13 +81,18 @@ export class QueueReadService {
           status: QueueStatus.CALLED,
           graceExpiresAt: { lte: now },
         },
-        data: { status: QueueStatus.NO_SHOW },
+        data: {
+          status: QueueStatus.NO_SHOW,
+          noShowAt: now,
+          graceExpiresAt: null,
+        },
       });
 
       if (expired.count === 0) {
         continue;
       }
 
+      newlyNoShowTickets.push(entry.ticketNumber);
       await this.recordStatusHistory(tx, entry.id, QueueStatus.NO_SHOW);
       this.events.emit(queueId, 'queue:updated', {
         queueId,
@@ -91,6 +102,8 @@ export class QueueReadService {
         timestamp: now.toISOString(),
       });
     }
+
+    return newlyNoShowTickets;
   }
 
   async getQueuePositionAndWait(
@@ -121,16 +134,16 @@ export class QueueReadService {
     });
   }
 
-  async getQueueStatus(queueId: number) {
+  async getQueueStatus(queueId: number, includePatientDetails = false) {
     const queue = await this.getQueueOrThrow(queueId);
-    await this.expireCalledEntries(queueId);
+    const newlyNoShowTickets = await this.expireCalledEntries(queueId);
     const waitingEntries = await this.getOrderedWaitingEntries(queueId);
-    const calledEntry = await this.prisma.queueEntry.findFirst({
+    const currentServing = await this.prisma.queueEntry.findFirst({
       where: {
         dailyQueueId: queueId,
-        status: QueueStatus.CALLED,
+        status: { in: [QueueStatus.CALLED, QueueStatus.IN_SERVICE] },
       },
-      orderBy: { calledAt: 'desc' },
+      orderBy: [{ calledAt: 'desc' }, { queueNumber: 'desc' }],
       select: {
         id: true,
         ticketNumber: true,
@@ -138,25 +151,11 @@ export class QueueReadService {
         calledAt: true,
         graceExpiresAt: true,
         roomNumber: true,
+        firstName: true,
+        lastName: true,
+        reasonForVisit: true,
       },
     });
-    const currentServing =
-      calledEntry ??
-      (await this.prisma.queueEntry.findFirst({
-        where: {
-          dailyQueueId: queueId,
-          status: QueueStatus.IN_SERVICE,
-        },
-        orderBy: { updatedAt: 'desc' },
-        select: {
-          id: true,
-          ticketNumber: true,
-          status: true,
-          calledAt: true,
-          graceExpiresAt: true,
-          roomNumber: true,
-        },
-      }));
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -165,6 +164,13 @@ export class QueueReadService {
         dailyQueueId: queueId,
         status: { in: [QueueStatus.DONE, QueueStatus.SERVED] },
         updatedAt: { gte: today },
+      },
+    });
+    const totalNoShowsToday = await this.prisma.queueEntry.count({
+      where: {
+        dailyQueueId: queueId,
+        status: QueueStatus.NO_SHOW,
+        noShowAt: { gte: today },
       },
     });
 
@@ -199,6 +205,14 @@ export class QueueReadService {
           grace_expires_at:
             currentServing.graceExpiresAt?.toISOString() || null,
           room_number: currentServing.roomNumber || 'Counter 1',
+          ...(includePatientDetails
+            ? {
+                patient_name:
+                  `${currentServing.firstName || ''} ${currentServing.lastName || ''}`.trim() ||
+                  null,
+                reason_for_visit: currentServing.reasonForVisit || null,
+              }
+            : {}),
         }
       : null;
 
@@ -213,9 +227,20 @@ export class QueueReadService {
         queue_entry_id: entry.id,
         ticket_number: entry.ticketNumber,
         status: entry.status,
+        ...(includePatientDetails
+          ? {
+              patient_name:
+                `${entry.firstName || ''} ${entry.lastName || ''}`.trim() ||
+                null,
+              reason_for_visit: entry.reasonForVisit || null,
+            }
+          : {}),
       })),
       waiting_breakdown: waitingBreakdown,
       total_completed_today: totalCompletedToday,
+      total_no_shows_today: totalNoShowsToday,
+      grace_period_ms: GRACE_PERIOD_MS,
+      newly_no_show_ticket_numbers: newlyNoShowTickets,
       avg_wait_time_minutes: averageWaitMinutes,
       average_wait_minutes: averageWaitMinutes,
       server_time: serverTime,
@@ -315,7 +340,10 @@ export class QueueReadService {
     }
 
     const targetQueueId = entry.dailyQueueId;
-    const queue = targetQueueId === queueId ? defaultQueue : await this.getQueueOrThrow(targetQueueId);
+    const queue =
+      targetQueueId === queueId
+        ? defaultQueue
+        : await this.getQueueOrThrow(targetQueueId);
 
     const { position, estimatedWaitMinutes } =
       await this.getQueuePositionAndWait(targetQueueId, queue, entry.id);

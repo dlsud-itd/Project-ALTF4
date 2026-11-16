@@ -1,0 +1,25 @@
+<div class="notice-content">
+  @if (message(); as text) {
+    <div
+      class="notice"
+      [class.notice--info]="variant() === NoticeVariant.INFO"
+      [class.notice--success]="variant() === NoticeVariant.SUCCESS"
+      [class.notice--warning]="variant() === NoticeVariant.WARNING"
+      [class.notice--error]="variant() === NoticeVariant.ERROR"
+      [attr.role]="variant() === NoticeVariant.ERROR ? 'alert' : 'status'"
+      [attr.aria-live]="
+        variant() === NoticeVariant.ERROR ? 'assertive' : 'polite'
+      "
+    >
+      <span>{{ text }}</span>
+      <button
+        type="button"
+        class="notice-close"
+        aria-label="Dismiss notice"
+        (click)="onDismiss()"
+      >
+        <i class="pi pi-times" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+</div>

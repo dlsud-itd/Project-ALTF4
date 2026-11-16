@@ -9,6 +9,7 @@ import {
   WalkInResponse,
   CallNextRequest,
   CallNextResponse,
+  RecallCurrentResponse,
   UpdateEntryStatusRequest,
   UpdateEntryStatusResponse,
   TrackingStatusResponse,
@@ -27,6 +28,13 @@ export class QueueService {
 
   getQueueStatus(queueId: number): Observable<QueueStatusResponse> {
     return this.http.get<QueueStatusResponse>(`${this.apiConfig.apiUrl}/queues/${queueId}/status`);
+  }
+
+  getStaffQueueStatus(queueId: number): Observable<QueueStatusResponse> {
+    return this.http.get<QueueStatusResponse>(
+      `${this.apiConfig.apiUrl}/queues/${queueId}/staff-status`,
+      { headers: this.authService.getAuthHeaders() },
+    );
   }
 
   joinWalkIn(queueId: number, req: WalkInRequest): Observable<WalkInResponse> {
@@ -66,6 +74,14 @@ export class QueueService {
     return this.http.post<CallNextResponse>(
       `${this.apiConfig.apiUrl}/queues/${queueId}/call-next`,
       req,
+      { headers: this.authService.getAuthHeaders() },
+    );
+  }
+
+  recallCurrent(queueId: number): Observable<RecallCurrentResponse> {
+    return this.http.post<RecallCurrentResponse>(
+      `${this.apiConfig.apiUrl}/queues/${queueId}/recall-current`,
+      {},
       { headers: this.authService.getAuthHeaders() },
     );
   }

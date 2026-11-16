@@ -10,36 +10,68 @@
       label="Call Next Patient"
       icon="pi pi-bell"
       severity="primary"
+      ariaLabel="Call next patient"
       [loading]="isGeneratingQueue()"
-      [disabled]="isCalled() || waitingCount() === 0"
+      [disabled]="
+        currentTicket() !== null || waitingCount() === 0 || isGeneratingQueue()
+      "
+      [title]="
+        currentTicket()
+          ? 'A patient is already being called'
+          : waitingCount() === 0
+            ? 'The queue is empty'
+            : ''
+      "
       (onClick)="onCallNext()"
     />
     <p-button
       label="Recall Current"
       icon="pi pi-replay"
       severity="secondary"
+      ariaLabel="Recall current patient"
       [outlined]="true"
+      [loading]="isRecalling()"
+      [disabled]="!isCalled() || isUpdatingStatus() || isRecalling()"
+      [title]="
+        !currentTicket()
+          ? 'No patient is being called'
+          : !isCalled()
+            ? 'Recall is only available while waiting for the patient'
+            : ''
+      "
+      (onClick)="onRecallCurrent()"
     />
     <p-button
       label="Complete Consultation"
       icon="pi pi-check"
       severity="success"
+      ariaLabel="Complete consultation"
       [outlined]="true"
       [disabled]="!isInService() || isUpdatingStatus()"
+      [title]="
+        !currentTicket()
+          ? 'No patient is being called'
+          : !isInService()
+            ? 'The patient must arrive before completing consultation'
+            : ''
+      "
       (onClick)="onComplete()"
     />
   </div>
 </header>
 
 <div class="dashboard-page">
-  @if (actionError(); as message) {
-    <div class="action-error" role="alert">
-      <p-message severity="error" [text]="message" />
-    </div>
-  }
+  <app-notice
+    [message]="notice()?.message ?? null"
+    [variant]="notice()?.variant ?? defaultNoticeVariant"
+    (dismiss)="onDismissNotice()"
+  />
 
   <section class="live-queue-layout" aria-label="Live queue">
-    <section class="queue-panel live-queue-panel" aria-labelledby="queue-list-title">
+    <section
+      class="queue-panel live-queue-panel"
+      aria-labelledby="queue-list-title"
+    >
       @if (!isQueueActive()) {
         <app-empty-state
           icon="pi-calendar-times"
@@ -48,55 +80,102 @@
         />
       } @else {
         @if (currentTicket(); as ticket) {
-          <div class="now-calling">
-            <span>Now calling</span>
-            <strong>{{ ticket.ticket_number }}</strong>
-            <!-- TODO(Lim, Jereign): show the real patient name and reason -->
-            <div class="patient-meta">
-              <span class="patient-name">Patient name</span>
-              <span class="patient-reason">Reason for visit</span>
-            </div>
-            <small>{{ ticket.status === 'CALLED' ? 'Waiting for patient to arrive' : 'In service' }}</small>
-            @if (ticket.status === 'CALLED') {
-              <span
-                class="grace-countdown"
-                [class.grace-countdown--urgent]="isGracePeriodUrgent()"
-                aria-live="polite"
-              >
-                {{ countdownText() }}
-              </span>
-              <p-button
-                label="Start consultation"
-                icon="pi pi-check"
-                severity="success"
-                [loading]="isUpdatingStatus()"
-                (onClick)="onPatientArrived()"
-              />
-            }
-            @if (isNoShowCancelEnabled) {
-              <div class="ticket-actions">
-                <p-button
-                  label="Mark no-show"
-                  severity="secondary"
-                  [outlined]="true"
-                  [disabled]="isUpdatingStatus()"
-                  (onClick)="onMarkNoShow()"
-                />
-                <p-button
-                  label="Cancel"
-                  severity="danger"
-                  [outlined]="true"
-                  [disabled]="isUpdatingStatus()"
-                  (onClick)="onCancelEntry()"
-                />
+          <div class="now-calling-slot">
+            <div class="now-calling">
+              <span class="now-calling-label">Now calling</span>
+              <strong class="now-calling-ticket">{{
+                ticket.ticket_number
+              }}</strong>
+              <div class="patient-meta">
+                <h3 class="patient-name">
+                  {{ ticket.patient_name || "Unnamed patient" }}
+                </h3>
+                <span class="patient-reason">{{
+                  ticket.reason_for_visit || "No reason provided"
+                }}</span>
               </div>
-            }
+              @if (isCalled()) {
+                <div class="ticket-actions">
+                  <p-button
+                    label="Patient Arrived / Start Consultation"
+                    icon="pi pi-check"
+                    severity="success"
+                    [loading]="isUpdatingStatus()"
+                    [disabled]="isUpdatingStatus()"
+                    (onClick)="onPatientArrived()"
+                  />
+                  <div class="called-ticket-status">
+                    <span class="current-status current-status--called">
+                      Called - waiting for patient
+                    </span>
+                    <span
+                      class="grace-countdown"
+                      [class.grace-countdown--amber]="isGracePeriodAmber()"
+                      [class.grace-countdown--red]="isGracePeriodRed()"
+                      aria-live="off"
+                    >
+                      {{ graceCountdownText() }}
+                    </span>
+                  </div>
+                  <p-button
+                    label="Mark as No-show"
+                    severity="danger"
+                    [outlined]="true"
+                    [disabled]="isUpdatingStatus()"
+                    (onClick)="onMarkNoShow()"
+                  />
+                </div>
+              } @else {
+                <span class="current-status">In service</span>
+              }
+              @if (isNoShowCancelEnabled && isInService()) {
+                <div class="ticket-actions">
+                  <p-button
+                    label="Cancel"
+                    severity="danger"
+                    [outlined]="true"
+                    [disabled]="isUpdatingStatus()"
+                    (onClick)="onCancelEntry()"
+                  />
+                </div>
+              }
+            </div>
           </div>
         } @else {
-          <div class="now-calling">
-            <span>Now calling</span>
-            <strong>—</strong>
-            <small>No one called yet</small>
+          <div class="now-calling-slot">
+            <div class="now-calling now-calling--empty">
+              <i class="pi pi-bell empty-calling-icon" aria-hidden="true"></i>
+              <h3>No patient is being called</h3>
+              <p>
+                {{
+                  waitingCount() > 0
+                    ? "Click Call Next Patient to start."
+                    : "The queue is empty. New walk-ins will appear here."
+                }}
+              </p>
+              @if (waitingCount() > 0) {
+                <p-button
+                  label="Call Next Patient"
+                  icon="pi pi-bell"
+                  severity="primary"
+                  [outlined]="true"
+                  [loading]="isGeneratingQueue()"
+                  [disabled]="
+                    currentTicket() !== null ||
+                    waitingCount() === 0 ||
+                    isGeneratingQueue()
+                  "
+                  [title]="
+                    currentTicket()
+                      ? 'A patient is already being called'
+                      : waitingCount() === 0
+                        ? 'The queue is empty'
+                        : ''
+                  "
+                  (onClick)="onCallNext()"
+                />
+              }
+            </div>
           </div>
         }
 
@@ -113,9 +192,13 @@
             (retry)="onRetryStats()"
           />
         } @else if (waitingTickets().length === 0) {
-          <p class="empty-queue">No tickets yet. Add the first walk-in from the Walk-in tab.</p>
+          <p class="empty-queue">No patients waiting</p>
         } @else {
-          <ol class="waiting-list">
+          <ol
+            class="waiting-list"
+            tabindex="0"
+            aria-label="Patients waiting in the queue"
+          >
             @for (
               ticket of waitingTickets();
               track ticket.queue_entry_id;
@@ -123,17 +206,28 @@
             ) {
               <li [class.is-next]="isNext && ticket.status === 'WAITING'">
                 <div class="ticket-info">
-                  <span class="ticket-id">{{ ticket.ticket_number }}</span>
-                  <!-- TODO(Lim, Jereign): show the real name and reason -->
-                  <div class="patient-meta">
-                    <span class="patient-name">Patient name</span>
-                    <span class="patient-reason">Reason for visit</span>
+                  <div class="ticket-heading">
+                    <span class="ticket-id">{{ ticket.ticket_number }}</span>
+                    <strong class="patient-name">{{
+                      ticket.patient_name || "Unnamed patient"
+                    }}</strong>
                   </div>
+                  <span class="patient-reason">{{
+                    ticket.reason_for_visit || "No reason provided"
+                  }}</span>
                 </div>
-                <span class="ticket-status">
-                  {{
+                <span
+                  class="ticket-status"
+                  [class.ticket-status--next]="
                     isNext && ticket.status === 'WAITING'
-                      ? 'NEXT'
+                  "
+                  [class.ticket-status--waiting]="
+                    !isNext || ticket.status !== 'WAITING'
+                  "
+                >
+                  {{
+                    isNext && ticket.status === "WAITING"
+                      ? "NEXT"
                       : ticket.status
                   }}
                 </span>
@@ -146,76 +240,129 @@
   </section>
 
   <!-- Quick Stats Grid -->
-  @if (isStatsLoading()) {
-    <app-loading-skeleton [lines]="3" />
-  } @else if (!isQueueActive()) {
-    <app-empty-state
-      icon="pi-chart-bar"
-      title="No stats yet"
-      message="Queue numbers appear once a queue is open."
-    />
-  } @else if (!hasStatsError()) {
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-icon warning" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
-        <div class="stat-body">
-          <span class="stat-label">Patients Waiting</span>
-          <span class="stat-number warning">{{ waitingCount() }}</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <span class="stat-icon success" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span>
-        <div class="stat-body">
-          <span class="stat-label">Completed Today</span>
-          <span class="stat-number success">{{ completedCount() }}</span>
-        </div>
-      </div>
-    </div>
-  }
-
-  <!-- Upcoming appointments (sample data) -->
-  <section class="appointments-panel" aria-labelledby="appointments-title">
-    <div class="panel-header">
-      <h3 id="appointments-title">
-        <i class="pi pi-calendar"></i>
-        Upcoming appointments
-      </h3>
-      <!-- TODO(Lim, Jereign): remove once the data is connected -->
-      <span class="sample-data-tag">Sample data</span>
-    </div>
-
-    @if (isAppointmentsLoading()) {
+  <section class="stats-column" aria-label="Queue statistics">
+    @if (isStatsLoading()) {
       <app-loading-skeleton [lines]="3" />
-    } @else if (hasAppointmentsError()) {
-      <app-error-state
-        title="Could not load appointments"
-        message="Check your connection and try again."
-        (retry)="onRetryAppointments()"
-      />
-    } @else if (!hasAppointments()) {
+    } @else if (!isQueueActive()) {
       <app-empty-state
-        icon="pi-calendar"
-        title="No upcoming appointments"
-        message="Booked appointments will appear here."
+        icon="pi-chart-bar"
+        title="No stats yet"
+        message="Queue numbers appear once a queue is open."
       />
-    } @else {
-      <ul class="appointment-list">
-        @for (row of appointments(); track row.id) {
-          <li>
-            <span class="appointment-name">{{ row.patientName }}</span>
-            <span class="appointment-date">
-              {{ row.clinicDate | date: dateFormat }}
-            </span>
-            <span class="appointment-time">{{ appointmentTimeRange(row) }}</span>
-            <p-tag
-              [value]="appointmentStatusLabel(row.status)"
-              [severity]="appointmentStatusSeverity(row.status)"
-            />
-          </li>
-        }
-      </ul>
+    } @else if (!hasStatsError()) {
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-icon warning" aria-hidden="true"
+            ><svg
+              class="ico"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" /></svg
+          ></span>
+          <div class="stat-body">
+            <span class="stat-label">Patients Waiting</span>
+            <span class="stat-number warning">{{ waitingCount() }}</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-icon success" aria-hidden="true"
+            ><svg
+              class="ico"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <path d="m9 11 3 3L22 4" /></svg
+          ></span>
+          <div class="stat-body">
+            <span class="stat-label">Completed Today</span>
+            <span class="stat-number success">{{ completedCount() }}</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-icon danger" aria-hidden="true"
+            ><svg
+              class="ico"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m15 9-6 6" />
+              <path d="m9 9 6 6" /></svg
+          ></span>
+          <div class="stat-body">
+            <span class="stat-label">No-shows Today</span>
+            <span class="stat-number danger">{{ noShowCount() }}</span>
+          </div>
+        </div>
+      </div>
     }
+    <!-- Upcoming appointments (sample data) -->
+    <section class="appointments-panel" aria-labelledby="appointments-title">
+      <div class="panel-header">
+        <h3 id="appointments-title">
+          <i class="pi pi-calendar"></i>
+          Upcoming appointments
+        </h3>
+        <!-- TODO(Lim, Jereign): remove once the data is connected -->
+        <span class="sample-data-tag">Sample data</span>
+      </div>
+
+      @if (isAppointmentsLoading()) {
+        <app-loading-skeleton [lines]="3" />
+      } @else if (hasAppointmentsError()) {
+        <app-error-state
+          title="Could not load appointments"
+          message="Check your connection and try again."
+          (retry)="onRetryAppointments()"
+        />
+      } @else if (!hasAppointments()) {
+        <app-empty-state
+          icon="pi-calendar"
+          title="No upcoming appointments"
+          message="Booked appointments will appear here."
+        />
+      } @else {
+        <ul class="appointment-list">
+          @for (row of appointments(); track row.id) {
+            <li>
+              <span class="appointment-name">{{ row.patientName }}</span>
+              <div class="appointment-details">
+                <span class="appointment-date">
+                  {{ row.clinicDate | date: dateFormat }}
+                </span>
+                <span class="appointment-time">{{
+                  appointmentTimeRange(row)
+                }}</span>
+              </div>
+              <p-tag
+                [value]="appointmentStatusLabel(row.status)"
+                [severity]="appointmentStatusSeverity(row.status)"
+              />
+            </li>
+          }
+        </ul>
+      }
+    </section>
   </section>
 </div>
 
@@ -313,8 +460,7 @@
     }
 
     <p class="dialog-lead">
-      Mark ticket {{ completeTicketNumber() }} as completed? Notes are
-      optional.
+      Mark ticket {{ completeTicketNumber() }} as completed? Notes are optional.
     </p>
 
     <label for="complete-notes">Notes <span>(optional)</span></label>

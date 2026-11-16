@@ -16,8 +16,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { interval } from 'rxjs';
-import { merge } from 'rxjs';
+import { interval, merge } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
 import { Button } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
@@ -32,11 +31,12 @@ import {
   QueueTicketSummary,
   ServingTicket,
 } from '@core/models';
-import { getErrorMessage } from '@core/utils';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
   LoadingSkeletonComponent,
+  NoticeComponent,
+  NoticeVariant,
 } from '@shared/ui';
 
 type AppointmentTagSeverity = 'info' | 'success' | 'secondary' | 'danger';
@@ -60,10 +60,22 @@ const PRACTITIONER_MAX_LENGTH = 100;
 const ROOM_PREFIX = 'Counter';
 const DEFAULT_PRACTITIONER_NAME = 'Staff Nurse';
 const CALL_NEXT_ERROR = 'Could not call the next patient.';
-const START_ERROR = 'Could not start the consultation.';
+const RECALL_ERROR = 'Could not recall the current patient.';
 const COMPLETE_ERROR = 'Could not complete the consultation.';
 const NO_SHOW_ERROR = 'Could not mark the patient as no-show.';
 const CANCEL_ERROR = 'Could not cancel the ticket.';
+const NOTICE_DURATION_MS = 5000;
+const ACTION_FAILED_MESSAGE = 'Something went wrong. Please try again.';
+const NO_CURRENT_TICKET_MESSAGE = 'No patient is being called right now.';
+const EMPTY_QUEUE_MESSAGE = 'The queue is empty.';
+const PATIENT_ALREADY_CALLED_MESSAGE = 'A patient is already being called.';
+const PATIENT_MUST_ARRIVE_MESSAGE =
+  'The patient must arrive before completing consultation.';
+
+type DashboardNotice = {
+  message: string;
+  variant: NoticeVariant;
+};
 
 type StatusErrorTarget = 'page' | 'complete-dialog';
 
@@ -86,6 +98,10 @@ const TIME_SEPARATOR = ':';
 const TIME_RANGE_SEPARATOR = ' to ';
 const MORNING_SUFFIX = 'AM';
 const AFTERNOON_SUFFIX = 'PM';
+const SECONDS_PER_MINUTE = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+const AMBER_THRESHOLD_SECONDS = 60;
+const RED_THRESHOLD_SECONDS = 15;
 
 const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   BOOKED: 'Booked',
@@ -164,6 +180,7 @@ function formatTime12h(time: string): string {
     EmptyStateComponent,
     ErrorStateComponent,
     LoadingSkeletonComponent,
+    NoticeComponent,
   ],
   providers: [ConfirmationService],
   templateUrl: './staff-dashboard.component.html',
@@ -178,23 +195,24 @@ export class StaffDashboardComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   readonly queueId = signal<number>(1);
   readonly counterNumber = signal<number>(1);
-  readonly servingTicket = signal<string>('—');
   readonly currentTicket = signal<ServingTicket | null>(null);
-  readonly countdownSeconds = signal<number>(0);
-  private serverClockOffsetMs = 0;
+  readonly currentTimeMs = signal<number>(Date.now());
+  readonly gracePeriodMs = signal<number>(0);
   readonly waitingCount = signal<number>(0);
   readonly waitingTickets = signal<QueueTicketSummary[]>([]);
   readonly completedCount = signal<number>(0);
+  readonly noShowCount = signal<number>(0);
   readonly isGeneratingQueue = signal<boolean>(false);
+  readonly isRecalling = signal<boolean>(false);
   readonly isUpdatingStatus = signal<boolean>(false);
   readonly isCallNextDialogOpen = signal<boolean>(false);
   readonly isCompleteDialogOpen = signal<boolean>(false);
   readonly isNoShowCancelEnabled = IS_NO_SHOW_CANCEL_ENABLED;
+  readonly defaultNoticeVariant = NoticeVariant.INFO;
   readonly notesMaxLength = NOTES_MAX_LENGTH;
   readonly roomMaxLength = ROOM_MAX_LENGTH;
   readonly practitionerMaxLength = PRACTITIONER_MAX_LENGTH;
-  // Page level message, only for actions that have no dialog of their own.
-  readonly actionError = signal<string | null>(null);
+  readonly notice = signal<DashboardNotice | null>(null);
   readonly callNextError = signal<string | null>(null);
   readonly completeError = signal<string | null>(null);
   readonly completeTicketNumber = signal<string>('');
@@ -222,14 +240,17 @@ export class StaffDashboardComponent implements OnInit {
 
   readonly isStatsLoading = signal<boolean>(true);
   readonly hasStatsError = signal<boolean>(false);
-  private expiryRefreshKey: string | null = null;
+  private serverClockOffsetMs = 0;
+  private expirationRequestEntryId: number | null = null;
+  private noticeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
     this.listenForSseEvents();
-    interval(1000)
+    interval(MILLISECONDS_PER_SECOND)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((): void => this.updateCountdown());
+      .subscribe((): void => this.refreshGracePeriod());
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
+    this.destroyRef.onDestroy(() => this.clearNoticeTimer());
     this.sseService.subscribeToQueue(this.queueId());
     this.loadQueueStatus();
   }
@@ -244,24 +265,40 @@ export class StaffDashboardComponent implements OnInit {
     this.isStatsLoading.set(true);
     this.hasStatsError.set(false);
 
-    this.queueService.getQueueStatus(this.queueId()).subscribe({
+    this.queueService.getStaffQueueStatus(this.queueId()).subscribe({
       next: (response: QueueStatusResponse): void => {
         const currentTicket = response.currently_serving;
         this.serverClockOffsetMs =
           new Date(response.server_time).getTime() - Date.now();
+        this.currentTimeMs.set(Date.now() + this.serverClockOffsetMs);
+        this.gracePeriodMs.set(response.grace_period_ms);
         this.isQueueActive.set(response.is_active);
         this.currentTicket.set(currentTicket);
-        this.servingTicket.set(currentTicket?.ticket_number ?? '—');
         this.waitingCount.set(response.total_waiting ?? 0);
         this.waitingTickets.set(response.waiting_tickets ?? []);
         this.completedCount.set(response.total_completed_today ?? 0);
-        this.updateCountdown();
+        this.noShowCount.set(response.total_no_shows_today ?? 0);
+        const newlyNoShowTickets = response.newly_no_show_ticket_numbers ?? [];
+        if (newlyNoShowTickets.length > 0) {
+          this.showNotice(
+            `${newlyNoShowTickets[newlyNoShowTickets.length - 1]} was marked as no-show.`,
+            NoticeVariant.WARNING,
+          );
+        }
+        if (
+          this.expirationRequestEntryId !== null &&
+          this.expirationRequestEntryId !== currentTicket?.queue_entry_id
+        ) {
+          this.expirationRequestEntryId = null;
+        }
         this.isStatsLoading.set(false);
+        this.refreshGracePeriod();
       },
       error: (error: HttpErrorResponse): void => {
         if (this.isQueueNotFound(error)) {
           this.isQueueActive.set(false);
         } else {
+          console.error('Could not load queue status.', error);
           this.hasStatsError.set(true);
         }
         this.isStatsLoading.set(false);
@@ -276,39 +313,32 @@ export class StaffDashboardComponent implements OnInit {
     );
   }
 
-  private updateCountdown(): void {
+  readonly graceRemainingSeconds = computed((): number => {
     const ticket = this.currentTicket();
-    if (ticket?.status !== QueueStatus.CALLED || !ticket.grace_expires_at) {
-      this.countdownSeconds.set(0);
-      this.expiryRefreshKey = null;
-      return;
+    if (ticket?.status !== QueueStatus.CALLED || !ticket.called_at) {
+      return 0;
     }
 
-    const remaining = Math.max(
+    const deadline =
+      new Date(ticket.called_at).getTime() + this.gracePeriodMs();
+    return Math.max(
       0,
-      Math.ceil(
-        (new Date(ticket.grace_expires_at).getTime() -
-          (Date.now() + this.serverClockOffsetMs)) /
-          1000,
-      ),
+      Math.ceil((deadline - this.currentTimeMs()) / MILLISECONDS_PER_SECOND),
     );
-    this.countdownSeconds.set(remaining);
-
-    const refreshKey = `${ticket.queue_entry_id}:${ticket.grace_expires_at}`;
-    if (remaining === 0 && this.expiryRefreshKey !== refreshKey) {
-      this.expiryRefreshKey = refreshKey;
-      this.loadQueueStatus();
-    }
-  }
-
-  readonly countdownText = computed((): string => {
-    const seconds = this.countdownSeconds();
-    return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   });
-  readonly isGracePeriodUrgent = computed(
+  readonly graceCountdownText = computed((): string => {
+    const seconds = this.graceRemainingSeconds();
+    return `${String(Math.floor(seconds / SECONDS_PER_MINUTE)).padStart(2, '0')}:${String(seconds % SECONDS_PER_MINUTE).padStart(2, '0')}`;
+  });
+  readonly isGracePeriodAmber = computed(
+    (): boolean =>
+      this.graceRemainingSeconds() <= AMBER_THRESHOLD_SECONDS &&
+      this.graceRemainingSeconds() > RED_THRESHOLD_SECONDS,
+  );
+  readonly isGracePeriodRed = computed(
     (): boolean =>
       this.currentTicket()?.status === QueueStatus.CALLED &&
-      this.countdownSeconds() <= 30,
+      this.graceRemainingSeconds() <= RED_THRESHOLD_SECONDS,
   );
   readonly isCalled = computed(
     (): boolean => this.currentTicket()?.status === QueueStatus.CALLED,
@@ -317,8 +347,54 @@ export class StaffDashboardComponent implements OnInit {
     (): boolean => this.currentTicket()?.status === QueueStatus.IN_SERVICE,
   );
 
+  refreshGracePeriod(): void {
+    this.currentTimeMs.set(Date.now() + this.serverClockOffsetMs);
+    const ticket = this.currentTicket();
+    if (
+      ticket?.status !== QueueStatus.CALLED ||
+      this.graceRemainingSeconds() > 0 ||
+      this.expirationRequestEntryId === ticket.queue_entry_id
+    ) {
+      return;
+    }
+
+    this.expirationRequestEntryId = ticket.queue_entry_id;
+    this.updateCurrentStatus(QueueStatus.NO_SHOW, {
+      fallbackMessage: NO_SHOW_ERROR,
+      errorTarget: 'page',
+    });
+  }
+
+  onPatientArrived(): void {
+    if (!this.currentTicket()) {
+      this.showNotice(NO_CURRENT_TICKET_MESSAGE, NoticeVariant.INFO);
+      return;
+    }
+    if (!this.isCalled() || this.isUpdatingStatus()) {
+      return;
+    }
+
+    this.updateCurrentStatus(QueueStatus.IN_SERVICE, {
+      fallbackMessage: 'Could not start the consultation.',
+      errorTarget: 'page',
+    });
+  }
+
   // Opens the call next dialog with the room and practitioner prefilled.
   onCallNext(): void {
+    this.clearNotice();
+    if (this.currentTicket()) {
+      this.showNotice(PATIENT_ALREADY_CALLED_MESSAGE, NoticeVariant.INFO);
+      return;
+    }
+    if (this.waitingCount() === 0) {
+      this.showNotice(EMPTY_QUEUE_MESSAGE, NoticeVariant.INFO);
+      return;
+    }
+    if (this.isGeneratingQueue()) {
+      return;
+    }
+
     this.callNextForm.reset({
       roomNumber: `${ROOM_PREFIX} ${this.counterNumber()}`,
       practitionerName:
@@ -339,6 +415,19 @@ export class StaffDashboardComponent implements OnInit {
   }
 
   onConfirmCallNext(): void {
+    if (this.isGeneratingQueue()) {
+      return;
+    }
+    if (this.currentTicket()) {
+      this.showNotice(PATIENT_ALREADY_CALLED_MESSAGE, NoticeVariant.INFO);
+      this.isCallNextDialogOpen.set(false);
+      return;
+    }
+    if (this.waitingCount() === 0) {
+      this.showNotice(EMPTY_QUEUE_MESSAGE, NoticeVariant.INFO);
+      this.isCallNextDialogOpen.set(false);
+      return;
+    }
     if (this.callNextForm.invalid) {
       this.callNextForm.markAllAsTouched();
       return;
@@ -361,20 +450,24 @@ export class StaffDashboardComponent implements OnInit {
             queue_entry_id: response.queue_entry_id,
             ticket_number: response.ticket_number,
             status: response.status,
+            patient_name: response.patient_name,
+            reason_for_visit: response.reason_for_visit,
             called_at: response.called_at,
             grace_expires_at: response.grace_expires_at,
             room_number: response.room_number,
           };
+          this.gracePeriodMs.set(response.grace_period_ms);
           this.currentTicket.set(calledTicket);
-          this.servingTicket.set(response.ticket_number);
-          this.waitingCount.update((count: number): number => Math.max(0, count - 1));
-          this.actionError.set(null);
+          this.waitingCount.update((count: number): number =>
+            Math.max(0, count - 1),
+          );
+          this.clearNotice();
           this.isCallNextDialogOpen.set(false);
-          this.updateCountdown();
           this.loadQueueStatus();
         },
         error: (error: HttpErrorResponse): void => {
-          this.callNextError.set(getErrorMessage(error, CALL_NEXT_ERROR));
+          this.logActionError(CALL_NEXT_ERROR, error);
+          this.callNextError.set(ACTION_FAILED_MESSAGE);
           this.isGeneratingQueue.set(false);
           if (error.status === HTTP_CONFLICT) {
             this.loadQueueStatus();
@@ -386,10 +479,35 @@ export class StaffDashboardComponent implements OnInit {
       });
   }
 
-  onPatientArrived(): void {
-    this.updateCurrentStatus(QueueStatus.IN_SERVICE, {
-      fallbackMessage: START_ERROR,
-      errorTarget: 'page',
+  onRecallCurrent(): void {
+    if (!this.currentTicket()) {
+      this.showNotice(NO_CURRENT_TICKET_MESSAGE, NoticeVariant.INFO);
+      return;
+    }
+    if (!this.isCalled()) {
+      this.showNotice(
+        'Recall is only available while waiting for the patient.',
+        NoticeVariant.INFO,
+      );
+      return;
+    }
+    if (this.isRecalling()) {
+      return;
+    }
+
+    this.isRecalling.set(true);
+    this.queueService.recallCurrent(this.queueId()).subscribe({
+      next: (): void => {
+        this.isRecalling.set(false);
+      },
+      error: (error: HttpErrorResponse): void => {
+        this.logActionError(RECALL_ERROR, error);
+        this.showNotice(ACTION_FAILED_MESSAGE, NoticeVariant.ERROR);
+        this.isRecalling.set(false);
+        if (error.status === HTTP_CONFLICT) {
+          this.loadQueueStatus();
+        }
+      },
     });
   }
 
@@ -397,6 +515,11 @@ export class StaffDashboardComponent implements OnInit {
   onComplete(): void {
     const ticket = this.currentTicket();
     if (!ticket) {
+      this.showNotice(NO_CURRENT_TICKET_MESSAGE, NoticeVariant.INFO);
+      return;
+    }
+    if (ticket.status !== QueueStatus.IN_SERVICE) {
+      this.showNotice(PATIENT_MUST_ARRIVE_MESSAGE, NoticeVariant.INFO);
       return;
     }
     this.completeTicketNumber.set(ticket.ticket_number);
@@ -416,6 +539,13 @@ export class StaffDashboardComponent implements OnInit {
   }
 
   onConfirmComplete(): void {
+    if (this.isUpdatingStatus()) {
+      return;
+    }
+    if (!this.isInService()) {
+      this.onComplete();
+      return;
+    }
     if (this.completeNotes.invalid) {
       this.completeNotes.markAsTouched();
       return;
@@ -430,6 +560,9 @@ export class StaffDashboardComponent implements OnInit {
   }
 
   onMarkNoShow(): void {
+    if (!this.isCalled()) {
+      return;
+    }
     this.confirmStatusChange(
       'Mark no-show',
       'Mark this ticket as a no-show?',
@@ -475,6 +608,22 @@ export class StaffDashboardComponent implements OnInit {
   ): void {
     const ticket = this.currentTicket();
     if (!ticket) {
+      this.showNotice(NO_CURRENT_TICKET_MESSAGE, NoticeVariant.INFO);
+      return;
+    }
+    if (
+      (status === QueueStatus.DONE &&
+        ticket.status !== QueueStatus.IN_SERVICE) ||
+      (status === QueueStatus.IN_SERVICE &&
+        ticket.status !== QueueStatus.CALLED) ||
+      (status === QueueStatus.NO_SHOW && ticket.status !== QueueStatus.CALLED)
+    ) {
+      this.showNotice(
+        status === QueueStatus.DONE
+          ? PATIENT_MUST_ARRIVE_MESSAGE
+          : NO_CURRENT_TICKET_MESSAGE,
+        NoticeVariant.INFO,
+      );
       return;
     }
 
@@ -488,27 +637,52 @@ export class StaffDashboardComponent implements OnInit {
         next: (): void => {
           if (status === QueueStatus.DONE) {
             this.currentTicket.set(null);
-            this.servingTicket.set('—');
             this.completedCount.update((count: number): number => count + 1);
             this.isCompleteDialogOpen.set(false);
           } else if (status === QueueStatus.IN_SERVICE) {
             this.currentTicket.update((current) =>
-              current ? { ...current, status: QueueStatus.IN_SERVICE, grace_expires_at: null } : null,
+              current
+                ? {
+                    ...current,
+                    status: QueueStatus.IN_SERVICE,
+                    grace_expires_at: null,
+                  }
+                : null,
             );
+            this.expirationRequestEntryId = null;
+          } else if (status === QueueStatus.NO_SHOW) {
+            this.currentTicket.set(null);
+            this.noShowCount.update((count: number): number => count + 1);
+            this.showNotice(
+              `${ticket.ticket_number} was marked as no-show.`,
+              NoticeVariant.WARNING,
+            );
+            this.expirationRequestEntryId = null;
           }
-          this.actionError.set(null);
           this.completeError.set(null);
           this.isUpdatingStatus.set(false);
           this.loadQueueStatus();
         },
         error: (error: HttpErrorResponse): void => {
-          const message = getErrorMessage(error, options.fallbackMessage);
+          this.logActionError(options.fallbackMessage, error);
+          if (
+            status === QueueStatus.NO_SHOW &&
+            error.status === HTTP_CONFLICT
+          ) {
+            this.expirationRequestEntryId = null;
+            this.isUpdatingStatus.set(false);
+            this.loadQueueStatus();
+            return;
+          }
           if (options.errorTarget === 'complete-dialog') {
-            this.completeError.set(message);
+            this.completeError.set(ACTION_FAILED_MESSAGE);
           } else {
-            this.actionError.set(message);
+            this.showNotice(ACTION_FAILED_MESSAGE, NoticeVariant.ERROR);
           }
           this.isUpdatingStatus.set(false);
+          if (status === QueueStatus.NO_SHOW) {
+            this.expirationRequestEntryId = null;
+          }
           if (error.status === HTTP_CONFLICT) {
             this.loadQueueStatus();
           }
@@ -544,4 +718,32 @@ export class StaffDashboardComponent implements OnInit {
     this.loadQueueStatus();
   }
 
+  onDismissNotice(): void {
+    this.clearNotice();
+  }
+
+  private showNotice(message: string, variant: NoticeVariant): void {
+    this.clearNoticeTimer();
+    this.notice.set({ message, variant });
+    this.noticeTimeoutId = setTimeout(
+      (): void => this.clearNotice(),
+      NOTICE_DURATION_MS,
+    );
+  }
+
+  private clearNotice(): void {
+    this.clearNoticeTimer();
+    this.notice.set(null);
+  }
+
+  private clearNoticeTimer(): void {
+    if (this.noticeTimeoutId !== null) {
+      clearTimeout(this.noticeTimeoutId);
+      this.noticeTimeoutId = null;
+    }
+  }
+
+  private logActionError(message: string, error: HttpErrorResponse): void {
+    console.error(message, error);
+  }
 }

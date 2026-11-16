@@ -9,9 +9,11 @@ export const guestGuard: CanActivateFn = (): boolean => {
   const router: Router = inject(Router);
 
   if (authService.isAuthenticated()) {
-    const role: string = authService.currentUser()?.role ?? 'PATIENT';
-    void router.navigateByUrl(getHomeRoute(role));
-    return false;
+    const user = authService.currentUser();
+    if (user) {
+      void router.navigateByUrl(getHomeRoute(user.role));
+      return false;
+    }
   }
 
   return true;

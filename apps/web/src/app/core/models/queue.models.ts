@@ -12,6 +12,8 @@ export type ServingTicket = {
   queue_entry_id: number;
   ticket_number: string;
   status: QueueStatus;
+  patient_name?: string | null;
+  reason_for_visit?: string | null;
   called_at: string | null;
   grace_expires_at: string | null;
   room_number: string;
@@ -25,6 +27,9 @@ export type QueueStatusResponse = {
   total_waiting: number;
   waiting_tickets: QueueTicketSummary[];
   total_completed_today: number;
+  total_no_shows_today: number;
+  grace_period_ms: number;
+  newly_no_show_ticket_numbers: string[];
   avg_wait_time_minutes: number;
   server_time: string;
   last_updated: string;
@@ -34,6 +39,8 @@ export type QueueTicketSummary = {
   queue_entry_id: number;
   ticket_number: string;
   status: QueueStatus;
+  patient_name?: string | null;
+  reason_for_visit?: string | null;
 };
 
 export type WalkInRequest = {
@@ -61,11 +68,19 @@ export type CallNextRequest = {
 export type CallNextResponse = {
   queue_entry_id: number;
   ticket_number: string;
-  patient_name: string;
+  patient_name: string | null;
+  reason_for_visit: string | null;
   status: QueueStatus;
   called_at: string;
-  grace_expires_at: string;
+  grace_expires_at: string | null;
+  grace_period_ms: number;
   room_number: string;
+};
+
+export type RecallCurrentResponse = {
+  queue_entry_id: number;
+  ticket_number: string;
+  status: QueueStatus;
 };
 
 export type UpdateEntryStatusRequest = {
@@ -80,6 +95,7 @@ export type UpdateEntryStatusResponse = {
   status: QueueStatus;
   updated_at: string;
   notes?: string;
+  no_show_at?: string | null;
 };
 
 export type TrackingStatusResponse = {

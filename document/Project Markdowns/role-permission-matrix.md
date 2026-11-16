@@ -28,6 +28,7 @@ ClinicQueue enforces a dual-dimension identity model:
 | `/api/v1/users/:id` | `GET` | Authenticated | Self (`id === req.user.id`) or `ADMIN` | Returns specific user profile; non-matching IDs return 403 Forbidden. |
 | `/api/v1/queues/:id/walk-in` | `POST` | Public / Auth | Any user | Register a walk-in patient into active queue. |
 | `/api/v1/queues/:id/status` | `GET` | Public | Any user | Fetch current queue statistics (active ticket, total waiting, served count). |
+| `/api/v1/queues/:id/staff-status` | `GET` | Authenticated | `STAFF`, `ADMIN` | Fetch queue status with patient names and visit reasons for staff operations. |
 | `/api/v1/queues/:id/events` | `GET (SSE)` | Public | Any user | Real-time Server-Sent Events stream for queue updates and ticket calling. |
 | `/api/v1/queues/:id/call-next` | `POST` | Authenticated | `STAFF`, `ADMIN` | Call the next waiting patient at designated counter. |
 | `/api/v1/queues/:id/entries/:entryId` | `PATCH` | Authenticated | `STAFF`, `ADMIN` | Update entry status (`CALLED`, `IN_SERVICE`, `SERVED`, `NO_SHOW`, `CANCELLED`). |
