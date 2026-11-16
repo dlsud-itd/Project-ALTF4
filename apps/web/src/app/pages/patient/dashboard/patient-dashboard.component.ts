@@ -28,7 +28,7 @@ import {
   PatientQueueEntryResponse,
   WalkInResponse,
 } from '@core/models';
-import { getErrorMessage } from '@core/utils';
+import { formatTime12h, formatTimeRange, getErrorMessage } from '@core/utils';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
@@ -224,7 +224,7 @@ export class PatientDashboardComponent implements OnInit {
   onCancelAppointment(appointment: PatientAppointment): void {
     this.confirmationService.confirm({
       header: 'Cancel Appointment',
-      message: `Are you sure you want to cancel your consultation on ${this.formatClinicDate(appointment.slot.clinicDate)} at ${appointment.slot.startTime}?`,
+      message: `Are you sure you want to cancel your consultation on ${this.formatClinicDate(appointment.slot.clinicDate)} at ${this.formatTime(appointment.slot.startTime)}?`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Yes, Cancel',
       rejectLabel: 'Keep Appointment',
@@ -267,6 +267,14 @@ export class PatientDashboardComponent implements OnInit {
       day: 'numeric',
       year: 'numeric',
     });
+  }
+
+  formatTimeRange(startTime: string, endTime: string): string {
+    return formatTimeRange(startTime, endTime);
+  }
+
+  formatTime(timeStr: string): string {
+    return formatTime12h(timeStr);
   }
 
   statusLabel(status: AppointmentStatus): string {

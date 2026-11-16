@@ -152,7 +152,7 @@ describe('PatientDashboardComponent', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelectorAll('.appointment-card').length).toBe(1);
-    expect(element.textContent).toContain('10:00 - 10:30');
+    expect(element.textContent).toContain('10:00 AM - 10:30 AM');
     expect(element.textContent).toContain('Confirmed');
   });
 
@@ -160,7 +160,11 @@ describe('PatientDashboardComponent', () => {
     const confirmSpy = spyOn((component as any).confirmationService, 'confirm');
     component.onCancelAppointment(mockAppointments[0]);
 
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(confirmSpy).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        message: jasmine.stringMatching(/10:00 AM/),
+      }),
+    );
   });
 
   it('should allow joining the queue online directly from the dashboard card when appointment is booked', () => {
