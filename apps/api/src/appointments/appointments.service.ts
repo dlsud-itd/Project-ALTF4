@@ -5,7 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AccessRole, AppointmentStatus, QueueSource, QueueStatus } from '@prisma/client';
+import {
+  AccessRole,
+  AppointmentStatus,
+  QueueSource,
+  QueueStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
@@ -144,7 +149,8 @@ export class AppointmentsService {
         },
       });
       const positionInQueue = waitingAhead + 1;
-      const estimatedWaitMinutes = waitingAhead * dailyQueue.fallbackServiceMinutes;
+      const estimatedWaitMinutes =
+        waitingAhead * dailyQueue.fallbackServiceMinutes;
 
       reservedQueueEntry = {
         ticketNumber,
@@ -231,7 +237,13 @@ export class AppointmentsService {
         },
         queueEntries: {
           where: {
-            status: { in: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE] },
+            status: {
+              in: [
+                QueueStatus.WAITING,
+                QueueStatus.CALLED,
+                QueueStatus.IN_CONSULTATION,
+              ],
+            },
           },
           orderBy: { queueNumber: 'desc' },
           take: 1,
@@ -276,7 +288,8 @@ export class AppointmentsService {
               },
             });
             const positionInQueue = waitingAhead + 1;
-            const fallbackMin = activeEntry.dailyQueue?.fallbackServiceMinutes ?? 15;
+            const fallbackMin =
+              activeEntry.dailyQueue?.fallbackServiceMinutes ?? 15;
             reservedQueueEntry = {
               ticketNumber: activeEntry.ticketNumber,
               queueNumber: activeEntry.queueNumber,

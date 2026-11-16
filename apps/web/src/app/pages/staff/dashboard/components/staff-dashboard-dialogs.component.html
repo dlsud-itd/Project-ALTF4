@@ -1,0 +1,180 @@
+<p-dialog
+  header="Call next patient"
+  styleClass="queue-dialog"
+  [modal]="true"
+  [draggable]="false"
+  [closable]="!isGeneratingQueue()"
+  [closeOnEscape]="!isGeneratingQueue()"
+  [visible]="isCallNextDialogOpen()"
+  (visibleChange)="onCallNextVisibleChange($event)"
+>
+  <form
+    class="dialog-form"
+    [formGroup]="callNextForm()"
+    (ngSubmit)="onConfirmCallNext()"
+    novalidate
+  >
+    @if (callNextError(); as message) {
+      <div role="alert">
+        <p-message severity="error" [text]="message" />
+      </div>
+    }
+
+    <label for="call-room">Room</label>
+    <input
+      id="call-room"
+      type="text"
+      formControlName="room"
+      autocomplete="off"
+      autofocus
+      [attr.maxlength]="roomMaxLength()"
+    />
+    @if (
+      callNextForm().controls.room.touched &&
+      callNextForm().controls.room.invalid
+    ) {
+      <small class="field-error">Enter a room (up to 60 characters).</small>
+    }
+
+    <label for="call-practitioner">Practitioner</label>
+    <input
+      id="call-practitioner"
+      type="text"
+      formControlName="provider"
+      autocomplete="off"
+      [attr.maxlength]="providerMaxLength()"
+    />
+    @if (
+      callNextForm().controls.provider.touched &&
+      callNextForm().controls.provider.invalid
+    ) {
+      <small class="field-error">
+        Enter a practitioner (up to 60 characters).
+      </small>
+    }
+
+    <div class="dialog-actions">
+      <p-button
+        type="button"
+        label="Cancel"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="isGeneratingQueue()"
+        (onClick)="onCancelCallNext()"
+      />
+      <p-button
+        type="submit"
+        label="Confirm"
+        severity="primary"
+        [loading]="isGeneratingQueue()"
+      />
+    </div>
+  </form>
+</p-dialog>
+
+<!-- Complete consultation dialog, also the confirmation -->
+<p-dialog
+  header="Complete consultation"
+  styleClass="queue-dialog"
+  [modal]="true"
+  [draggable]="false"
+  [closable]="!isUpdatingStatus()"
+  [closeOnEscape]="!isUpdatingStatus()"
+  [visible]="isCompleteDialogOpen()"
+  (visibleChange)="onCompleteVisibleChange($event)"
+>
+  <div class="dialog-form">
+    @if (completeError(); as message) {
+      <div role="alert">
+        <p-message severity="error" [text]="message" />
+      </div>
+    }
+
+    <p class="dialog-lead">
+      Mark ticket {{ completeTicketNumber() }} as completed? Notes are optional.
+    </p>
+
+    <label for="complete-notes">Notes <span>(optional)</span></label>
+    <textarea
+      id="complete-notes"
+      rows="4"
+      autofocus
+      [formControl]="completeNotes()"
+      [attr.maxlength]="notesMaxLength()"
+    ></textarea>
+    <small class="notes-count">
+      {{ completeNotes().value.length }}/{{ notesMaxLength() }}
+    </small>
+
+    <div class="dialog-actions">
+      <p-button
+        type="button"
+        label="Cancel"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="isUpdatingStatus()"
+        (onClick)="onCancelComplete()"
+      />
+      <p-button
+        type="button"
+        label="Complete"
+        severity="success"
+        [loading]="isUpdatingStatus()"
+        (onClick)="onConfirmComplete()"
+      />
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="
+    statusDialogStatus() === QueueStatus.NO_SHOW
+      ? 'Mark as no-show'
+      : 'Cancel patient'
+  "
+  styleClass="queue-dialog"
+  [modal]="true"
+  [draggable]="false"
+  [closable]="!isUpdatingStatus()"
+  [closeOnEscape]="!isUpdatingStatus()"
+  [visible]="isStatusDialogOpen()"
+  (visibleChange)="onStatusDialogVisibleChange($event)"
+>
+  <div class="dialog-form">
+    @if (statusDialogError(); as message) {
+      <div role="alert">
+        <p-message severity="error" [text]="message" />
+      </div>
+    }
+
+    <p class="dialog-lead">
+      @if (statusDialogStatus() === QueueStatus.NO_SHOW) {
+        Mark ticket {{ statusDialogTicketNumber() }} as a no-show?
+      } @else {
+        Cancel ticket {{ statusDialogTicketNumber() }}?
+      }
+    </p>
+
+    <div class="dialog-actions">
+      <p-button
+        type="button"
+        label="Back"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="isUpdatingStatus()"
+        (onClick)="onCancelStatusAction()"
+      />
+      <p-button
+        type="button"
+        [label]="
+          statusDialogStatus() === QueueStatus.NO_SHOW
+            ? 'Mark no-show'
+            : 'Cancel ticket'
+        "
+        severity="danger"
+        [loading]="isUpdatingStatus()"
+        (onClick)="onConfirmStatusAction()"
+      />
+    </div>
+  </div>
+</p-dialog>

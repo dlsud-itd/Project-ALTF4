@@ -9,7 +9,7 @@ export const GRACE_PERIOD_MS = 3 * 60 * 1000;
 export const ACTIVE_QUEUE_STATUSES = [
   QueueStatus.WAITING,
   QueueStatus.CALLED,
-  QueueStatus.IN_SERVICE,
+  QueueStatus.IN_CONSULTATION,
 ] as const;
 
 @Injectable()
@@ -44,7 +44,7 @@ export class QueueReadService {
         dailyQueueId: queueId,
         status: QueueStatus.WAITING,
       },
-      orderBy: { queueNumber: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { queueNumber: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
         queueNumber: true,
@@ -141,7 +141,9 @@ export class QueueReadService {
     const currentServing = await this.prisma.queueEntry.findFirst({
       where: {
         dailyQueueId: queueId,
-        status: { in: [QueueStatus.CALLED, QueueStatus.IN_SERVICE] },
+        status: {
+          in: [QueueStatus.CALLED, QueueStatus.IN_CONSULTATION],
+        },
       },
       orderBy: [{ calledAt: 'desc' }, { queueNumber: 'desc' }],
       select: {
@@ -151,6 +153,7 @@ export class QueueReadService {
         calledAt: true,
         graceExpiresAt: true,
         roomNumber: true,
+        provider: true,
         firstName: true,
         lastName: true,
         reasonForVisit: true,
@@ -162,8 +165,8 @@ export class QueueReadService {
     const totalCompletedToday = await this.prisma.queueEntry.count({
       where: {
         dailyQueueId: queueId,
-        status: { in: [QueueStatus.DONE, QueueStatus.SERVED] },
-        updatedAt: { gte: today },
+        status: QueueStatus.COMPLETED,
+        completedAt: { gte: today },
       },
     });
     const totalNoShowsToday = await this.prisma.queueEntry.count({
@@ -205,6 +208,7 @@ export class QueueReadService {
           grace_expires_at:
             currentServing.graceExpiresAt?.toISOString() || null,
           room_number: currentServing.roomNumber || 'Counter 1',
+          provider: currentServing.provider,
           ...(includePatientDetails
             ? {
                 patient_name:
@@ -308,7 +312,7 @@ export class QueueReadService {
         ticketNumber: true,
         status: true,
         roomNumber: true,
-        joinedAt: true,
+        createdAt: true,
         calledAt: true,
         graceExpiresAt: true,
       },
@@ -327,7 +331,7 @@ export class QueueReadService {
           ticketNumber: true,
           status: true,
           roomNumber: true,
-          joinedAt: true,
+          createdAt: true,
           calledAt: true,
           graceExpiresAt: true,
         },
@@ -356,7 +360,7 @@ export class QueueReadService {
       estimated_wait_minutes: estimatedWaitMinutes,
       status: entry.status,
       room_number: entry.roomNumber,
-      joined_at: entry.joinedAt.toISOString(),
+      joined_at: entry.createdAt.toISOString(),
       called_at: entry.calledAt ? entry.calledAt.toISOString() : null,
       grace_expires_at: entry.graceExpiresAt
         ? entry.graceExpiresAt.toISOString()
