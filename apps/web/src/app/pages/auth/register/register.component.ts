@@ -18,8 +18,14 @@ import {
   AuthCardComponent,
 } from '@shared/ui';
 
-// TODO(Lim, Jereign): confirm the final password rules with the team (API only requires 6+)
+// Password and name validation constraints
 const MIN_PASSWORD_LENGTH = 6;
+const MAX_PASSWORD_LENGTH = 100;
+const MAX_NAME_LENGTH = 50;
+const MAX_EMAIL_LENGTH = 100;
+const NAME_PATTERN = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+const OPTIONAL_NAME_PATTERN = /^[a-zA-ZÀ-ÿ\s'-]*$/;
+const DLSUD_EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@dlsud\.edu\.ph$/i;
 
 const passwordsMatch: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
   const password: unknown = group.get('password')?.value;
@@ -47,12 +53,64 @@ export class RegisterComponent {
 
   readonly form = this.fb.nonNullable.group(
     {
-      firstName: ['', { validators: [Validators.required, Validators.maxLength(50)] }],
-      middleName: ['', { validators: [Validators.maxLength(50)] }],
-      lastName: ['', { validators: [Validators.required, Validators.maxLength(50)] }],
-      email: ['', { validators: [Validators.required, Validators.email] }],
-      password: ['', { validators: [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)] }],
-      confirmPassword: ['', { validators: [Validators.required] }],
+      firstName: [
+        '',
+        {
+          validators: [
+            Validators.required,
+            Validators.maxLength(MAX_NAME_LENGTH),
+            Validators.pattern(NAME_PATTERN),
+          ],
+        },
+      ],
+      middleName: [
+        '',
+        {
+          validators: [
+            Validators.maxLength(MAX_NAME_LENGTH),
+            Validators.pattern(OPTIONAL_NAME_PATTERN),
+          ],
+        },
+      ],
+      lastName: [
+        '',
+        {
+          validators: [
+            Validators.required,
+            Validators.maxLength(MAX_NAME_LENGTH),
+            Validators.pattern(NAME_PATTERN),
+          ],
+        },
+      ],
+      email: [
+        '',
+        {
+          validators: [
+            Validators.required,
+            Validators.pattern(DLSUD_EMAIL_PATTERN),
+            Validators.maxLength(MAX_EMAIL_LENGTH),
+          ],
+        },
+      ],
+      password: [
+        '',
+        {
+          validators: [
+            Validators.required,
+            Validators.minLength(MIN_PASSWORD_LENGTH),
+            Validators.maxLength(MAX_PASSWORD_LENGTH),
+          ],
+        },
+      ],
+      confirmPassword: [
+        '',
+        {
+          validators: [
+            Validators.required,
+            Validators.maxLength(MAX_PASSWORD_LENGTH),
+          ],
+        },
+      ],
       affiliation: this.fb.nonNullable.control<ClinicAffiliation>(ClinicAffiliation.STUDENT),
     },
     { validators: [passwordsMatch] },

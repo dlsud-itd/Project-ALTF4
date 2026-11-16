@@ -32,8 +32,16 @@ type AffiliationOption = { label: string; value: ClinicAffiliation };
       --p-togglebutton-content-checked-shadow: none;
     }
     :host ::ng-deep {
-      .p-selectbutton { display: flex; gap: 8px; }
-      .p-togglebutton { flex: 1; border-radius: 8px; }
+      .p-selectbutton {
+        display: flex;
+        gap: 8px;
+      }
+      .p-togglebutton {
+        flex: 1;
+        border-radius: 8px !important;
+        border-width: 1px !important;
+        border-style: solid !important;
+      }
     }
   `,
 })

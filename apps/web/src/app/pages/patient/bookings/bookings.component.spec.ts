@@ -160,9 +160,24 @@ describe('BookingsComponent', () => {
     expect(element.textContent).toContain('Appointment Confirmed!');
   });
 
+  it('should disable confirm button when reason is empty and enable when reason is provided', () => {
+    const slot = component.filteredSlots()[0];
+    component.onSelectSlot(slot);
+
+    component.reasonForVisit.set('');
+    expect(component.isConfirmDisabled()).toBeTrue();
+
+    component.reasonForVisit.set('   ');
+    expect(component.isConfirmDisabled()).toBeTrue();
+
+    component.reasonForVisit.set('Fever and cough');
+    expect(component.isConfirmDisabled()).toBeFalse();
+  });
+
   it('should handle conflict response (409) when a slot becomes unavailable', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
+    component.reasonForVisit.set('Follow-up checkup');
 
     const conflictError = new HttpErrorResponse({
       status: 409,

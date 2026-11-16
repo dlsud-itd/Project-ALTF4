@@ -111,6 +111,12 @@ export class BookingsComponent implements OnInit {
   readonly rescheduleSuccess = signal<boolean>(false);
   readonly isRescheduling = computed((): boolean => this.rescheduleId() !== null);
 
+  readonly isConfirmDisabled = computed((): boolean => {
+    if (this.isBooking()) return true;
+    if (this.isRescheduling()) return false;
+    return this.reasonForVisit().trim().length === 0;
+  });
+
   // Only bookable slots with available capacity are shown to patients
   readonly availableSlots = computed((): ClinicSlot[] => {
     return this.rawSlots().filter(
@@ -261,13 +267,16 @@ export class BookingsComponent implements OnInit {
       return;
     }
 
+    const trimmedReason = this.reasonForVisit().trim();
+    if (!trimmedReason) return;
+
     this.isBooking.set(true);
     this.clearErrors();
 
     this.appointmentsService
       .bookAppointment({
         slotId: slot.id,
-        reasonForVisit: this.reasonForVisit().trim() || undefined,
+        reasonForVisit: trimmedReason,
       })
       .subscribe({
         next: (response): void => {

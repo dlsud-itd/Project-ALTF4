@@ -251,6 +251,15 @@ describe('PatientQueueComponent', () => {
   });
 
   describe('queue summary', () => {
+    beforeEach(() => {
+      component.entry.set({
+        ticketNumber: 'A-014',
+        status: QueueStatus.WAITING,
+        positionInQueue: 3,
+        estimatedWaitMinutes: 15,
+      });
+    });
+
     it('should show the loading skeleton while the request is pending', () => {
       fixture.detectChanges();
 
@@ -341,6 +350,12 @@ describe('PatientQueueComponent', () => {
 
   describe('refresh', () => {
     beforeEach(() => {
+      component.entry.set({
+        ticketNumber: 'A-014',
+        status: QueueStatus.WAITING,
+        positionInQueue: 3,
+        estimatedWaitMinutes: 15,
+      });
       fixture.detectChanges();
       flushStatus();
     });
@@ -535,8 +550,14 @@ describe('PatientQueueComponent', () => {
       expect(hasJoin).toBeFalse();
     });
 
-    it('should keep the summary card visible', () => {
-      expect(getElement().querySelector('.now-serving')).toBeTruthy();
+    it('should hide the summary card when not in queue', () => {
+      expect(getElement().querySelector('.summary-card')).toBeNull();
+    });
+
+    it('should show queue guide cards to utilize space when not in queue', () => {
+      expect(getElement().querySelector('.queue-guide-grid')).toBeTruthy();
+      expect(normalizedText()).toContain('How Queueing Works');
+      expect(normalizedText()).toContain('Clinic Guidelines');
     });
   });
 
@@ -678,6 +699,12 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should show only the whitelisted summary fields', () => {
+      component.entry.set({
+        ticketNumber: 'A-014',
+        status: QueueStatus.WAITING,
+        positionInQueue: 3,
+        estimatedWaitMinutes: 15,
+      });
       fixture.detectChanges();
       flushStatus();
 
@@ -712,18 +739,18 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should announce banners and state messages as status', () => {
-      fixture.detectChanges();
-      expect(
-        getElement().querySelector('[role="status"] app-loading-skeleton'),
-      ).toBeTruthy();
-      flushStatus();
-
       component.entry.set({
         ticketNumber: 'A-001',
         status: QueueStatus.WAITING,
         positionInQueue: 1,
         estimatedWaitMinutes: 5,
       });
+      fixture.detectChanges();
+      expect(
+        getElement().querySelector('[role="status"] app-loading-skeleton'),
+      ).toBeTruthy();
+      flushStatus();
+
       component.hasDuplicateEntry.set(true);
       fixture.detectChanges();
       expect(
@@ -739,6 +766,12 @@ describe('PatientQueueComponent', () => {
         getElement().querySelector('app-empty-state [role="status"]'),
       ).toBeTruthy();
 
+      component.entry.set({
+        ticketNumber: 'A-001',
+        status: QueueStatus.WAITING,
+        positionInQueue: 1,
+        estimatedWaitMinutes: 5,
+      });
       component.onRefresh();
       flushStatus({ is_active: false });
       expect(
