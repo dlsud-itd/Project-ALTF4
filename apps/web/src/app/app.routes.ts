@@ -12,6 +12,7 @@ import {
   PatientProfileComponent,
   PatientQueueComponent,
   StaffDashboardComponent,
+  StaffWalkInComponent,
   StaffScheduleComponent,
   StaffProfileComponent,
 } from '@pages';
@@ -63,6 +64,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: StaffDashboardComponent },
+      { path: 'walk-in', component: StaffWalkInComponent },
       { path: 'schedule', component: StaffScheduleComponent },
       { path: 'profile', component: StaffProfileComponent },
     ],

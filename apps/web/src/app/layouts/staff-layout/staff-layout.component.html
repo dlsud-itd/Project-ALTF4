@@ -73,6 +73,17 @@
         <span class="nav-label">Dashboard</span>
       </a>
 
+      <a
+        routerLink="/staff/walk-in"
+        routerLinkActive="active"
+        class="nav-link"
+        [attr.title]="isCollapsed() ? 'Walk-in' : null"
+        (click)="closeMobileMenu()"
+      >
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        <span class="nav-label">Walk-in</span>
+      </a>
+
       <div class="nav-section-title">Planning</div>
 
       <a
