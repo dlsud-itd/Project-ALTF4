@@ -91,6 +91,16 @@ export class QueueController {
     return this.queueService.joinStaffGenerated(queueId, dto);
   }
 
+  @Get('today')
+  @ApiOperation({ summary: "Get or create today's daily queue session" })
+  @ApiResponse({
+    status: 200,
+    description: "Today's daily queue session retrieved or created",
+  })
+  async getTodayQueue() {
+    return this.queueService.getTodayQueue();
+  }
+
   @Get('track/:trackingToken')
   @ApiOperation({ summary: 'Look up queue status by tracking token' })
   async getTrackingStatus(@Param('trackingToken') trackingToken: string) {

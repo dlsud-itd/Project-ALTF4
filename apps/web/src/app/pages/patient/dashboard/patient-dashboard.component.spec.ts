@@ -13,6 +13,11 @@ describe('PatientDashboardComponent', () => {
   let appointmentsService: jasmine.SpyObj<AppointmentsService>;
   let confirmationService: ConfirmationService;
 
+  const todayStr = (): string => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const mockAppointments: PatientAppointment[] = [
     {
       id: 1,
@@ -20,7 +25,7 @@ describe('PatientDashboardComponent', () => {
       createdAt: '2026-10-31T00:00:00.000Z',
       slot: {
         id: 10,
-        clinicDate: '2026-11-12',
+        clinicDate: todayStr(),
         startTime: '10:00',
         endTime: '10:30',
         capacity: 2,
@@ -38,10 +43,19 @@ describe('PatientDashboardComponent', () => {
     spy.getMyAppointments.and.returnValue(of({ appointments: [] }));
 
     const queueServiceMock = jasmine.createSpyObj('QueueService', [
+      'getTodayQueue',
       'getQueueStatus',
       'getMyQueueEntry',
       'joinOnline',
     ]);
+    queueServiceMock.getTodayQueue.and.returnValue(
+      of({
+        id: 1,
+        clinic_date: '2026-11-19',
+        is_open: true,
+        fallback_service_minutes: 15,
+      }),
+    );
     queueServiceMock.joinOnline.and.returnValue(
       of({
         queue_entry_id: 10,

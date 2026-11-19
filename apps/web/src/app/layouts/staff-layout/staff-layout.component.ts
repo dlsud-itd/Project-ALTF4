@@ -24,6 +24,10 @@ const WALK_IN_SUBTITLE = 'Create a ticket for a patient who is on site';
 const SCHEDULE_ROUTE = '/staff/schedule';
 const SCHEDULE_TITLE = 'Slot Schedule';
 const SCHEDULE_SUBTITLE = 'Clinic slots for the next two weeks';
+const PAST_APPOINTMENTS_ROUTE = '/staff/past-appointments';
+const PAST_APPOINTMENTS_TITLE = 'Bookings history';
+const PAST_APPOINTMENTS_SUBTITLE =
+  'Archive of all past patient consultations and appointment outcomes';
 const PROFILE_ROUTE = '/staff/profile';
 const PROFILE_TITLE = 'Staff Profile';
 const PROFILE_SUBTITLE =
@@ -88,15 +92,24 @@ export class StaffLayoutComponent {
     if (url.startsWith(SCHEDULE_ROUTE)) {
       return { title: SCHEDULE_TITLE, subtitle: SCHEDULE_SUBTITLE };
     }
+    if (url.startsWith(PAST_APPOINTMENTS_ROUTE)) {
+      return {
+        title: PAST_APPOINTMENTS_TITLE,
+        subtitle: PAST_APPOINTMENTS_SUBTITLE,
+      };
+    }
     if (url.startsWith(PROFILE_ROUTE)) {
       return { title: PROFILE_TITLE, subtitle: PROFILE_SUBTITLE };
     }
     return null;
   });
-  // The dashboard uses the light page background like the patient dashboard.
-  readonly hasWhitePageBg = computed((): boolean =>
-    this.currentUrl().startsWith(DASHBOARD_ROUTE),
-  );
+  // The dashboard and past appointments use the light page background.
+  readonly hasWhitePageBg = computed((): boolean => {
+    const url = this.currentUrl();
+    return (
+      url.startsWith(DASHBOARD_ROUTE) || url.startsWith(PAST_APPOINTMENTS_ROUTE)
+    );
+  });
   readonly isMobileMenuOpen = signal<boolean>(false);
   readonly isCollapsed = signal<boolean>(false);
 

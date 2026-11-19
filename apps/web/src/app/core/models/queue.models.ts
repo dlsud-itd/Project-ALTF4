@@ -129,3 +129,10 @@ export type WebSocketConnectionStatus = {
   socketId?: string;
   timestamp: string;
 };
+
+export type DailyQueueSession = {
+  id: number;
+  clinic_date: string;
+  is_open: boolean;
+  fallback_service_minutes: number;
+};

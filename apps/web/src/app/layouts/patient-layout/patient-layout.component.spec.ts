@@ -30,6 +30,7 @@ describe('PatientLayoutComponent', () => {
 
     expect(navItems).toEqual([
       'Dashboard',
+      'Schedule',
       'Bookings',
       'Queue',
       'Profile',

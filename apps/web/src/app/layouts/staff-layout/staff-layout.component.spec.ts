@@ -22,16 +22,20 @@ describe('StaffLayoutComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render sidebar navigation links for Dashboard, Walk-in, Schedule and Profile', () => {
+  it('should render sidebar navigation links for Dashboard, Walk-in, Schedule, Bookings history and Profile', () => {
     const navItems = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.sidebar-nav .nav-link'),
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '.sidebar-nav .nav-link',
+      ),
     ).map((item) => item.textContent?.trim());
 
-    expect(navItems).toEqual(['Dashboard', 'Walk-in', 'Schedule', 'Profile']);
+    expect(navItems).toEqual(['Dashboard', 'Walk-in', 'Schedule', 'Bookings history', 'Profile']);
   });
 
   it('should display brand title in the sidebar', () => {
-    const brandTitle = (fixture.nativeElement as HTMLElement).querySelector('.brand-name');
+    const brandTitle = (fixture.nativeElement as HTMLElement).querySelector(
+      '.brand-name',
+    );
     expect(brandTitle?.textContent).toContain('ClinicQueue');
   });
 

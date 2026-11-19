@@ -185,4 +185,16 @@ export class StaffScheduleComponent implements OnInit {
   formatTime(timeStr: string): string {
     return formatTime12h(timeStr);
   }
+
+  formatDisplayDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
 }

@@ -88,28 +88,6 @@
                   : "The queue is empty. New walk-ins will appear here."
               }}
             </p>
-            @if (waitingCount() > 0) {
-              <p-button
-                label="Call Next Patient"
-                icon="pi pi-bell"
-                severity="primary"
-                [outlined]="true"
-                [loading]="isGeneratingQueue()"
-                [disabled]="
-                  currentTicket() !== null ||
-                  waitingCount() === 0 ||
-                  isGeneratingQueue()
-                "
-                [title]="
-                  currentTicket()
-                    ? 'A patient is already being called'
-                    : waitingCount() === 0
-                      ? 'The queue is empty'
-                      : ''
-                "
-                (onClick)="onCallNext()"
-              />
-            }
           </div>
         </div>
       }

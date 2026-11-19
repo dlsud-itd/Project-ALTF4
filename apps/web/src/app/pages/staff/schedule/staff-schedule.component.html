@@ -56,7 +56,7 @@
         <tbody>
           @for (slot of slots(); track slot.id) {
             <tr>
-              <td>{{ slot.clinicDate }}</td>
+              <td>{{ formatDisplayDate(slot.clinicDate) }}</td>
               <td>{{ formatTimeRange(slot.startTime, slot.endTime) }}</td>
               <td>{{ slot.capacity }}</td>
               <td>{{ slot.remainingCapacity }}</td>

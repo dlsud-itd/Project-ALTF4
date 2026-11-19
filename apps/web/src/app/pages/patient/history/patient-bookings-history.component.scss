@@ -1,0 +1,294 @@
+.bookings-history-page {
+  padding: 1.5rem 2rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+
+  .header-intro {
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #075a5b;
+      margin: 0 0 0.25rem;
+    }
+
+    .subtitle {
+      color: var(--text-muted, #64748b);
+      font-size: 0.95rem;
+      margin: 0;
+    }
+  }
+}
+
+.action-alert {
+  margin-bottom: 1.25rem;
+}
+
+.filter-bar {
+  margin-bottom: 1.5rem;
+
+  .filter-tabs {
+    display: inline-flex;
+    background: var(--surface-100, #f1f5f9);
+    padding: 0.25rem;
+    border-radius: 10px;
+    gap: 0.25rem;
+  }
+
+  .filter-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-muted, #64748b);
+    cursor: pointer;
+    transition: all 180ms ease;
+
+    &:hover {
+      color: #075a5b;
+    }
+
+    &.active {
+      background: #ffffff;
+      color: #075a5b;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .count-badge {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1rem 0.45rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    &--primary {
+      background: rgba(7, 90, 91, 0.12);
+      color: #075a5b;
+    }
+  }
+}
+
+.empty-bookings-card {
+  background: #ffffff;
+  border: 1px solid var(--surface-200, #e2e8f0);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.appointments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.appointment-row-card {
+  background: #ffffff;
+  border: 1px solid var(--surface-200, #e2e8f0);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+
+  &:hover {
+    box-shadow: 0 4px 14px rgba(7, 90, 91, 0.08);
+  }
+
+  &.past-card {
+    opacity: 0.88;
+    background: #fafafa;
+  }
+
+  /* Date block on the left */
+  .date-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    height: 76px;
+    padding: 0.4rem 0.6rem;
+    background: #eef4f4;
+    border-radius: 14px;
+    color: #075a5b;
+    text-align: center;
+    flex-shrink: 0;
+
+    .day-name {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .day-number {
+      font-size: 1.45rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .month-name {
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    &--today {
+      background: #075a5b;
+      color: #ffffff;
+      box-shadow: 0 3px 10px rgba(7, 90, 91, 0.25);
+    }
+  }
+
+  /* Main content in the center */
+  .card-content-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+
+    .row-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+
+      .time-range {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+
+        i {
+          color: #075a5b;
+          font-size: 0.95rem;
+        }
+      }
+
+      .full-date-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.88rem;
+        color: var(--text-muted, #64748b);
+
+        i {
+          color: var(--text-muted, #64748b);
+          font-size: 0.85rem;
+        }
+      }
+    }
+
+    .row-details {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+
+      .info-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.88rem;
+        color: var(--text-muted, #475569);
+
+        i {
+          color: #075a5b;
+          font-size: 0.85rem;
+        }
+      }
+    }
+
+    .ticket-reservation-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.25rem;
+      padding: 0.35rem 0.75rem;
+      background: rgba(7, 90, 91, 0.06);
+      border: 1px dashed rgba(7, 90, 91, 0.25);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: #075a5b;
+      align-self: flex-start;
+
+      .ticket-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .ticket-wait-info {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+    }
+  }
+
+  /* Right-side actions and tag */
+  .card-actions-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .bookings-history-page {
+    padding: 1rem 1rem 2.5rem;
+  }
+
+  .appointment-row-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem;
+    gap: 1rem;
+
+    .card-actions-side {
+      width: 100%;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--surface-100, #f1f5f9);
+
+      .action-buttons {
+        margin-left: auto;
+      }
+    }
+  }
+
+  .page-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

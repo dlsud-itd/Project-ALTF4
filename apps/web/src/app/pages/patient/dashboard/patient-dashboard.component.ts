@@ -82,6 +82,7 @@ export class PatientDashboardComponent implements OnInit {
   readonly patientName = computed(
     (): string => this.authService.currentUser()?.fullName ?? 'Patient',
   );
+  readonly queueId = signal<number>(CURRENT_QUEUE_ID);
   readonly currentTicket = signal<string | null>(null);
   readonly positionInQueue = signal<number | null>(null);
   readonly estimatedWaitMinutes = signal<number>(10);
@@ -108,24 +109,49 @@ export class PatientDashboardComponent implements OnInit {
   readonly actionError = signal<string | null>(null);
   readonly actionSuccess = signal<string | null>(null);
 
+  private getTodayDateString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   // Computed subsets
   readonly upcomingAppointments = computed((): PatientAppointment[] => {
+    const today = this.getTodayDateString();
     return this.appointments().filter(
-      (a: PatientAppointment): boolean => a.status === 'BOOKED',
+      (a: PatientAppointment): boolean =>
+        a.status === 'BOOKED' && a.slot.clinicDate >= today,
     );
   });
 
   readonly pastAppointments = computed((): PatientAppointment[] => {
+    const today = this.getTodayDateString();
     return this.appointments().filter(
-      (a: PatientAppointment): boolean => a.status !== 'BOOKED',
+      (a: PatientAppointment): boolean =>
+        a.status !== 'BOOKED' || a.slot.clinicDate < today,
     );
   });
 
   ngOnInit(): void {
-    this.loadAppointments();
-    this.loadQueueStatus();
-    this.loadMyQueueEntry();
-    this.listenForSseEvents();
+    this.queueService.getTodayQueue().subscribe({
+      next: (todayQueue): void => {
+        if (todayQueue?.id) {
+          this.queueId.set(todayQueue.id);
+        }
+        this.loadAppointments();
+        this.loadQueueStatus();
+        this.loadMyQueueEntry();
+        this.listenForSseEvents();
+      },
+      error: (): void => {
+        this.loadAppointments();
+        this.loadQueueStatus();
+        this.loadMyQueueEntry();
+        this.listenForSseEvents();
+      },
+    });
   }
 
   private listenForSseEvents(): void {
@@ -137,14 +163,14 @@ export class PatientDashboardComponent implements OnInit {
       });
 
     this.destroyRef.onDestroy((): void => this.sseService.disconnect());
-    this.sseService.subscribeToQueue(CURRENT_QUEUE_ID);
+    this.sseService.subscribeToQueue(this.queueId());
   }
 
   loadQueueStatus(): void {
     this.isQueueLoading.set(true);
     this.hasQueueError.set(false);
 
-    this.queueService.getQueueStatus(CURRENT_QUEUE_ID).subscribe({
+    this.queueService.getQueueStatus(this.queueId()).subscribe({
       next: (res: QueueStatusResponse): void => {
         if (res.currently_serving) {
           this.nowServingTicket.set(res.currently_serving.ticket_number);
@@ -163,19 +189,22 @@ export class PatientDashboardComponent implements OnInit {
   }
 
   loadMyQueueEntry(): void {
-    this.queueService.getMyQueueEntry(CURRENT_QUEUE_ID).subscribe({
+    this.queueService.getMyQueueEntry(this.queueId()).subscribe({
       next: (entry: PatientQueueEntryResponse | null): void => {
         if (entry) {
           this.currentTicket.set(entry.ticket_number);
           this.positionInQueue.set(entry.position_in_queue);
           this.estimatedWaitMinutes.set(entry.estimated_wait_minutes);
         } else {
-          // If queue endpoint returns null, fallback to active booked appointment's reserved entry
-          const active = this.upcomingAppointments().find((a) => a.reservedQueueEntry);
-          if (active?.reservedQueueEntry) {
-            this.currentTicket.set(active.reservedQueueEntry.ticketNumber);
-            this.positionInQueue.set(active.reservedQueueEntry.positionInQueue);
-            this.estimatedWaitMinutes.set(active.reservedQueueEntry.estimatedWaitMinutes);
+          // If queue endpoint returns null, fallback to active booked appointment ONLY if scheduled for TODAY
+          const today = this.getTodayDateString();
+          const activeToday = this.upcomingAppointments().find(
+            (a) => a.slot.clinicDate === today && a.reservedQueueEntry,
+          );
+          if (activeToday?.reservedQueueEntry) {
+            this.currentTicket.set(activeToday.reservedQueueEntry.ticketNumber);
+            this.positionInQueue.set(activeToday.reservedQueueEntry.positionInQueue);
+            this.estimatedWaitMinutes.set(activeToday.reservedQueueEntry.estimatedWaitMinutes);
           } else {
             this.currentTicket.set(null);
             this.positionInQueue.set(null);
@@ -183,11 +212,17 @@ export class PatientDashboardComponent implements OnInit {
         }
       },
       error: (): void => {
-        const active = this.upcomingAppointments().find((a) => a.reservedQueueEntry);
-        if (active?.reservedQueueEntry) {
-          this.currentTicket.set(active.reservedQueueEntry.ticketNumber);
-          this.positionInQueue.set(active.reservedQueueEntry.positionInQueue);
-          this.estimatedWaitMinutes.set(active.reservedQueueEntry.estimatedWaitMinutes);
+        const today = this.getTodayDateString();
+        const activeToday = this.upcomingAppointments().find(
+          (a) => a.slot.clinicDate === today && a.reservedQueueEntry,
+        );
+        if (activeToday?.reservedQueueEntry) {
+          this.currentTicket.set(activeToday.reservedQueueEntry.ticketNumber);
+          this.positionInQueue.set(activeToday.reservedQueueEntry.positionInQueue);
+          this.estimatedWaitMinutes.set(activeToday.reservedQueueEntry.estimatedWaitMinutes);
+        } else {
+          this.currentTicket.set(null);
+          this.positionInQueue.set(null);
         }
       },
     });
@@ -202,14 +237,18 @@ export class PatientDashboardComponent implements OnInit {
         this.appointments.set(res.appointments);
         this.isAppointmentsLoading.set(false);
 
-        // Auto-sync dashboard ticket from active booked appointment if not yet set
-        const active = res.appointments.find(
-          (a) => a.status === 'BOOKED' && a.reservedQueueEntry,
+        // Auto-sync dashboard ticket from active booked appointment ONLY if scheduled for TODAY
+        const today = this.getTodayDateString();
+        const activeToday = res.appointments.find(
+          (a) =>
+            a.status === 'BOOKED' &&
+            a.slot.clinicDate === today &&
+            a.reservedQueueEntry,
         );
-        if (active?.reservedQueueEntry && !this.currentTicket()) {
-          this.currentTicket.set(active.reservedQueueEntry.ticketNumber);
-          this.positionInQueue.set(active.reservedQueueEntry.positionInQueue);
-          this.estimatedWaitMinutes.set(active.reservedQueueEntry.estimatedWaitMinutes);
+        if (activeToday?.reservedQueueEntry && !this.currentTicket()) {
+          this.currentTicket.set(activeToday.reservedQueueEntry.ticketNumber);
+          this.positionInQueue.set(activeToday.reservedQueueEntry.positionInQueue);
+          this.estimatedWaitMinutes.set(activeToday.reservedQueueEntry.estimatedWaitMinutes);
         }
       },
       error: (err: HttpErrorResponse): void => {
@@ -299,7 +338,7 @@ export class PatientDashboardComponent implements OnInit {
     this.joinQueueError.set(null);
 
     this.queueService
-      .joinOnline(CURRENT_QUEUE_ID, {
+      .joinOnline(this.queueId(), {
         name,
         patientId,
         reasonForVisit: 'General Consultation',

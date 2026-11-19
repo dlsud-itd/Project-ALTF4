@@ -1,45 +1,113 @@
-<!-- Upcoming appointments -->
-<section class="appointments-panel" aria-labelledby="appointments-title">
+<!-- Appointments Panel with Tabs -->
+<section class="appointments-panel" aria-labelledby="appointments-panel-title">
+  <!-- Tabs Navigation Header -->
   <div class="panel-header">
-    <h3 id="appointments-title">
-      <i class="pi pi-calendar"></i>
-      Upcoming appointments
-    </h3>
+    <div class="panel-tabs" role="tablist">
+      <button type="button" id="appointments-title" class="panel-tab-btn" [class.active]="activeTab() === 'UPCOMING'"
+        (click)="setTab('UPCOMING')" role="tab" [attr.aria-selected]="activeTab() === 'UPCOMING'">
+        <i class="pi pi-calendar"></i>
+        <span>Upcoming appointments</span>
+        @if (appointments().length > 0) {
+        <span class="tab-badge">{{ appointments().length }}</span>
+        }
+      </button>
+
+      <button type="button" class="panel-tab-btn" [class.active]="activeTab() === 'PAST'" (click)="setTab('PAST')"
+        role="tab" [attr.aria-selected]="activeTab() === 'PAST'">
+        <i class="pi pi-history"></i>
+        <span>Bookings history</span>
+        @if (pastAppointments().length > 0) {
+        <span class="tab-badge tab-badge--muted">{{ pastAppointments().length }}</span>
+        }
+      </button>
+    </div>
   </div>
 
   @if (isAppointmentsLoading()) {
-    <app-loading-skeleton [lines]="3" />
+  <app-loading-skeleton [lines]="3" />
   } @else if (hasAppointmentsError()) {
-    <app-error-state
-      title="Could not load appointments"
-      message="Check your connection and try again."
-      (retry)="onRetryAppointments()"
-    />
-  } @else if (!hasAppointments()) {
-    <app-empty-state
-      icon="pi-calendar"
-      title="No upcoming appointments"
-      message="Booked appointments will appear here."
-    />
+  <app-error-state title="Could not load appointments" message="Check your connection and try again."
+    (retry)="onRetryAppointments()" />
   } @else {
-    <ul class="appointment-list">
-      @for (row of appointments(); track row.id) {
-        <li>
-          <span class="appointment-name">{{ row.patientName }}</span>
-          <div class="appointment-details">
-            <span class="appointment-date">
-              {{ row.clinicDate | date: dateFormat }}
-            </span>
-            <span class="appointment-time">{{
-              appointmentTimeRange(row)
-            }}</span>
+    <!-- TAB 1: UPCOMING APPOINTMENTS -->
+    @if (activeTab() === 'UPCOMING') {
+      @if (appointments().length === 0) {
+        <app-empty-state
+          icon="pi-calendar"
+          title="No upcoming appointments"
+          message="Booked appointments for today and future dates will appear here."
+        />
+      } @else {
+        <!-- Date Selector Pills (oblong with date) -->
+        <div class="date-selector-container">
+          <div class="date-pills-row" role="tablist" aria-label="Clinic dates">
+            @for (pill of datePills(); track pill.dateKey) {
+              <button
+                type="button"
+                class="date-pill"
+                [class.active]="activeDateKey() === pill.dateKey"
+                (click)="selectDate(pill.dateKey)"
+                role="tab"
+                [attr.aria-selected]="activeDateKey() === pill.dateKey"
+              >
+                <i class="pi pi-calendar pill-icon" aria-hidden="true"></i>
+                <span class="pill-date">{{ pill.displayDate }}</span>
+              </button>
+            }
           </div>
-          <p-tag
-            [value]="appointmentStatusLabel(row.status)"
-            [severity]="appointmentStatusSeverity(row.status)"
-          />
-        </li>
+        </div>
+
+        <!-- Appointments List for the Selected Date -->
+        <div class="date-appointments-wrapper">
+    @if (selectedUpcomingAppointments().length === 0) {
+    <p class="empty-date-msg">No appointments scheduled for this date.</p>
+    } @else {
+    <ul class="appointment-list">
+      @for (row of selectedUpcomingAppointments(); track row.id) {
+      <li>
+        <span class="appointment-name">{{ row.patientName }}</span>
+        <div class="appointment-details">
+          <span class="appointment-time">
+            <i class="pi pi-clock"></i>
+            {{ appointmentTimeRange(row) }}
+          </span>
+        </div>
+        <p-tag [value]="appointmentStatusLabel(row.status)" [severity]="appointmentStatusSeverity(row.status)" />
+      </li>
       }
     </ul>
+    }
+  </div>
+  }
+  }
+
+  <!-- TAB 2: PAST APPOINTMENTS -->
+  @if (activeTab() === 'PAST') {
+  @if (pastAppointments().length === 0) {
+  <app-empty-state icon="pi-history" title="No past appointments"
+    message="Completed, cancelled, or past consultations will appear here." />
+  } @else {
+  <div class="past-appointments-wrapper">
+    <ul class="appointment-list past-list">
+      @for (row of pastAppointments(); track row.id) {
+      <li>
+        <span class="appointment-name">{{ row.patientName }}</span>
+        <div class="appointment-details">
+          <span class="appointment-date">
+            <i class="pi pi-calendar"></i>
+            {{ row.clinicDate | date: dateFormat }}
+          </span>
+          <span class="appointment-time">
+            <i class="pi pi-clock"></i>
+            {{ appointmentTimeRange(row) }}
+          </span>
+        </div>
+        <p-tag [value]="appointmentStatusLabel(row.status)" [severity]="appointmentStatusSeverity(row.status)" />
+      </li>
+      }
+    </ul>
+  </div>
+  }
+  }
   }
 </section>

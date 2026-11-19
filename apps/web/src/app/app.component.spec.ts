@@ -46,11 +46,13 @@ describe('AppComponent', () => {
 
     authServiceSpy.currentUser.set({ id: 1, fullName: 'Test User' });
     TestBed.flushEffects();
+    fixture.detectChanges();
 
     expect(sessionTimeoutServiceSpy.startMonitoring).toHaveBeenCalled();
 
     authServiceSpy.currentUser.set(null);
     TestBed.flushEffects();
+    fixture.detectChanges();
 
     expect(sessionTimeoutServiceSpy.stopMonitoring).toHaveBeenCalled();
   });

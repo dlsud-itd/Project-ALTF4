@@ -41,8 +41,23 @@ export class QueueReadService {
     return createHash('sha256').update(rawToken).digest('hex');
   }
 
-  async getOrderedWaitingEntries(queueId: number) {
-    return this.prisma.queueEntry.findMany({
+  async getOrderedWaitingEntries(queueId: number, queueClinicDate?: Date) {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    let targetDateStr = todayStr;
+    if (queueClinicDate) {
+      targetDateStr = queueClinicDate.toISOString().split('T')[0];
+    } else {
+      const q = await this.prisma.dailyQueue.findUnique({
+        where: { id: queueId },
+        select: { clinicDate: true },
+      });
+      if (q?.clinicDate) {
+        targetDateStr = q.clinicDate.toISOString().split('T')[0];
+      }
+    }
+
+    const entries = await this.prisma.queueEntry.findMany({
       where: {
         dailyQueueId: queueId,
         status: QueueStatus.WAITING,
@@ -57,7 +72,25 @@ export class QueueReadService {
         firstName: true,
         lastName: true,
         reasonForVisit: true,
+        appointment: {
+          select: {
+            slot: {
+              select: {
+                clinicDate: true,
+              },
+            },
+          },
+        },
       },
+    });
+
+    return entries.filter((entry) => {
+      const apptDate = (entry as { appointment?: { slot?: { clinicDate?: Date } } | null }).appointment?.slot?.clinicDate;
+      if (!apptDate) {
+        return true;
+      }
+      const apptDateStr = apptDate.toISOString().split('T')[0];
+      return apptDateStr === targetDateStr && apptDateStr === todayStr;
     });
   }
 
@@ -134,7 +167,10 @@ export class QueueReadService {
   async getQueueStatus(queueId: number, includePatientDetails = false) {
     const queue = await this.getQueueOrThrow(queueId);
     const newlyNoShowTickets = await this.expireCalledEntries(queueId);
-    const waitingEntries = await this.getOrderedWaitingEntries(queueId);
+    const waitingEntries = await this.getOrderedWaitingEntries(
+      queueId,
+      queue.clinicDate,
+    );
     const currentServing = await this.prisma.queueEntry.findFirst({
       where: {
         dailyQueueId: queueId,
@@ -154,8 +190,29 @@ export class QueueReadService {
         firstName: true,
         lastName: true,
         reasonForVisit: true,
+        appointment: {
+          select: {
+            slot: {
+              select: {
+                clinicDate: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const servingApptDate = (
+      currentServing as {
+        appointment?: { slot?: { clinicDate?: Date } } | null;
+      }
+    )?.appointment?.slot?.clinicDate
+      ?.toISOString()
+      .split('T')[0];
+    const validCurrentServing =
+      servingApptDate && servingApptDate !== todayStr ? null : currentServing;
 
     let totalCompletedToday = 0;
     let totalNoShowsToday = 0;
@@ -204,7 +261,7 @@ export class QueueReadService {
       : 0;
     const serverTime = new Date().toISOString();
     const servingTicket = presentServingTicket(
-      currentServing,
+      validCurrentServing,
       includePatientDetails,
     );
 
@@ -278,16 +335,51 @@ export class QueueReadService {
     };
   }
 
+  async getOrCreateTodayQueue() {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayDate = new Date(`${todayStr}T00:00:00.000Z`);
+
+    let queue = await this.prisma.dailyQueue.findUnique({
+      where: { clinicDate: todayDate },
+    });
+
+    if (!queue) {
+      queue = await this.prisma.dailyQueue.create({
+        data: {
+          clinicDate: todayDate,
+          isOpen: true,
+          nextNumber: 1,
+          fallbackServiceMinutes: 15,
+        },
+      });
+    }
+
+    return {
+      id: queue.id,
+      clinic_date: queue.clinicDate.toISOString().split('T')[0],
+      is_open: queue.isOpen,
+      fallback_service_minutes: queue.fallbackServiceMinutes,
+    };
+  }
+
   async getMyQueueEntry(queueId: number, patientId: number) {
     const defaultQueue = await this.getQueueOrThrow(queueId);
     await this.expireCalledEntries(queueId);
 
-    // Look for active queue entry across target queue or any daily queue
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayDate = new Date(`${todayStr}T00:00:00.000Z`);
+
+    // Look for active queue entry across target queue or today/future queues
     let entry = await this.prisma.queueEntry.findFirst({
       where: {
         dailyQueueId: queueId,
         patientId,
         status: { in: [...ACTIVE_QUEUE_STATUSES] },
+        dailyQueue: {
+          clinicDate: { gte: todayDate },
+        },
       },
       select: {
         id: true,
@@ -307,6 +399,9 @@ export class QueueReadService {
         where: {
           patientId,
           status: { in: [...ACTIVE_QUEUE_STATUSES] },
+          dailyQueue: {
+            clinicDate: { gte: todayDate },
+          },
         },
         select: {
           id: true,

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import {
   AbstractControl,
@@ -36,7 +36,7 @@ type IssuedWalkInTicket = {
   templateUrl: './staff-walk-in.component.html',
   styleUrl: './staff-walk-in.component.scss',
 })
-export class StaffWalkInComponent {
+export class StaffWalkInComponent implements OnInit {
   readonly QueueStatus = QueueStatus;
   private readonly queueService = inject(QueueService);
   private readonly formBuilder = inject(FormBuilder);
@@ -62,6 +62,19 @@ export class StaffWalkInComponent {
     name: ['', [Validators.required, this.validatePatientName]],
     reasonForVisit: ['', [Validators.maxLength(REASON_MAX_LENGTH)]],
   });
+
+  ngOnInit(): void {
+    this.queueService.getTodayQueue().subscribe({
+      next: (todayQueue): void => {
+        if (todayQueue?.id) {
+          this.queueId.set(todayQueue.id);
+        }
+      },
+      error: (): void => {
+        // Fall back to default QUEUE_ID
+      },
+    });
+  }
 
   onGenerateQueueNumber(): void {
     if (this.walkInForm.invalid) {

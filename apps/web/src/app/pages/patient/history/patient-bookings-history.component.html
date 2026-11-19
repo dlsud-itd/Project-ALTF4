@@ -1,0 +1,175 @@
+<div class="bookings-history-page">
+  <p-confirmdialog />
+
+  <!-- Page Top Bar -->
+  <header class="page-top">
+    <div class="header-intro">
+      <h2>My Bookings</h2>
+      <p class="subtitle">View and manage your appointment history and active consultations</p>
+    </div>
+
+    <div class="header-actions">
+      <a routerLink="/patient/schedule">
+        <p-button label="Schedule Appointment" icon="pi pi-calendar-plus" />
+      </a>
+    </div>
+  </header>
+
+  <!-- Action Feedback Alerts -->
+  @if (actionSuccess()) {
+    <div class="action-alert">
+      <p-message severity="success" [text]="actionSuccess()!" />
+    </div>
+  }
+  @if (actionError()) {
+    <div class="action-alert">
+      <p-message severity="error" [text]="actionError()!" />
+    </div>
+  }
+
+  <!-- Filter Segment / Tabs -->
+  <div class="filter-bar">
+    <div class="filter-tabs">
+      <button
+        type="button"
+        class="filter-tab"
+        [class.active]="activeFilter() === 'ALL'"
+        (click)="setFilter('ALL')"
+      >
+        <span>All</span>
+        <span class="count-badge">{{ appointments().length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="filter-tab"
+        [class.active]="activeFilter() === 'UPCOMING'"
+        (click)="setFilter('UPCOMING')"
+      >
+        <span>Upcoming</span>
+        <span class="count-badge count-badge--primary">{{ upcomingAppointments().length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="filter-tab"
+        [class.active]="activeFilter() === 'PAST'"
+        (click)="setFilter('PAST')"
+      >
+        <span>Past</span>
+        <span class="count-badge">{{ pastAppointments().length }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <section class="appointments-content">
+    @if (isLoading()) {
+      <app-loading-skeleton [lines]="5" />
+    } @else if (error()) {
+      <app-error-state
+        title="Could not load your bookings"
+        [message]="error()!"
+        (retry)="loadAppointments()"
+      />
+    } @else if (filteredAppointments().length === 0) {
+      <div class="empty-bookings-card">
+        <app-empty-state
+          icon="pi-calendar"
+          [title]="activeFilter() === 'UPCOMING' ? 'No upcoming bookings' : activeFilter() === 'PAST' ? 'No past consultations' : 'No bookings found'"
+          [message]="activeFilter() === 'UPCOMING' ? 'You have no scheduled consultations. Book a slot to get started!' : 'Appointments you book will be tracked here.'"
+        >
+          <a routerLink="/patient/schedule">
+            <p-button label="Schedule an Appointment" icon="pi pi-calendar-plus" />
+          </a>
+        </app-empty-state>
+      </div>
+    } @else {
+      <div class="appointments-list">
+        @for (appt of filteredAppointments(); track appt.id) {
+          <article class="appointment-row-card" [class.past-card]="!isUpcoming(appt)">
+            <!-- Left: Calendar Date Block -->
+            <div class="date-block" [class.date-block--today]="appt.slot.clinicDate === todayStr()">
+              <span class="day-name">{{ getDayOfWeek(appt.slot.clinicDate) }}</span>
+              <span class="day-number">{{ getDayNumber(appt.slot.clinicDate) }}</span>
+              <span class="month-name">{{ getMonthName(appt.slot.clinicDate) }}</span>
+            </div>
+
+            <!-- Middle: Main Information -->
+            <div class="card-content-main">
+              <div class="row-header">
+                <span class="time-range">
+                  <i class="pi pi-clock"></i>
+                  {{ formatTimeRange(appt.slot.startTime, appt.slot.endTime) }}
+                </span>
+                <span class="full-date-label">
+                  <i class="pi pi-calendar"></i>
+                  {{ formatClinicDate(appt.slot.clinicDate) }}
+                </span>
+              </div>
+
+              <div class="row-details">
+                <div class="info-item">
+                  <i class="pi pi-user"></i>
+                  <span>Dr. Maria Santos, MD • University Physician</span>
+                </div>
+                <div class="info-item">
+                  <i class="pi pi-map-marker"></i>
+                  <span>DLSU-D University Health Services Clinic</span>
+                </div>
+              </div>
+
+              @if (appt.reservedQueueEntry && isUpcoming(appt)) {
+                <div class="ticket-reservation-pill">
+                  <span class="ticket-badge">
+                    <i class="pi pi-ticket"></i>
+                    Ticket <strong>{{ appt.reservedQueueEntry.ticketNumber }}</strong>
+                  </span>
+                  <span class="ticket-wait-info">
+                    <i class="pi pi-users"></i>
+                    @if (appt.reservedQueueEntry.positionInQueue <= 1) {
+                      Next in line
+                    } @else {
+                      {{ appt.reservedQueueEntry.positionInQueue - 1 }} ahead
+                    }
+                    &bull; ~{{ appt.reservedQueueEntry.estimatedWaitMinutes }} min wait
+                  </span>
+                </div>
+              }
+            </div>
+
+            <!-- Right: Status Tag and Actions -->
+            <div class="card-actions-side">
+              <p-tag
+                [value]="statusLabel(appt.status)"
+                [severity]="statusSeverity(appt.status)"
+              />
+
+              @if (isUpcoming(appt)) {
+                <div class="action-buttons">
+                  <a routerLink="/patient/schedule" [queryParams]="{ reschedule: appt.id }">
+                    <p-button
+                      label="Reschedule"
+                      icon="pi pi-calendar"
+                      [outlined]="true"
+                      size="small"
+                    />
+                  </a>
+                  <p-button
+                    label="Cancel"
+                    icon="pi pi-times"
+                    severity="danger"
+                    [outlined]="true"
+                    size="small"
+                    [loading]="cancellingId() === appt.id"
+                    (onClick)="onCancelAppointment(appt)"
+                  />
+                </div>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+</div>

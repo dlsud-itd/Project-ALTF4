@@ -5,7 +5,7 @@
   </div>
 
   <div class="button-row">
-    <a routerLink="/patient/bookings">
+    <a routerLink="/patient/schedule">
       <p-button label="Book Appointment" icon="pi pi-calendar-plus" />
     </a>
   </div>
@@ -71,7 +71,7 @@
             (onClick)="onJoinQueue()"
           />
         } @else {
-          <a routerLink="/patient/bookings">
+          <a routerLink="/patient/schedule">
             <p-button
               label="Book to Queue"
               icon="pi pi-calendar-plus"
@@ -192,7 +192,7 @@
 
               <div class="appointment-footer">
                 <div class="management-actions">
-                  <a routerLink="/patient/bookings" [queryParams]="{ reschedule: appt.id }">
+                  <a routerLink="/patient/schedule" [queryParams]="{ reschedule: appt.id }">
                     <p-button
                       label="Reschedule"
                       icon="pi pi-calendar"

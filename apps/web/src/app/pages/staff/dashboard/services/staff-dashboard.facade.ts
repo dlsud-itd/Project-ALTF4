@@ -106,10 +106,11 @@ export class StaffDashboardFacade {
     Validators.maxLength(NOTES_MAX_LENGTH),
   ]);
   readonly appointments = signal<StaffAppointmentRow[]>([]);
+  readonly pastAppointments = signal<StaffAppointmentRow[]>([]);
   readonly isAppointmentsLoading = signal<boolean>(false);
   readonly hasAppointmentsError = signal<boolean>(false);
   readonly hasAppointments = computed(
-    (): boolean => this.appointments().length > 0,
+    (): boolean => this.appointments().length > 0 || this.pastAppointments().length > 0,
   );
   readonly isQueueActive = signal<boolean>(true);
 
@@ -134,9 +135,22 @@ export class StaffDashboardFacade {
       .subscribe((): void => this.loadAppointments());
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
     this.destroyRef.onDestroy(() => this.clearNoticeTimer());
-    this.sseService.subscribeToQueue(this.queueId());
-    this.loadAppointments();
-    this.loadQueueStatus();
+
+    this.queueService.getTodayQueue().subscribe({
+      next: (todayQueue): void => {
+        if (todayQueue?.id) {
+          this.queueId.set(todayQueue.id);
+        }
+        this.sseService.subscribeToQueue(this.queueId());
+        this.loadAppointments();
+        this.loadQueueStatus();
+      },
+      error: (): void => {
+        this.sseService.subscribeToQueue(this.queueId());
+        this.loadAppointments();
+        this.loadQueueStatus();
+      },
+    });
   }
 
   private listenForSseEvents(): void {
@@ -173,6 +187,27 @@ export class StaffDashboardFacade {
               (first, second) =>
                 first.clinicDate.localeCompare(second.clinicDate) ||
                 first.startTime.localeCompare(second.startTime),
+            ),
+        );
+        this.pastAppointments.set(
+          response.appointments
+            .filter(
+              (appointment) =>
+                appointment.status !== UPCOMING_APPOINTMENT_STATUS ||
+                appointment.slot.clinicDate < today,
+            )
+            .map((appointment): StaffAppointmentRow => ({
+              id: appointment.id,
+              patientName: appointment.patient.fullName,
+              clinicDate: appointment.slot.clinicDate,
+              startTime: appointment.slot.startTime,
+              endTime: appointment.slot.endTime,
+              status: appointment.status,
+            }))
+            .sort(
+              (first, second) =>
+                second.clinicDate.localeCompare(first.clinicDate) ||
+                second.startTime.localeCompare(first.startTime),
             ),
         );
         this.isAppointmentsLoading.set(false);

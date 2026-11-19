@@ -9,12 +9,14 @@ import {
   RegisterComponent,
   PatientDashboardComponent,
   BookingsComponent,
+  PatientBookingsHistoryComponent,
   PatientProfileComponent,
   PatientQueueComponent,
   PatientNotificationsComponent,
   StaffDashboardComponent,
   StaffWalkInComponent,
   StaffScheduleComponent,
+  StaffPastAppointmentsComponent,
   StaffProfileComponent,
 } from '@pages';
 import { authGuard, guestGuard, roleGuard } from '@core/guards';
@@ -50,7 +52,9 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: PatientDashboardComponent },
-      { path: 'bookings', component: BookingsComponent },
+      { path: 'schedule', component: BookingsComponent },
+      { path: 'bookings', component: PatientBookingsHistoryComponent },
+      { path: 'history', redirectTo: 'bookings', pathMatch: 'full' },
       { path: 'queue', component: PatientQueueComponent },
       { path: 'notifications', component: PatientNotificationsComponent },
       { path: 'profile', component: PatientProfileComponent },
@@ -68,6 +72,7 @@ export const routes: Routes = [
       { path: 'dashboard', component: StaffDashboardComponent },
       { path: 'walk-in', component: StaffWalkInComponent },
       { path: 'schedule', component: StaffScheduleComponent },
+      { path: 'past-appointments', component: StaffPastAppointmentsComponent },
       { path: 'profile', component: StaffProfileComponent },
     ],
   },

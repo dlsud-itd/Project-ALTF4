@@ -283,6 +283,6 @@ describe('StaffDashboardComponent presentation', () => {
       'No patient being called. Click Call Next Patient.',
     );
     expect(emptyState?.querySelector('.empty-calling-icon')).toBeTruthy();
-    expect(emptyState?.querySelector('p-button')).toBeTruthy();
+    expect(emptyState?.querySelector('p-button')).toBeFalsy();
   });
 });

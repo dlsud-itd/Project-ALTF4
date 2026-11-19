@@ -91,8 +91,9 @@ export class AppointmentsService {
           where: { id: patientId },
           select: { fullName: true },
         });
-        const slotDateOnly = new Date(slot.clinicDate);
-        slotDateOnly.setHours(0, 0, 0, 0);
+        const slotDateOnly = new Date(
+          `${slot.clinicDate.toISOString().slice(0, 10)}T00:00:00.000Z`,
+        );
         let dailyQueue = await tx.dailyQueue.findUnique({
           where: { clinicDate: slotDateOnly },
         });
@@ -265,10 +266,15 @@ export class AppointmentsService {
       ],
     });
 
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
     // Populate waiting counts for any linked queue entry
     const formattedAppointments = await Promise.all(
       appointments.map(async (appt) => {
-        const activeEntry = appt.queueEntries?.[0] ?? null;
+        const apptDateStr = appt.slot.clinicDate.toISOString().slice(0, 10);
+        const isPast = apptDateStr < todayStr;
+        const activeEntry = !isPast ? (appt.queueEntries?.[0] ?? null) : null;
         let reservedQueueEntry: {
           ticketNumber: string;
           queueNumber: number;
@@ -549,8 +555,9 @@ export class AppointmentsService {
         },
       });
 
-      const slotDateOnly = new Date(slot.clinicDate);
-      slotDateOnly.setHours(0, 0, 0, 0);
+      const slotDateOnly = new Date(
+        `${slot.clinicDate.toISOString().slice(0, 10)}T00:00:00.000Z`,
+      );
 
       let dailyQueue = await this.prisma.dailyQueue.findFirst({
         where: { clinicDate: slotDateOnly },

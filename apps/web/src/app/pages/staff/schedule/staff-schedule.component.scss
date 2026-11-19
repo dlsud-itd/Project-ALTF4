@@ -416,53 +416,30 @@ $header-gap: 0.75rem;
   }
 }
 
-// Full-bleed schedule: the table fills the whole area under the header
-// instead of sitting in a floating card.
-$header-height-full: 88px;
-
-@include bp.from-tablet {
-  .schedule-page {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    min-height: calc(100vh - #{$header-height-full});
-    margin: 0;
-    padding: 0;
-    background: var(--surface-0);
-  }
-
-  .schedule-page > .table-wrapper {
-    flex: 1;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .schedule-page .slot-table th:first-child,
-  .schedule-page .slot-table td:first-child {
-    padding-left: 2rem;
-  }
-}
-
-// Same spacing as the dashboard and walk-in: 16px from the sidebar and the
-// right edge, 12px under the header. The table still fills the rest.
-$schedule-gap-side: 1rem;
-$schedule-gap-top: 0.75rem;
+// Same spacing as the dashboard and walk-in: clean card container that wraps content neatly
+$schedule-gap-side: 1.5rem;
+$schedule-gap-top: 1rem;
 
 @include bp.from-tablet {
   .schedule-page {
     width: auto;
-    min-height: calc(
-      100vh - #{$header-height-full} - #{$schedule-gap-top} - #{$schedule-gap-side}
-    );
-    margin: $schedule-gap-top $schedule-gap-side $schedule-gap-side;
+    max-width: 1200px;
+    min-height: auto;
+    margin: $schedule-gap-top auto 2rem;
+    padding: 0 $schedule-gap-side;
     background: transparent;
   }
 
   .schedule-page > .table-wrapper {
-    border-radius: var(--card-radius-sm);
-    box-shadow: var(--card-shadow);
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
     overflow: hidden;
+    background: var(--surface-0);
+  }
+
+  .schedule-page .slot-table th:first-child,
+  .schedule-page .slot-table td:first-child {
+    padding-left: 1.5rem;
   }
 }
 

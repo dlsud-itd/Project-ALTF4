@@ -13,8 +13,17 @@ describe('StaffWalkInComponent', () => {
 
   beforeEach(async () => {
     queueServiceMock = jasmine.createSpyObj('QueueService', [
+      'getTodayQueue',
       'generateStaffQueueNumber',
     ]);
+    queueServiceMock.getTodayQueue.and.returnValue(
+      of({
+        id: 1,
+        clinic_date: '2026-11-19',
+        is_open: true,
+        fallback_service_minutes: 15,
+      }),
+    );
     confirmServiceMock = jasmine.createSpyObj('AppConfirmService', [
       'confirmReview',
       'confirmDestructive',

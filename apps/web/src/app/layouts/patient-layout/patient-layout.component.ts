@@ -31,13 +31,17 @@ import {
 
 const MAX_BADGE_COUNT = 9;
 const DASHBOARD_ROUTE = '/patient/dashboard';
+const SCHEDULE_ROUTE = '/patient/schedule';
 const BOOKINGS_ROUTE = '/patient/bookings';
 const QUEUE_ROUTE = '/patient/queue';
 const DASHBOARD_SUBTITLE =
   'Manage your appointments and queue status at a glance';
-const BOOKINGS_TITLE = 'Appointment Booking';
-const BOOKINGS_SUBTITLE =
+const SCHEDULE_TITLE = 'Schedule Appointment';
+const SCHEDULE_SUBTITLE =
   'Schedule your clinic visit with our university physician';
+const BOOKINGS_TITLE = 'My Bookings';
+const BOOKINGS_SUBTITLE =
+  'View and manage your appointment history and active consultations';
 const QUEUE_TITLE = 'Your Queue';
 const PROFILE_ROUTE = '/patient/profile';
 const PROFILE_TITLE = 'User Profile';
@@ -93,6 +97,7 @@ export class PatientLayoutComponent {
     const url = this.currentUrl();
     return (
       url.startsWith(DASHBOARD_ROUTE) ||
+      url.startsWith(SCHEDULE_ROUTE) ||
       url.startsWith(BOOKINGS_ROUTE) ||
       url.startsWith(QUEUE_ROUTE)
     );
@@ -105,6 +110,9 @@ export class PatientLayoutComponent {
         title: `Welcome, ${this.patientName()}!`,
         subtitle: DASHBOARD_SUBTITLE,
       };
+    }
+    if (url.startsWith(SCHEDULE_ROUTE)) {
+      return { title: SCHEDULE_TITLE, subtitle: SCHEDULE_SUBTITLE };
     }
     if (url.startsWith(BOOKINGS_ROUTE)) {
       return { title: BOOKINGS_TITLE, subtitle: BOOKINGS_SUBTITLE };
