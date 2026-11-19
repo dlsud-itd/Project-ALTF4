@@ -22,12 +22,28 @@ describe('PatientLayoutComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render sidebar navigation links for Dashboard, Bookings, Queue, and Profile', () => {
+  it('should render sidebar navigation links in order', () => {
+    const element = fixture.nativeElement as HTMLElement;
     const navItems = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.sidebar-nav .nav-link'),
+      element.querySelectorAll('.sidebar-nav .nav-label'),
     ).map((item) => item.textContent?.trim());
 
-    expect(navItems).toEqual(['Dashboard', 'Bookings', 'Queue', 'Profile']);
+    expect(navItems).toEqual([
+      'Dashboard',
+      'Bookings',
+      'Queue',
+      'Notifications',
+      'Profile',
+    ]);
+  });
+
+  it('should show the sample unread badge and hide it at zero', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.nav-badge')?.textContent?.trim()).toBe('3');
+
+    component.unreadCount.set(0);
+    fixture.detectChanges();
+    expect(element.querySelector('.unread-badge')).toBeNull();
   });
 
   it('should display brand title in the sidebar', () => {

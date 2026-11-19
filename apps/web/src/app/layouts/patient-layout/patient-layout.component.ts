@@ -3,6 +3,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Button } from 'primeng/button';
 import { AuthService } from '@core/services';
 
+const SAMPLE_UNREAD_COUNT = 3;
+const MAX_BADGE_COUNT = 9;
+
 // Layout wrapping the authenticated patient portal with persistent sidebar navigation.
 @Component({
   selector: 'app-patient-layout',
@@ -19,6 +22,15 @@ export class PatientLayoutComponent {
   );
   readonly isMobileMenuOpen = signal<boolean>(false);
   readonly isCollapsed = signal<boolean>(false);
+
+  // TODO(Lim, Jereign): sample value. Replace with the real unread count
+  // from the notifications API (shared service) so it matches the page.
+  readonly unreadCount = signal<number>(SAMPLE_UNREAD_COUNT);
+  readonly unreadLabel = computed((): string =>
+    this.unreadCount() > MAX_BADGE_COUNT
+      ? `${MAX_BADGE_COUNT}+`
+      : String(this.unreadCount()),
+  );
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen.update((open: boolean): boolean => !open);

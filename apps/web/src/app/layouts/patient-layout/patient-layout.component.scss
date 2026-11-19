@@ -5,6 +5,8 @@ $sidebar-width-collapsed: 72px;
 $sidebar-gap: 0;
 $sidebar-radius: 0;
 $sidebar-transition: 0.2s ease;
+$touch-target: 44px;
+$badge-size: 18px;
 
 :host {
   display: block;
@@ -23,6 +25,63 @@ $sidebar-transition: 0.2s ease;
 
 .sidebar-backdrop {
   display: none;
+}
+
+// Unread count pill shared by the sidebar link and the mobile bell.
+.unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: $badge-size;
+  height: $badge-size;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--red-500, #ef4444);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+// Sidebar badge sits at the end of the link, or on the icon when collapsed.
+.nav-link .nav-badge {
+  margin-left: auto;
+}
+
+.portal-sidebar.collapsed .nav-link .nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  margin-left: 0;
+}
+
+.mobile-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mobile-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $touch-target;
+  height: $touch-target;
+  color: var(--text-main);
+  font-size: 1.25rem;
+  text-decoration: none;
+
+  .unread-badge {
+    position: absolute;
+    top: 4px;
+    right: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
 }
 
 // Desktop: full-bleed layout, sidebar and content run edge to edge.
@@ -182,6 +241,7 @@ $sidebar-transition: 0.2s ease;
     }
 
     .nav-link {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 0.625rem;
