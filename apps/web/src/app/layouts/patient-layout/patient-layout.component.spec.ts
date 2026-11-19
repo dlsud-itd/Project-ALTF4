@@ -32,18 +32,16 @@ describe('PatientLayoutComponent', () => {
       'Dashboard',
       'Bookings',
       'Queue',
-      'Notifications',
       'Profile',
     ]);
   });
 
-  it('should show the sample unread badge and hide it at zero', () => {
+  it('should not list Notifications in the sidebar', () => {
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.querySelector('.nav-badge')?.textContent?.trim()).toBe('3');
-
-    component.unreadCount.set(0);
-    fixture.detectChanges();
-    expect(element.querySelector('.unread-badge')).toBeNull();
+    const links = Array.from(
+      element.querySelectorAll('.sidebar-nav a'),
+    ).map((item) => item.getAttribute('href'));
+    expect(links).not.toContain('/patient/notifications');
   });
 
   it('should display brand title in the sidebar', () => {

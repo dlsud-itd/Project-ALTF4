@@ -100,7 +100,7 @@
         [attr.title]="isCollapsed() ? 'Bookings' : null"
         (click)="closeMobileMenu()"
       >
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <svg class="ico ico-outline" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="48" y="80" width="416" height="384" rx="40"/><path d="M48 192h416M160 48v64M352 48v64M128 288h32M240 288h32M352 288h32M128 368h32M240 368h32M352 368h32"/></svg>
         <span class="nav-label">Bookings</span>
       </a>
 
@@ -111,37 +111,18 @@
         [attr.title]="isCollapsed() ? 'Queue' : null"
         (click)="closeMobileMenu()"
       >
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-.5a5.5 5.5 0 0 1 5.5-5.5h2a5.5 5.5 0 0 1 5.5 5.5v.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20v-.5a5.5 5.5 0 0 0-3.5-5.1"/></svg>
+        <svg class="ico ico-outline" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="200" cy="150" r="100"/><path d="M20 455C20 340 100 255 200 255C300 255 380 340 380 455M355 100A78 78 0 0 1 355 255M360 258C440 262 495 330 495 410"/></svg>
         <span class="nav-label">Queue</span>
       </a>
 
-      <a
-        routerLink="/patient/notifications"
-        routerLinkActive="active"
-        class="nav-link"
-        [attr.title]="isCollapsed() ? 'Notifications' : null"
-        [attr.aria-label]="
-          unreadCount() > 0
-            ? 'Notifications, ' + unreadCount() + ' unread'
-            : 'Notifications'
-        "
-        (click)="closeMobileMenu()"
-      >
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-        <span class="nav-label">Notifications</span>
-        @if (unreadCount() > 0) {
-          <span class="unread-badge nav-badge" aria-hidden="true">
-            {{ unreadLabel() }}
-          </span>
-        }
-      </a>
-
-      <div class="nav-section-title">Account</div>
+      <!-- Profile and Sign Out live in the desktop top bar; the drawer keeps
+           them on mobile only. -->
+      <div class="nav-section-title mobile-only">Account</div>
 
       <a
         routerLink="/patient/profile"
         routerLinkActive="active"
-        class="nav-link"
+        class="nav-link mobile-only"
         [attr.title]="isCollapsed() ? 'Profile' : null"
         (click)="closeMobileMenu()"
       >
@@ -151,7 +132,7 @@
     </nav>
 
     <!-- Sidebar Footer / Sign Out -->
-    <div class="sidebar-footer">
+    <div class="sidebar-footer mobile-only">
 
       <p-button
         [label]="isCollapsed() ? undefined : 'Sign Out'"
@@ -167,7 +148,191 @@
   </aside>
 
   <!-- Routed Page View -->
-  <main class="portal-main">
+  <main class="portal-main" [class.has-page-bg]="pageHeader() !== null"
+    [class.has-white-bg]="hasWhitePageBg()">
+    <!-- Desktop top bar: greeting (dashboard), notifications bell and
+         profile dropdown -->
+    <header class="portal-topbar">
+      <div class="topbar-title">
+        @if (pageHeader(); as header) {
+          <p class="topbar-greeting">{{ header.title }}</p>
+          @if (header.subtitle) {
+            <p class="topbar-subtitle">{{ header.subtitle }}</p>
+          }
+        }
+      </div>
+
+      <div class="topbar-actions">
+        @if (isDashboard()) {
+          <a routerLink="/patient/bookings" class="topbar-book-button">
+            <i class="pi pi-calendar-plus" aria-hidden="true"></i>
+            Book Appointment
+          </a>
+        }
+
+        <div class="notifications-menu">
+          <button
+            type="button"
+            class="topbar-icon-button"
+            aria-haspopup="dialog"
+            [attr.aria-expanded]="isNotificationsOpen()"
+            [attr.aria-label]="
+              unreadCount() > 0
+                ? 'Notifications, ' + unreadCount() + ' unread'
+                : 'Notifications'
+            "
+            (click)="toggleNotifications()"
+          >
+            <i class="pi pi-bell" aria-hidden="true"></i>
+            @if (unreadCount() > 0) {
+              <span class="topbar-dot" aria-hidden="true"></span>
+            }
+          </button>
+
+          @if (isNotificationsOpen()) {
+            <section
+              class="notifications-panel"
+              role="dialog"
+              aria-label="Notifications"
+            >
+              <header class="panel-header">
+                <h2 class="panel-title">
+                  Notifications
+                  @if (unreadCount() > 0) {
+                    <span class="panel-count">{{ unreadCount() }}</span>
+                  }
+                </h2>
+                <a
+                  routerLink="/patient/notifications"
+                  class="panel-link"
+                  (click)="closeNotifications()"
+                >
+                  View all notifications
+                </a>
+              </header>
+
+              <div class="panel-tabs" role="tablist">
+                <span class="panel-tab" role="tab" aria-selected="true">
+                  View all
+                  @if (unreadCount() > 0) {
+                    <span class="panel-count">{{ unreadCount() }}</span>
+                  }
+                </span>
+                <span class="panel-sample">Sample data</span>
+              </div>
+
+              <ul class="panel-list">
+                @for (item of notifications(); track item.id) {
+                  <li class="panel-item" [class.unread]="item.readAt === null">
+                    <div class="panel-item-body">
+                      <div class="panel-item-meta">
+                        <p-tag
+                          [value]="typeLabel(item.type)"
+                          [severity]="typeSeverity(item.type)"
+                        />
+                        @if (item.readAt === null) {
+                          <span class="visually-hidden">Unread</span>
+                        }
+                      </div>
+                      <p class="panel-item-message">{{ item.message }}</p>
+                      <time
+                        class="panel-item-time"
+                        [attr.datetime]="item.createdAt"
+                      >
+                        {{ item.createdAt | date: 'MMM d, h:mm a' }}
+                      </time>
+                      <div class="panel-item-actions">
+                        @if (routeFor(item.type); as route) {
+                          <a
+                            class="panel-action primary"
+                            [routerLink]="route"
+                            (click)="closeNotifications()"
+                          >
+                            {{ linkLabel(item.type) }}
+                          </a>
+                        }
+                        @if (item.readAt === null) {
+                          <button
+                            type="button"
+                            class="panel-action"
+                            (click)="markNotificationRead(item.id)"
+                          >
+                            Mark as read
+                          </button>
+                        }
+                      </div>
+                    </div>
+                    <span class="panel-item-dot" aria-hidden="true"></span>
+                  </li>
+                }
+              </ul>
+
+              @if (unreadCount() > 0) {
+                <footer class="panel-footer">
+                  <button
+                    type="button"
+                    class="panel-action"
+                    (click)="markAllNotificationsRead()"
+                  >
+                    Mark all as read
+                  </button>
+                </footer>
+              }
+            </section>
+          }
+        </div>
+
+        <div class="profile-menu">
+          <button
+            type="button"
+            class="profile-trigger"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="isProfileMenuOpen()"
+            [attr.aria-label]="'Account menu for ' + patientName()"
+            (click)="toggleProfileMenu()"
+          >
+            <span class="topbar-avatar" aria-hidden="true">
+              {{ patientInitial() }}
+            </span>
+          </button>
+
+          @if (isProfileMenuOpen()) {
+            <div class="profile-dropdown" role="menu" aria-label="Account">
+              <div class="profile-summary">
+                <span class="topbar-avatar large" aria-hidden="true">
+                  {{ patientInitial() }}
+                </span>
+                <div class="profile-details">
+                  <span class="profile-name">{{ patientName() }}</span>
+                  @if (patientEmail()) {
+                    <span class="profile-email">{{ patientEmail() }}</span>
+                  }
+                  <span class="profile-role">Patient</span>
+                </div>
+              </div>
+              <a
+                routerLink="/patient/profile"
+                class="menu-item"
+                role="menuitem"
+                (click)="closeProfileMenu()"
+              >
+                <i class="pi pi-user" aria-hidden="true"></i>
+                My Profile
+              </a>
+              <button
+                type="button"
+                class="menu-item sign-out-item"
+                role="menuitem"
+                (click)="onLogout()"
+              >
+                <i class="pi pi-sign-out" aria-hidden="true"></i>
+                Sign Out
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
     <router-outlet></router-outlet>
   </main>
 </div>

@@ -81,10 +81,11 @@ $read-weight: 400;
   display: flex;
   align-items: flex-start;
   gap: $item-gap;
-  padding: 0.875rem 1rem;
+  padding: 1rem 1.25rem;
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: 12px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 
   .status-dot {
     width: $dot-size;
@@ -149,7 +150,7 @@ $read-weight: 400;
   min-height: $touch-target;
   min-width: $touch-target;
   padding: 0 0.875rem;
-  border-radius: 10px;
+  border-radius: var(--pill-radius);
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
@@ -202,5 +203,96 @@ $read-weight: 400;
       flex-basis: 100%;
       justify-content: flex-start;
     }
+  }
+}
+
+// White notification cards: no outline, a soft shadow lifts them off the page.
+.notification-item {
+  background: var(--surface-0);
+  border: var(--card-border);
+  box-shadow: var(--card-shadow);
+
+  &.unread {
+    border: var(--card-border);
+
+    .status-dot {
+      background: var(--primary-color);
+    }
+  }
+}
+
+// Mark all as read: smaller rounded pill.
+:host ::ng-deep .notifications-banner .p-button {
+  min-height: 36px;
+  padding: 0 1rem;
+  border-radius: var(--pill-radius);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+// On desktop the title and subtitle live in the layout header, and the
+// sample label and Mark all as read sit in that same header, left of the bell
+// and avatar. The heading stays here for screen readers.
+$topbar-height: 88px;
+$topbar-side-padding: 2rem;
+$topbar-icons-width: 100px;
+$topbar-gap: 0.75rem;
+
+@include bp.from-tablet {
+  .notifications-banner {
+    position: absolute;
+    top: 0;
+    right: calc(#{$topbar-side-padding} + #{$topbar-icons-width} + #{$topbar-gap});
+    width: auto;
+    max-width: none;
+    height: $topbar-height;
+    margin: 0;
+    padding: 0;
+    flex-wrap: nowrap;
+
+    .banner-text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+  }
+
+  .notifications-page {
+    padding-top: 1.5rem;
+  }
+}
+
+@include bp.from-tablet {
+  .notifications-page {
+    max-width: none;
+    margin: 0;
+    padding: 0.75rem 2rem 2rem;
+  }
+}
+
+// "3 unread": a white pill so it reads clearly on the gray page background.
+.unread-summary {
+  display: inline-block;
+  margin: 0 0 0.625rem;
+  padding: 0.25rem 0.875rem;
+  border-radius: var(--pill-radius);
+  background: var(--surface-0);
+  box-shadow: var(--card-shadow);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+// Spacing shared with the staff pages: content starts 16px from the sidebar
+// and the right edge, 12px under the header.
+@include bp.from-tablet {
+  .notifications-page {
+    width: calc(100% - 2rem);
+    max-width: none;
+    margin: 0.75rem 1rem 0;
+    padding: 0 0 2rem;
   }
 }
