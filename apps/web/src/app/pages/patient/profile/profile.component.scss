@@ -28,8 +28,8 @@
 
 .profile-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 2.5rem;
   display: flex;
   flex-direction: column;
@@ -85,7 +85,7 @@
     padding: 1rem 1.5rem;
     background: var(--surface-50);
     border: 1px dashed var(--surface-300);
-    border-radius: var(--border-radius);
+    border-radius: var(--card-radius-sm);
     color: var(--text-muted);
     font-size: 0.875rem;
 
@@ -110,35 +110,52 @@
 
 // Banner becomes the rounded deep petrol header box.
 .profile-banner {
-  padding: 1.5rem 2rem;
+  padding: 0;
   margin-bottom: 1.5rem;
-  background: var(--surface-900);
-  border-radius: 20px;
-  box-shadow: 0 8px 20px rgb(7 90 91 / 0.18);
 
   h2 {
     font-size: 1.75rem;
     font-weight: 600;
     letter-spacing: -0.01em;
-    color: #ffffff;
+    color: var(--text-main);
     margin-bottom: 0.15rem;
   }
 
   p {
-    color: var(--surface-300);
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
 }
 
 .profile-card {
-  border: 1px solid var(--surface-900);
-  border-radius: 28px 28px 12px 12px;
-  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 @include bp.below-tablet {
   .profile-banner {
-    padding: 1.25rem 1rem;
-    border-radius: 16px;
+    padding: 0;
+  }
+}
+
+// On desktop the page title lives in the layout header. The heading stays
+// here for screen readers.
+@include bp.from-tablet {
+  .profile-banner {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+// Same gap under the header as the other pages. The card stays centered.
+@include bp.from-tablet {
+  .profile-page {
+    padding-top: 0.75rem;
   }
 }
