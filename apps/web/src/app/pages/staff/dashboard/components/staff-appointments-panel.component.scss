@@ -115,3 +115,10 @@ $card-radius: 16px;
     justify-self: end;
   }
 }
+
+// Match the patient portal design: no outline, soft shadow, rounder corners.
+.appointments-panel {
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}

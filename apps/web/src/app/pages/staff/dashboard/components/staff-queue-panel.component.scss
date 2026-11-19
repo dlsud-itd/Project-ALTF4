@@ -316,3 +316,44 @@ $transition-speed: 180ms;
 
 $card-radius: 16px;
 $transition-speed: 180ms;
+
+// Match the patient portal design: no outline, soft shadow, rounder corners.
+.queue-panel {
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+// Compact left panel so it is about the same height as the stat cards beside it.
+.queue-panel {
+  padding: 0.75rem;
+}
+
+.now-calling-slot {
+  min-height: 0;
+}
+
+.now-calling {
+  gap: 0.3rem;
+  min-height: 0;
+  padding: 0.75rem 1rem;
+}
+
+.now-calling-ticket {
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.now-calling--empty {
+  min-height: 6rem;
+  padding: 0.75rem;
+}
+
+.queue-list-heading {
+  margin-top: 0.625rem;
+}
+
+.empty-queue {
+  min-height: 3.25rem;
+  margin-top: 0.5rem;
+}

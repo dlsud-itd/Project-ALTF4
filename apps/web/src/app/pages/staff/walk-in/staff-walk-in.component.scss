@@ -196,3 +196,76 @@ $touch-target-min: 44px;
     padding: 1rem;
   }
 }
+
+// ===== Match the patient portal design =====
+.queue-panel,
+.ticket-card {
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+// On desktop the title lives in the layout header. The heading stays here for
+// screen readers.
+@include bp.from-tablet {
+  .page-top {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+// The layout provides the page background.
+:host {
+  background: transparent;
+  min-height: 0;
+}
+
+// Action buttons: solid pill, like the patient portal.
+:host ::ng-deep .queue-panel .p-button {
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: var(--pill-radius);
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 700;
+
+  &:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+}
+
+// Same spacing as the staff dashboard: a little left and close to the header.
+@include bp.from-tablet {
+  .walk-in-page {
+    width: calc(100% - 3rem);
+    max-width: none;
+    margin: 0.75rem auto 0 1rem;
+    padding: 0 0 2rem;
+  }
+}
+
+// Walk-in: both cards are the same size, and the space on the right matches
+// the space on the left.
+@include bp.from-tablet {
+  .walk-in-page {
+    width: calc(100% - 2rem);
+    margin: 0.75rem 1rem 0;
+    padding: 0 0 2rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .walk-in-page > .queue-panel,
+  .walk-in-page > .ticket-card {
+    max-width: none;
+    min-height: 21rem;
+  }
+}

@@ -5,14 +5,16 @@
       <img class="brand-logo" src="Logo.png" alt="ClinicQueue logo" />
       <span class="brand-title">ClinicQueue</span>
     </div>
-    <button
-      type="button"
-      class="mobile-menu-toggle"
-      (click)="toggleMobileMenu()"
-      aria-label="Toggle navigation menu"
-    >
-      <i [class]="isMobileMenuOpen() ? 'pi pi-times' : 'pi pi-bars'"></i>
-    </button>
+    <div class="mobile-actions">
+      <button
+        type="button"
+        class="mobile-menu-toggle"
+        (click)="toggleMobileMenu()"
+        aria-label="Toggle navigation menu"
+      >
+        <i [class]="isMobileMenuOpen() ? 'pi pi-times' : 'pi pi-bars'"></i>
+      </button>
+    </div>
   </header>
 
   <!-- Sidebar Backdrop (Mobile Only) -->
@@ -80,7 +82,7 @@
         [attr.title]="isCollapsed() ? 'Walk-in' : null"
         (click)="closeMobileMenu()"
       >
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        <svg class="ico ico-outline" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="256" cy="128" r="85"/><path d="M300 298H210C140 298 85 345 85 415C85 445 100 468 130 468H252M340 404H470M404 340V470"/></svg>
         <span class="nav-label">Walk-in</span>
       </a>
 
@@ -93,16 +95,18 @@
         [attr.title]="isCollapsed() ? 'Schedule' : null"
         (click)="closeMobileMenu()"
       >
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <svg class="ico ico-outline" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="48" y="80" width="416" height="384" rx="40"/><path d="M48 192h416M160 48v64M352 48v64M128 288h32M240 288h32M352 288h32M128 368h32M240 368h32M352 368h32"/></svg>
         <span class="nav-label">Schedule</span>
       </a>
 
-      <div class="nav-section-title">Account</div>
+      <!-- Profile and Sign Out live in the desktop top bar; the drawer keeps
+           them on mobile only. -->
+      <div class="nav-section-title mobile-only">Account</div>
 
       <a
         routerLink="/staff/profile"
         routerLinkActive="active"
-        class="nav-link"
+        class="nav-link mobile-only"
         [attr.title]="isCollapsed() ? 'Profile' : null"
         (click)="closeMobileMenu()"
       >
@@ -111,8 +115,8 @@
       </a>
     </nav>
 
-    <!-- Sidebar Footer / Staff Profile & Sign Out -->
-    <div class="sidebar-footer">
+    <!-- Sidebar Footer / Sign Out -->
+    <div class="sidebar-footer mobile-only">
 
       <p-button
         [label]="isCollapsed() ? undefined : 'Sign Out'"
@@ -128,7 +132,71 @@
   </aside>
 
   <!-- Routed Page View -->
-  <main class="portal-main">
+  <main class="portal-main" [class.has-page-bg]="pageHeader() !== null"
+    [class.has-white-bg]="hasWhitePageBg()">
+    <!-- Desktop top bar: page title and the account dropdown -->
+    <header class="portal-topbar">
+      <div class="topbar-title">
+        @if (pageHeader(); as header) {
+          <p class="topbar-greeting">{{ header.title }}</p>
+          @if (header.subtitle) {
+            <p class="topbar-subtitle">{{ header.subtitle }}</p>
+          }
+        }
+      </div>
+
+      <div class="topbar-actions">
+        <div class="profile-menu">
+          <button
+            type="button"
+            class="profile-trigger"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="isProfileMenuOpen()"
+            [attr.aria-label]="'Account menu for ' + staffName()"
+            (click)="toggleProfileMenu()"
+          >
+            <span class="topbar-avatar" aria-hidden="true">
+              {{ staffInitial() }}
+            </span>
+          </button>
+
+          @if (isProfileMenuOpen()) {
+            <div class="profile-dropdown" role="menu" aria-label="Account">
+              <div class="profile-summary">
+                <span class="topbar-avatar large" aria-hidden="true">
+                  {{ staffInitial() }}
+                </span>
+                <div class="profile-details">
+                  <span class="profile-name">{{ staffName() }}</span>
+                  @if (staffEmail()) {
+                    <span class="profile-email">{{ staffEmail() }}</span>
+                  }
+                  <span class="profile-role">{{ roleLabel() }}</span>
+                </div>
+              </div>
+              <a
+                routerLink="/staff/profile"
+                class="menu-item"
+                role="menuitem"
+                (click)="closeProfileMenu()"
+              >
+                <i class="pi pi-user" aria-hidden="true"></i>
+                My Profile
+              </a>
+              <button
+                type="button"
+                class="menu-item sign-out-item"
+                role="menuitem"
+                (click)="onLogout()"
+              >
+                <i class="pi pi-sign-out" aria-hidden="true"></i>
+                Sign Out
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
     <router-outlet></router-outlet>
   </main>
 </div>
