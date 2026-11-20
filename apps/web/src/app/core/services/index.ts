@@ -6,4 +6,5 @@ export * from './session-timeout.service';
 export * from './slots.service';
 export * from './sse.service';
 export * from './appointments.service';
+export * from './patient-appointments.store';
 export * from './admin.service';

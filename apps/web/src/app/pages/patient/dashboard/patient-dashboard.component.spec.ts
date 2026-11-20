@@ -32,6 +32,12 @@ describe('PatientDashboardComponent', () => {
         remainingCapacity: 1,
         isBookable: true,
       },
+      reservedQueueEntry: {
+        ticketNumber: 'A-001',
+        queueNumber: 1,
+        positionInQueue: 1,
+        estimatedWaitMinutes: 0,
+      },
     },
   ];
 
@@ -181,13 +187,13 @@ describe('PatientDashboardComponent', () => {
     );
   });
 
-  it('should allow joining the queue online directly from the dashboard card when appointment is booked', () => {
-    const queueService = TestBed.inject(QueueService);
+  it('shows the primary appointment ticket and its queue estimate', () => {
     component.appointments.set(mockAppointments);
-    component.onJoinQueue();
+    fixture.detectChanges();
 
-    expect(queueService.joinOnline).toHaveBeenCalled();
-    expect(component.currentTicket()).toBe('A-010');
-    expect(component.estimatedWaitMinutes()).toBe(15);
+    expect(component.currentTicket()).toBe('A-001');
+    expect(component.positionInQueue()).toBe(1);
+    expect(component.estimatedWaitMinutes()).toBe(0);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('A-001');
   });
 });

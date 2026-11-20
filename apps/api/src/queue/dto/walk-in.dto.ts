@@ -35,18 +35,15 @@ export class WalkInDto {
   })
   name!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'Fever and headache',
-    description: 'Reason for consultation',
+    description: 'Required reason for consultation',
   })
   @Transform(({ value }: { value: unknown }) => {
-    if (value === null || value === undefined) {
-      return value;
-    }
-    return typeof value === 'string' ? value.trim() || undefined : value;
+    return typeof value === 'string' ? value.trim() : value;
   })
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(200)
-  reasonForVisit?: string;
+  reasonForVisit!: string;
 }

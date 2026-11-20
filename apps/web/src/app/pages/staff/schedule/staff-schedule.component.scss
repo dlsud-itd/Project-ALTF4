@@ -43,7 +43,8 @@
 }
 
 .table-wrapper {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(68vh, 720px);
   background: var(--surface-0);
   border: 1px solid var(--surface-200);
   border-radius: var(--border-radius);
@@ -67,6 +68,33 @@
     text-transform: uppercase;
     color: var(--text-muted);
     border-bottom: 1px solid var(--surface-200);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .schedule-filters {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-main);
+    font-size: 0.9rem;
+
+    select {
+      min-height: 2.5rem;
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--surface-300);
+      border-radius: 8px;
+      background: var(--surface-0);
+      color: var(--text-main);
+    }
+  }
+
+  .no-filter-results {
+    text-align: center !important;
+    padding: 1.5rem !important;
   }
 
   td {
@@ -433,7 +461,8 @@ $schedule-gap-top: 1rem;
   .schedule-page > .table-wrapper {
     border-radius: 16px;
     box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
-    overflow: hidden;
+    overflow: auto;
+    max-height: min(68vh, 720px);
     background: var(--surface-0);
   }
 

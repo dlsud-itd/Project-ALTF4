@@ -1,4 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -7,7 +15,7 @@ import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
 import { Message } from 'primeng/message';
 import { ConfirmDialog } from 'primeng/confirmdialog';
-import { AppointmentsService } from '@core/services';
+import { AppointmentsService, PatientAppointmentsStore } from '@core/services';
 import { PatientAppointment, AppointmentStatus } from '@core/models';
 import { getErrorMessage } from '@core/utils';
 import {
@@ -71,13 +79,16 @@ function formatTimeRange(start: string, end: string): string {
 })
 export class PatientBookingsHistoryComponent implements OnInit {
   private readonly appointmentsService = inject(AppointmentsService);
+  private readonly appointmentsStore = inject(PatientAppointmentsStore);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly confirmationService = inject(ConfirmationService);
 
-  readonly appointments = signal<PatientAppointment[]>([]);
-  readonly isLoading = signal<boolean>(true);
-  readonly error = signal<string | null>(null);
+  readonly appointments = this.appointmentsStore.appointments;
+  readonly isLoading = this.appointmentsStore.isLoading;
+  readonly error = this.appointmentsStore.error;
   readonly activeFilter = signal<HistoryFilterTab>('ALL');
   readonly cancellingId = signal<number | null>(null);
+  readonly archivingId = signal<number | null>(null);
   readonly actionSuccess = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
 
@@ -87,16 +98,14 @@ export class PatientBookingsHistoryComponent implements OnInit {
   });
 
   readonly upcomingAppointments = computed(() => {
-    const today = this.todayStr();
-    return this.appointments().filter(
-      (a) => a.status === 'BOOKED' && a.slot.clinicDate >= today,
+    return this.appointments().filter((appointment) =>
+      this.isUpcoming(appointment),
     );
   });
 
   readonly pastAppointments = computed(() => {
-    const today = this.todayStr();
     return this.appointments().filter(
-      (a) => a.status !== 'BOOKED' || a.slot.clinicDate < today,
+      (appointment) => !this.isUpcoming(appointment),
     );
   });
 
@@ -116,27 +125,7 @@ export class PatientBookingsHistoryComponent implements OnInit {
   }
 
   loadAppointments(): void {
-    this.isLoading.set(true);
-    this.error.set(null);
-
-    this.appointmentsService.getMyAppointments().subscribe({
-      next: (response) => {
-        const sorted = (response.appointments ?? []).sort((a, b) => {
-          return (
-            b.slot.clinicDate.localeCompare(a.slot.clinicDate) ||
-            b.slot.startTime.localeCompare(a.slot.startTime)
-          );
-        });
-        this.appointments.set(sorted);
-        this.isLoading.set(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.error.set(
-          getErrorMessage(err, 'Failed to load your appointments. Please try again.'),
-        );
-        this.isLoading.set(false);
-      },
-    });
+    this.appointmentsStore.load();
   }
 
   setFilter(filter: HistoryFilterTab): void {
@@ -144,7 +133,14 @@ export class PatientBookingsHistoryComponent implements OnInit {
   }
 
   isUpcoming(appt: PatientAppointment): boolean {
-    return appt.status === 'BOOKED' && appt.slot.clinicDate >= this.todayStr();
+    return appt.status === 'BOOKED' && !appt.slot.isExpired;
+  }
+
+  canArchive(appt: PatientAppointment): boolean {
+    return (
+      appt.slot.isExpired === true &&
+      (appt.status === 'COMPLETED' || appt.status === 'CANCELLED')
+    );
   }
 
   getDayOfWeek(dateStr: string): string {
@@ -205,11 +201,14 @@ export class PatientBookingsHistoryComponent implements OnInit {
         this.actionError.set(null);
         this.actionSuccess.set(null);
 
-        this.appointmentsService.cancelAppointment(appointment.id).subscribe({
+        this.appointmentsService
+          .cancelAppointment(appointment.id)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
           next: (): void => {
             this.cancellingId.set(null);
             this.actionSuccess.set('Appointment cancelled successfully.');
-            this.loadAppointments();
+            this.appointmentsStore.load();
           },
           error: (err: HttpErrorResponse): void => {
             this.cancellingId.set(null);
@@ -217,7 +216,44 @@ export class PatientBookingsHistoryComponent implements OnInit {
               getErrorMessage(err, 'Could not cancel the appointment. Please try again.'),
             );
           },
-        });
+          });
+      },
+    });
+  }
+
+  onArchiveAppointment(appointment: PatientAppointment): void {
+    if (!this.canArchive(appointment)) {
+      return;
+    }
+
+    this.confirmationService.confirm({
+      header: 'Archive Booking',
+      message: `Archive the ${this.formatClinicDate(appointment.slot.clinicDate)} appointment? It will be hidden from this list.`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Archive',
+      rejectLabel: 'Keep Booking',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: (): void => {
+        this.archivingId.set(appointment.id);
+        this.actionError.set(null);
+        this.actionSuccess.set(null);
+        this.appointmentsService
+          .archiveAppointment(appointment.id)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+          next: (): void => {
+            this.archivingId.set(null);
+            this.actionSuccess.set('Booking archived successfully.');
+            this.appointmentsStore.load();
+          },
+          error: (error: HttpErrorResponse): void => {
+            this.archivingId.set(null);
+            this.actionError.set(
+              getErrorMessage(error, 'Could not archive this booking.'),
+            );
+          },
+          });
       },
     });
   }

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { getManilaCalendarDate, isSlotPast } from '../common/is-slot-past.util';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 
@@ -29,10 +30,8 @@ const toUtcDate = (value: string, fieldName: string): Date => {
   return date;
 };
 
-const todayAsUtcDate = (): Date => {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-};
+const todayAsUtcDate = (): Date =>
+  new Date(`${getManilaCalendarDate()}T00:00:00.000Z`);
 
 @Injectable()
 export class SlotsService {
@@ -69,26 +68,33 @@ export class SlotsService {
       orderBy: [{ clinicDate: 'asc' }, { startTime: 'asc' }],
     });
 
+    const now = new Date();
     const mapped = slots.map((slot) => {
       const remainingCapacity = Math.max(
         0,
         slot.capacity - slot.appointments.length,
       );
+      const clinicDate = slot.clinicDate.toISOString().slice(0, 10);
+      const isExpired = isSlotPast(clinicDate, slot.endTime, now);
 
       return {
         id: slot.id,
-        clinicDate: slot.clinicDate.toISOString().slice(0, 10),
+        clinicDate,
         startTime: slot.startTime,
         endTime: slot.endTime,
         capacity: slot.capacity,
         remainingCapacity,
-        isBookable: slot.isBookable && remainingCapacity > 0,
+        isBookable: slot.isBookable && remainingCapacity > 0 && !isExpired,
+        isExpired,
       };
     });
 
     return {
       slots: availableOnly
-        ? mapped.filter((slot) => slot.isBookable && slot.remainingCapacity > 0)
+        ? mapped.filter(
+            (slot) =>
+              slot.isBookable && slot.remainingCapacity > 0 && !slot.isExpired,
+          )
         : mapped,
     };
   }

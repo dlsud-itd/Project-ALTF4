@@ -2,6 +2,9 @@ import { ClinicSlot, SlotStatus } from '@core/models';
 
 // Full wins over closed because the API folds "no seats left" into isBookable.
 export const getSlotStatus = (slot: ClinicSlot): SlotStatus => {
+  if (slot.isExpired) {
+    return 'expired';
+  }
   if (slot.remainingCapacity <= 0) {
     return 'full';
   }

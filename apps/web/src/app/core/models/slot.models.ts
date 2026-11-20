@@ -6,6 +6,7 @@ export type ClinicSlot = {
   capacity: number;
   remainingCapacity: number;
   isBookable: boolean;
+  isExpired?: boolean;
 };
 
 export type SlotsResponse = {
@@ -13,7 +14,7 @@ export type SlotsResponse = {
 };
 
 // Display status of a slot, derived from capacity and bookability.
-export type SlotStatus = 'open' | 'full' | 'closed';
+export type SlotStatus = 'open' | 'full' | 'closed' | 'expired';
 
 // Values the staff slot form produces; matches the CreateSlotDto fields.
 export type SlotFormValue = {

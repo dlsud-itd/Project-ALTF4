@@ -118,6 +118,7 @@ model Appointment {
   patientId Int               @map("patient_id")
   slotId    Int               @map("slot_id")
   status    AppointmentStatus @default(BOOKED)
+  archived  Boolean           @default(false)
   createdAt DateTime          @default(now()) @map("created_at")
   updatedAt DateTime          @updatedAt @map("updated_at")
 

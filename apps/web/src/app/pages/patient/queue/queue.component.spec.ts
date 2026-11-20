@@ -5,6 +5,12 @@ import {
   fakeAsync,
   tick,
 } from '@angular/core/testing';
+import {
+  computed,
+  Signal,
+  signal,
+  WritableSignal,
+} from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import {
@@ -13,11 +19,17 @@ import {
   TestRequest,
 } from '@angular/common/http/testing';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { QueueStatus, QueueStatusResponse } from '@core/models';
+import {
+  PatientAppointment,
+  QueueStatus,
+  QueueStatusResponse,
+} from '@core/models';
 import {
   ApiConfigService,
   QueueCalledEvent,
+  PatientAppointmentsStore,
   QueueUpdatedEvent,
+  selectActiveQueueEntry,
   SseService,
 } from '@core/services';
 import { PatientQueueComponent } from './queue.component';
@@ -87,36 +99,88 @@ describe('PatientQueueComponent', () => {
   let http: HttpTestingController;
   let sse: FakeSseService;
   let statusUrl: string;
-
-  let myEntryUrl: string;
+  let todayQueueUrl: string;
+  let patientAppointments: WritableSignal<PatientAppointment[]>;
+  let appointmentsStore: {
+    appointments: WritableSignal<PatientAppointment[]>;
+    isLoading: WritableSignal<boolean>;
+    error: WritableSignal<string | null>;
+    activeQueueEntry: Signal<PatientAppointment | null>;
+    load: jasmine.Spy;
+  };
 
   const getElement = (): HTMLElement => fixture.nativeElement as HTMLElement;
   const getText = (): string => getElement().textContent ?? '';
 
   const normalizedText = (): string => getText().replace(/\s+/g, ' ');
 
-  const setEntry = (patch: Partial<TicketEntry>): void => {
-    component.entry.update((entry) => (entry ? { ...entry, ...patch } : entry));
+  const setEntryValue = (entry: TicketEntry | null): void => {
+    patientAppointments.set(
+      entry
+        ? [
+            {
+              id: 1,
+              status: 'BOOKED',
+              createdAt: '2026-11-01T00:00:00.000Z',
+              slot: {
+                id: 1,
+                clinicDate: '2026-11-04',
+                startTime: '10:00',
+                endTime: '10:30',
+                capacity: 1,
+                remainingCapacity: 0,
+                isBookable: true,
+                isExpired: false,
+              },
+              reservedQueueEntry: {
+                ticketNumber: entry.ticketNumber,
+                queueNumber: 14,
+                status: entry.status,
+                positionInQueue: entry.positionInQueue,
+                estimatedWaitMinutes: entry.estimatedWaitMinutes,
+              },
+            },
+          ]
+        : [],
+    );
     fixture.detectChanges();
   };
 
-  const expectStatusRequest = (): TestRequest => http.expectOne(statusUrl);
+  const setEntry = (patch: Partial<TicketEntry>): void => {
+    const current = component.entry();
+    if (!current) {
+      return;
+    }
+    setEntryValue({ ...current, ...patch });
+  };
+
+  const expectStatusRequest = (): TestRequest => {
+    http.expectOne(todayQueueUrl).flush({
+      id: QUEUE_ID,
+      clinic_date: '2026-11-04',
+      is_open: true,
+      fallback_service_minutes: 15,
+    });
+    return http.expectOne(statusUrl);
+  };
 
   const flushStatus = (overrides: Partial<QueueStatusResponse> = {}): void => {
     expectStatusRequest().flush(buildStatus(overrides));
     fixture.detectChanges();
   };
 
-  const flushMyEntry = (entry: any = null): void => {
-    const req = http.match(myEntryUrl);
-    if (req.length > 0) {
-      req[0].flush(entry);
-      fixture.detectChanges();
-    }
-  };
-
   beforeEach(async () => {
     sse = new FakeSseService();
+    patientAppointments = signal<PatientAppointment[]>([]);
+    appointmentsStore = {
+      appointments: patientAppointments,
+      isLoading: signal(false),
+      error: signal<string | null>(null),
+      activeQueueEntry: computed(() =>
+        selectActiveQueueEntry(patientAppointments()),
+      ),
+      load: jasmine.createSpy('load'),
+    };
 
     await TestBed.configureTestingModule({
       imports: [PatientQueueComponent],
@@ -125,39 +189,33 @@ describe('PatientQueueComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: SseService, useValue: sse },
+        { provide: PatientAppointmentsStore, useValue: appointmentsStore },
       ],
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
     const apiUrl = TestBed.inject(ApiConfigService).apiUrl;
     statusUrl = `${apiUrl}/queues/${QUEUE_ID}/status`;
-    myEntryUrl = `${apiUrl}/queues/${QUEUE_ID}/my-entry`;
+    todayQueueUrl = `${apiUrl}/queues/today`;
     fixture = TestBed.createComponent(PatientQueueComponent);
     component = fixture.componentInstance;
   });
 
   afterEach(() => {
-    // Flush any pending my-entry calls
-    const pendingMyEntry = http.match(myEntryUrl);
-    pendingMyEntry.forEach((req) => req.flush(null));
-
     fixture.destroy();
     http.verify();
   });
 
   describe('ticket card (sample data)', () => {
     beforeEach(() => {
+      setEntryValue({
+        ticketNumber: 'A-014',
+        status: QueueStatus.WAITING,
+        positionInQueue: 3,
+        estimatedWaitMinutes: 15,
+      });
       fixture.detectChanges();
       flushStatus();
-      flushMyEntry({
-        queue_entry_id: 14,
-        queue_id: 1,
-        ticket_number: 'A-014',
-        position_in_queue: 3,
-        estimated_wait_minutes: 15,
-        status: QueueStatus.WAITING,
-        joined_at: new Date().toISOString(),
-      });
     });
 
     it('should create', () => {
@@ -252,7 +310,7 @@ describe('PatientQueueComponent', () => {
 
   describe('queue summary', () => {
     beforeEach(() => {
-      component.entry.set({
+      setEntryValue({
         ticketNumber: 'A-014',
         status: QueueStatus.WAITING,
         positionInQueue: 3,
@@ -350,7 +408,7 @@ describe('PatientQueueComponent', () => {
 
   describe('refresh', () => {
     beforeEach(() => {
-      component.entry.set({
+      setEntryValue({
         ticketNumber: 'A-014',
         status: QueueStatus.WAITING,
         positionInQueue: 3,
@@ -475,10 +533,12 @@ describe('PatientQueueComponent', () => {
       flushStatus();
 
       tick(POLL_INTERVAL_MS);
-      expect(http.match(statusUrl).length).toBe(1);
+      flushStatus();
+      expect(component.isActive()).toBeTrue();
 
       tick(POLL_INTERVAL_MS);
-      expect(http.match(statusUrl).length).toBe(1);
+      flushStatus();
+      expect(component.isActive()).toBeTrue();
 
       fixture.destroy();
       discardPeriodicTasks();
@@ -490,6 +550,7 @@ describe('PatientQueueComponent', () => {
       flushStatus();
 
       tick(POLL_INTERVAL_MS * 3);
+      http.expectNone(todayQueueUrl);
       expect(http.match(statusUrl).length).toBe(0);
     }));
 
@@ -498,10 +559,11 @@ describe('PatientQueueComponent', () => {
       flushStatus();
 
       tick(POLL_INTERVAL_MS);
-      expect(http.match(statusUrl).length).toBe(1);
+      flushStatus();
 
       sse.connected.next(true);
       tick(POLL_INTERVAL_MS * 3);
+      http.expectNone(todayQueueUrl);
       expect(http.match(statusUrl).length).toBe(0);
     }));
   });
@@ -528,7 +590,7 @@ describe('PatientQueueComponent', () => {
     beforeEach(() => {
       fixture.detectChanges();
       flushStatus();
-      component.entry.set(null);
+      setEntryValue(null);
       fixture.detectChanges();
     });
 
@@ -563,17 +625,14 @@ describe('PatientQueueComponent', () => {
 
   describe('banners', () => {
     beforeEach(() => {
+      setEntryValue({
+        ticketNumber: 'A-014',
+        status: QueueStatus.WAITING,
+        positionInQueue: 3,
+        estimatedWaitMinutes: 15,
+      });
       fixture.detectChanges();
       flushStatus();
-      flushMyEntry({
-        queue_entry_id: 14,
-        queue_id: 1,
-        ticket_number: 'A-014',
-        position_in_queue: 3,
-        estimated_wait_minutes: 15,
-        status: QueueStatus.WAITING,
-        joined_at: new Date().toISOString(),
-      });
     });
 
     it('should hide the next-in-line banner by default', () => {
@@ -594,36 +653,9 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should hide the next-in-line banner when there is no entry', () => {
-      component.entry.set(null);
-      fixture.detectChanges();
+      setEntryValue(null);
 
       expect(getElement().querySelector('.next-banner')).toBeNull();
-    });
-
-    it('should hide the duplicate banner by default', () => {
-      expect(component.hasDuplicateEntry()).toBeFalse();
-      expect(getElement().querySelector('.duplicate-banner')).toBeNull();
-    });
-
-    it('should show the duplicate banner with the current position', () => {
-      setEntry({ positionInQueue: 3 });
-      component.hasDuplicateEntry.set(true);
-      fixture.detectChanges();
-
-      expect(getElement().querySelector('.duplicate-banner')).toBeTruthy();
-      expect(normalizedText()).toContain(
-        'You are already in the queue. Your current position is 3.',
-      );
-    });
-
-    it('should hide the duplicate banner again when cleared', () => {
-      setEntry({ positionInQueue: 3 });
-      component.hasDuplicateEntry.set(true);
-      fixture.detectChanges();
-      component.hasDuplicateEntry.set(false);
-      fixture.detectChanges();
-
-      expect(getElement().querySelector('.duplicate-banner')).toBeNull();
     });
   });
 
@@ -699,7 +731,7 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should show only the whitelisted summary fields', () => {
-      component.entry.set({
+      setEntryValue({
         ticketNumber: 'A-014',
         status: QueueStatus.WAITING,
         positionInQueue: 3,
@@ -739,7 +771,7 @@ describe('PatientQueueComponent', () => {
     });
 
     it('should announce banners and state messages as status', () => {
-      component.entry.set({
+      setEntryValue({
         ticketNumber: 'A-001',
         status: QueueStatus.WAITING,
         positionInQueue: 1,
@@ -751,22 +783,16 @@ describe('PatientQueueComponent', () => {
       ).toBeTruthy();
       flushStatus();
 
-      component.hasDuplicateEntry.set(true);
-      fixture.detectChanges();
       expect(
         getElement().querySelector('.next-banner')?.getAttribute('role'),
       ).toBe('status');
-      expect(
-        getElement().querySelector('.duplicate-banner')?.getAttribute('role'),
-      ).toBe('status');
 
-      component.entry.set(null);
-      fixture.detectChanges();
+      setEntryValue(null);
       expect(
         getElement().querySelector('app-empty-state [role="status"]'),
       ).toBeTruthy();
 
-      component.entry.set({
+      setEntryValue({
         ticketNumber: 'A-001',
         status: QueueStatus.WAITING,
         positionInQueue: 1,

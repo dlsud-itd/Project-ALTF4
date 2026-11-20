@@ -47,7 +47,7 @@ export class SlotsController {
     name: 'availableOnly',
     required: false,
     description:
-      'Filter out non-bookable and full slots (for patients); defaults to false',
+      'Filter out expired, non-bookable, and full slots (for patients); defaults to false',
   })
   @ApiResponse({ status: 200, description: 'List of clinic slots' })
   @ApiResponse({ status: 400, description: 'Invalid date or date range' })

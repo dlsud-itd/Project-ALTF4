@@ -103,6 +103,28 @@ export class AppointmentsController {
     return this.appointmentsService.cancelAppointment(req.user.id, id);
   }
 
+  @Patch(':id/archive')
+  @Roles(AccessRole.PATIENT)
+  @ApiOperation({
+    summary: 'Archive a past completed or cancelled appointment',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Appointment archived successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Appointment is not eligible for archiving',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden: not your appointment' })
+  @ApiResponse({ status: 404, description: 'Appointment not found' })
+  async archiveAppointment(
+    @Request() req: { user: AuthenticatedUser },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.appointmentsService.archiveAppointment(req.user.id, id);
+  }
+
   @Patch(':id/reschedule')
   @Roles(AccessRole.PATIENT)
   @ApiOperation({ summary: 'Reschedule an active appointment (Patient)' })

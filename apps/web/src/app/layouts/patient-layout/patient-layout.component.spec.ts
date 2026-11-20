@@ -30,9 +30,9 @@ describe('PatientLayoutComponent', () => {
 
     expect(navItems).toEqual([
       'Dashboard',
-      'Schedule',
-      'Bookings',
       'Queue',
+      'Schedule',
+      'Booking History',
       'Profile',
     ]);
   });

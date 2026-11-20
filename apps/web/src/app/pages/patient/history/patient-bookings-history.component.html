@@ -4,8 +4,8 @@
   <!-- Page Top Bar -->
   <header class="page-top">
     <div class="header-intro">
-      <h2>My Bookings</h2>
-      <p class="subtitle">View and manage your appointment history and active consultations</p>
+      <h2>Booking History</h2>
+      <p class="subtitle">View and manage your appointments and past consultations</p>
     </div>
 
     <div class="header-actions">
@@ -165,6 +165,20 @@
                     (onClick)="onCancelAppointment(appt)"
                   />
                 </div>
+              } @else if (canArchive(appt)) {
+                <div class="action-buttons">
+                  <p-button
+                    label="Archive"
+                    icon="pi pi-folder"
+                    severity="secondary"
+                    [outlined]="true"
+                    size="small"
+                    [loading]="archivingId() === appt.id"
+                    (onClick)="onArchiveAppointment(appt)"
+                  />
+                </div>
+              } @else {
+                <div class="action-buttons action-buttons--empty" aria-hidden="true"></div>
               }
             </div>
           </article>

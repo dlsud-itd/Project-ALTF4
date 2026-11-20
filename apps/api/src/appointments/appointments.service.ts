@@ -14,8 +14,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from '../queue/queue-events.service';
 import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
+import { isSlotPast } from '../common/is-slot-past.util';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
+
+const ARCHIVABLE_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
+  AppointmentStatus.COMPLETED,
+  AppointmentStatus.CANCELLED,
+];
 
 @Injectable()
 export class AppointmentsService {
@@ -37,6 +43,10 @@ export class AppointmentsService {
 
     if (!slot) {
       throw new NotFoundException('Clinic slot not found');
+    }
+
+    if (isSlotPast(slot.clinicDate, slot.endTime)) {
+      throw new ConflictException('This clinic slot has already expired');
     }
 
     if (!slot.isBookable) {
@@ -146,6 +156,7 @@ export class AppointmentsService {
           reservedQueueEntry: {
             ticketNumber,
             queueNumber: nextNumber,
+            status: QueueStatus.WAITING,
             positionInQueue: waitingAhead + 1,
             estimatedWaitMinutes:
               waitingAhead * dailyQueue.fallbackServiceMinutes,
@@ -212,11 +223,15 @@ export class AppointmentsService {
 
   async findAppointments(userId: number, role: string) {
     const appointments = await this.prisma.appointment.findMany({
-      where: role === AccessRole.PATIENT ? { patientId: userId } : {},
+      where:
+        role === AccessRole.PATIENT
+          ? { patientId: userId, archived: false }
+          : {},
       select: {
         id: true,
         status: true,
         createdAt: true,
+        archived: true,
         patient: {
           select: {
             id: true,
@@ -266,54 +281,44 @@ export class AppointmentsService {
       ],
     });
 
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
     // Populate waiting counts for any linked queue entry
     const formattedAppointments = await Promise.all(
       appointments.map(async (appt) => {
-        const apptDateStr = appt.slot.clinicDate.toISOString().slice(0, 10);
-        const isPast = apptDateStr < todayStr;
+        const isPast = isSlotPast(appt.slot.clinicDate, appt.slot.endTime);
         const activeEntry = !isPast ? (appt.queueEntries?.[0] ?? null) : null;
         let reservedQueueEntry: {
           ticketNumber: string;
           queueNumber: number;
+          status: QueueStatus;
           positionInQueue: number;
           estimatedWaitMinutes: number;
         } | null = null;
 
         if (activeEntry) {
-          try {
-            const waitingAhead = await this.prisma.queueEntry.count({
-              where: {
-                dailyQueueId: activeEntry.dailyQueueId,
-                status: QueueStatus.WAITING,
-                queueNumber: { lt: activeEntry.queueNumber },
-              },
-            });
-            const positionInQueue = waitingAhead + 1;
-            const fallbackMin =
-              activeEntry.dailyQueue?.fallbackServiceMinutes ?? 15;
-            reservedQueueEntry = {
-              ticketNumber: activeEntry.ticketNumber,
-              queueNumber: activeEntry.queueNumber,
-              positionInQueue,
-              estimatedWaitMinutes: waitingAhead * fallbackMin,
-            };
-          } catch {
-            reservedQueueEntry = {
-              ticketNumber: activeEntry.ticketNumber,
-              queueNumber: activeEntry.queueNumber,
-              positionInQueue: 1,
-              estimatedWaitMinutes: 0,
-            };
-          }
+          const waitingAhead = await this.prisma.queueEntry.count({
+            where: {
+              dailyQueueId: activeEntry.dailyQueueId,
+              status: QueueStatus.WAITING,
+              queueNumber: { lt: activeEntry.queueNumber },
+            },
+          });
+          const positionInQueue = waitingAhead + 1;
+          const fallbackMin =
+            activeEntry.dailyQueue?.fallbackServiceMinutes ?? 15;
+          reservedQueueEntry = {
+            ticketNumber: activeEntry.ticketNumber,
+            queueNumber: activeEntry.queueNumber,
+            status: activeEntry.status,
+            positionInQueue,
+            estimatedWaitMinutes: waitingAhead * fallbackMin,
+          };
         }
 
         return {
           id: appt.id,
           status: appt.status,
           createdAt: appt.createdAt,
+          archived: appt.archived,
           patient: appt.patient,
           reservedQueueEntry,
           slot: {
@@ -323,6 +328,7 @@ export class AppointmentsService {
             endTime: appt.slot.endTime,
             capacity: appt.slot.capacity,
             isBookable: appt.slot.isBookable,
+            isExpired: isPast,
           },
         };
       }),
@@ -449,6 +455,43 @@ export class AppointmentsService {
     };
   }
 
+  async archiveAppointment(patientId: number, appointmentId: number) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { slot: true },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (appointment.patientId !== patientId) {
+      throw new ForbiddenException(
+        'You are not authorized to archive this appointment',
+      );
+    }
+
+    if (appointment.archived) {
+      throw new BadRequestException('Appointment is already archived');
+    }
+
+    if (
+      !ARCHIVABLE_APPOINTMENT_STATUSES.includes(appointment.status) ||
+      !isSlotPast(appointment.slot.clinicDate, appointment.slot.endTime)
+    ) {
+      throw new BadRequestException(
+        'Only past completed or cancelled appointments can be archived',
+      );
+    }
+
+    await this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { archived: true },
+    });
+
+    return { message: 'Appointment archived successfully' };
+  }
+
   async rescheduleAppointment(
     patientId: number,
     appointmentId: number,
@@ -494,6 +537,10 @@ export class AppointmentsService {
 
     if (!slot) {
       throw new NotFoundException('Clinic slot not found');
+    }
+
+    if (isSlotPast(slot.clinicDate, slot.endTime)) {
+      throw new ConflictException('This clinic slot has already expired');
     }
 
     if (!slot.isBookable) {

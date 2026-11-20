@@ -123,9 +123,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-width: 68px;
-    height: 76px;
-    padding: 0.4rem 0.6rem;
+    width: 76px;
+    min-width: 76px;
+    min-height: 88px;
+    padding: 0.55rem 0.5rem;
     background: #eef4f4;
     border-radius: 14px;
     color: #075a5b;
@@ -133,21 +134,23 @@
     flex-shrink: 0;
 
     .day-name {
-      font-size: 0.72rem;
+      font-size: 0.75rem;
+      line-height: 1.2;
       font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
     }
 
     .day-number {
-      font-size: 1.45rem;
+      font-size: 1.75rem;
       font-weight: 800;
       line-height: 1.1;
     }
 
     .month-name {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       font-weight: 500;
+      line-height: 1.2;
     }
 
     &--today {
@@ -258,6 +261,10 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
+    }
+
+    .action-buttons--empty {
+      min-height: 2rem;
     }
   }
 }

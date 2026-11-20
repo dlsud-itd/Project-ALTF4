@@ -57,5 +57,12 @@ export class AppointmentsService {
       dto,
     );
   }
+
+  archiveAppointment(id: number): Observable<AppointmentMutationResponse> {
+    return this.http.patch<AppointmentMutationResponse>(
+      `${this.apiConfig.apiUrl}/appointments/${id}/archive`,
+      {},
+    );
+  }
 }
 

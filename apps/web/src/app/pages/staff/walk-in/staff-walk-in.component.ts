@@ -1,4 +1,11 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import {
   AbstractControl,
@@ -10,15 +17,13 @@ import {
 import { Button } from 'primeng/button';
 import { QueueService, AppConfirmService } from '@core/services';
 import { QueueStatus, WalkInRequest, WalkInResponse } from '@core/models';
+import { requiredTextValidator } from '@core/utils';
 
 const NAME_PATTERN = /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u;
 const NAME_MIN_LENGTH = 2;
 const NAME_MAX_LENGTH = 60;
 const REASON_MAX_LENGTH = 200;
 const FALLBACK_ERROR = 'Could not create the walk-in ticket.';
-
-// TODO(Lim, Jereign): replace with the active queue id for today
-const QUEUE_ID = 1;
 
 type IssuedWalkInTicket = {
   ticketNumber: string;
@@ -39,6 +44,7 @@ type IssuedWalkInTicket = {
 export class StaffWalkInComponent implements OnInit {
   readonly QueueStatus = QueueStatus;
   private readonly queueService = inject(QueueService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly formBuilder = inject(FormBuilder);
   private readonly confirmService = inject(AppConfirmService);
   private readonly validatePatientName = (
@@ -54,26 +60,41 @@ export class StaffWalkInComponent implements OnInit {
     return NAME_PATTERN.test(name) ? null : { pattern: true };
   };
 
-  readonly queueId = signal<number>(QUEUE_ID);
+  readonly queueId = signal<number | null>(null);
+  readonly isLoadingQueue = signal(true);
+  readonly queueError = signal<string | null>(null);
   readonly issuedTicket = signal<IssuedWalkInTicket | null>(null);
   readonly isGeneratingQueue = signal<boolean>(false);
   readonly walkInError = signal<string | null>(null);
   readonly walkInForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, this.validatePatientName]],
-    reasonForVisit: ['', [Validators.maxLength(REASON_MAX_LENGTH)]],
+    reasonForVisit: [
+      '',
+      [requiredTextValidator, Validators.maxLength(REASON_MAX_LENGTH)],
+    ],
   });
 
   ngOnInit(): void {
-    this.queueService.getTodayQueue().subscribe({
-      next: (todayQueue): void => {
-        if (todayQueue?.id) {
+    this.loadQueue();
+  }
+
+  loadQueue(): void {
+    this.isLoadingQueue.set(true);
+    this.queueError.set(null);
+    this.queueService
+      .getTodayQueue()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (todayQueue): void => {
           this.queueId.set(todayQueue.id);
-        }
-      },
-      error: (): void => {
-        // Fall back to default QUEUE_ID
-      },
-    });
+          this.isLoadingQueue.set(false);
+        },
+        error: (): void => {
+          this.queueId.set(null);
+          this.isLoadingQueue.set(false);
+          this.queueError.set("Could not load today's queue. Please try again.");
+        },
+      });
   }
 
   onGenerateQueueNumber(): void {
@@ -81,11 +102,16 @@ export class StaffWalkInComponent implements OnInit {
       this.walkInForm.markAllAsTouched();
       return;
     }
+    const queueId = this.queueId();
+    if (queueId === null) {
+      this.queueError.set("Today's queue is not available yet.");
+      return;
+    }
 
     const formValue = this.walkInForm.getRawValue();
     const payload: WalkInRequest = {
       name: formValue.name.trim().replace(/\s+/g, ' '),
-      reasonForVisit: formValue.reasonForVisit.trim() || undefined,
+      reasonForVisit: formValue.reasonForVisit.trim(),
     };
 
     this.confirmService.confirmReview({
@@ -93,22 +119,23 @@ export class StaffWalkInComponent implements OnInit {
       message: `Issue a new queue ticket for patient "${payload.name}"?`,
       acceptLabel: 'Issue Ticket',
       rejectLabel: 'Review',
-      accept: () => this.executeGenerateTicket(payload),
+      accept: () => this.executeGenerateTicket(queueId, payload),
     });
   }
 
-  private executeGenerateTicket(payload: WalkInRequest): void {
+  private executeGenerateTicket(queueId: number, payload: WalkInRequest): void {
     this.issuedTicket.set(null);
     this.isGeneratingQueue.set(true);
     this.walkInError.set(null);
     this.queueService
-      .generateStaffQueueNumber(this.queueId(), payload)
+      .generateStaffQueueNumber(queueId, payload)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response: WalkInResponse): void => {
           this.issuedTicket.set({
             ticketNumber: response.ticket_number,
             patientName: payload.name,
-            visitReason: payload.reasonForVisit ?? '',
+            visitReason: payload.reasonForVisit,
             issuedAt: response.joined_at,
             status: response.status,
           });

@@ -1,7 +1,14 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,6 +31,8 @@ describe('SlotsService', () => {
   };
 
   beforeEach(async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-01T00:00:00.000Z'));
     Object.values(mockPrismaService.clinicSlot).forEach((mock) =>
       mock.mockReset(),
     );
@@ -36,6 +45,10 @@ describe('SlotsService', () => {
     }).compile();
 
     service = module.get<SlotsService>(SlotsService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('validates slot dates and times in the documented formats', async () => {
@@ -110,6 +123,7 @@ describe('SlotsService', () => {
           capacity: 2,
           remainingCapacity: 1,
           isBookable: true,
+          isExpired: false,
         },
         {
           id: 2,
@@ -119,6 +133,7 @@ describe('SlotsService', () => {
           capacity: 1,
           remainingCapacity: 0,
           isBookable: false,
+          isExpired: false,
         },
         {
           id: 3,
@@ -128,6 +143,7 @@ describe('SlotsService', () => {
           capacity: 1,
           remainingCapacity: 1,
           isBookable: false,
+          isExpired: false,
         },
       ],
     });
@@ -185,6 +201,30 @@ describe('SlotsService', () => {
     expect(result.slots[0].id).toBe(1);
     expect(result.slots[0].isBookable).toBe(true);
     expect(result.slots[0].remainingCapacity).toBe(1);
+  });
+
+  it('marks expired slots for staff and excludes them from patient availability', async () => {
+    mockPrismaService.clinicSlot.findMany.mockResolvedValue([
+      {
+        id: 8,
+        clinicDate: new Date('2026-10-31T00:00:00.000Z'),
+        startTime: '09:00',
+        endTime: '09:30',
+        capacity: 2,
+        isBookable: true,
+        appointments: [],
+      },
+    ]);
+
+    await expect(
+      service.findSlots('2026-10-31', '2026-10-31'),
+    ).resolves.toMatchObject({
+      slots: [{ id: 8, isExpired: true, isBookable: false }],
+    });
+
+    await expect(
+      service.findSlots('2026-10-31', '2026-10-31', true),
+    ).resolves.toEqual({ slots: [] });
   });
 
   it('rejects invalid dates and reversed ranges before querying', async () => {

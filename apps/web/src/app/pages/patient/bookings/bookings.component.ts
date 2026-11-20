@@ -1,15 +1,29 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, map, of, Subject, switchMap } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
 import { ClinicSlot, PatientAppointment } from '@core/models';
-import { SlotsService, AppointmentsService, AppConfirmService } from '@core/services';
-import { getErrorMessage, toDateParam } from '@core/utils';
 import {
-
+  SlotsService,
+  AppointmentsService,
+  AppConfirmService,
+  PatientAppointmentsStore,
+} from '@core/services';
+import { getErrorMessage, requiredTextValidator, toDateParam } from '@core/utils';
+import {
   ErrorStateComponent,
   LoadingSkeletonComponent,
 } from '@shared/ui';
@@ -33,6 +47,10 @@ export type CalendarDay = {
   monthName: string;
   fullDate: string;
 };
+
+type SlotLoadResult =
+  | { slots: ClinicSlot[] }
+  | { error: HttpErrorResponse };
 
 const LOOKAHEAD_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -71,7 +89,7 @@ function parseCalendarDay(dateStr: string): CalendarDay {
     Dialog,
     Message,
     Tag,
-  
+    ReactiveFormsModule,
     ErrorStateComponent,
     LoadingSkeletonComponent,
   ],
@@ -81,8 +99,53 @@ function parseCalendarDay(dateStr: string): CalendarDay {
 export class BookingsComponent implements OnInit {
   private readonly slotsService = inject(SlotsService);
   private readonly appointmentsService = inject(AppointmentsService);
+  private readonly appointmentsStore = inject(PatientAppointmentsStore);
+  private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly confirmService = inject(AppConfirmService);
   private readonly route = inject(ActivatedRoute);
+  private readonly slotReload$ = new Subject<void>();
+
+  constructor() {
+    this.slotReload$
+      .pipe(
+        switchMap(() => {
+          const today = new Date();
+          const end = new Date(today.getTime() + LOOKAHEAD_DAYS * MS_PER_DAY);
+          return this.slotsService
+            .getSlots(toDateParam(today), toDateParam(end), true)
+            .pipe(
+              map((response): SlotLoadResult => ({ slots: response.slots })),
+              catchError((error: HttpErrorResponse) =>
+                of<SlotLoadResult>({ error }),
+              ),
+            );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result): void => {
+        this.isLoadingSlots.set(false);
+        if ('error' in result) {
+          this.slotsError.set(
+            getErrorMessage(
+              result.error,
+              'Could not load available clinic slots.',
+            ),
+          );
+          return;
+        }
+
+        this.rawSlots.set(result.slots);
+        const dates = this.availableDates();
+        if (
+          dates.length > 0 &&
+          (!this.selectedDateId() ||
+            !dates.some((date) => date.id === this.selectedDateId()))
+        ) {
+          this.selectedDateId.set(dates[0].id);
+        }
+      });
+  }
 
   // Single clinic doctor profile
   readonly clinicDoctor = 'Dr. Maria Santos, MD';
@@ -98,7 +161,14 @@ export class BookingsComponent implements OnInit {
   readonly selectedDateId = signal<string>('');
   readonly selectedSession = signal<'ALL' | 'Morning' | 'Afternoon'>('ALL');
   readonly selectedSlotId = signal<number | null>(null);
-  readonly reasonForVisit = signal<string>('');
+  readonly bookingForm = this.formBuilder.nonNullable.group({
+    reasonForVisit: ['', [requiredTextValidator]],
+  });
+  private readonly reasonValue = toSignal(
+    this.bookingForm.controls.reasonForVisit.valueChanges,
+    { initialValue: this.bookingForm.controls.reasonForVisit.value },
+  );
+  readonly reasonForVisit = computed((): string => this.reasonValue());
 
   // Booking action state
   readonly isBooking = signal<boolean>(false);
@@ -118,13 +188,15 @@ export class BookingsComponent implements OnInit {
   readonly isConfirmDisabled = computed((): boolean => {
     if (this.isBooking()) return true;
     if (this.isRescheduling()) return false;
-    return this.reasonForVisit().trim().length === 0;
+    this.reasonValue();
+    return this.bookingForm.controls.reasonForVisit.invalid;
   });
 
   // Only bookable slots with available capacity are shown to patients
   readonly availableSlots = computed((): ClinicSlot[] => {
     return this.rawSlots().filter(
-      (slot: ClinicSlot): boolean => slot.isBookable && slot.remainingCapacity > 0,
+      (slot: ClinicSlot): boolean =>
+        slot.isBookable && slot.remainingCapacity > 0 && !slot.isExpired,
     );
   });
 
@@ -207,32 +279,9 @@ export class BookingsComponent implements OnInit {
   }
 
   loadSlots(): void {
-    const today = new Date();
-    const end = new Date(today.getTime() + LOOKAHEAD_DAYS * MS_PER_DAY);
-
     this.isLoadingSlots.set(true);
     this.slotsError.set(null);
-
-    this.slotsService
-      .getSlots(toDateParam(today), toDateParam(end), true)
-      .subscribe({
-        next: (response): void => {
-          this.rawSlots.set(response.slots);
-          this.isLoadingSlots.set(false);
-
-          // If no date currently selected or active date has no slots, default to first available
-          const dates = this.availableDates();
-          if (dates.length > 0 && (!this.selectedDateId() || !dates.some(d => d.id === this.selectedDateId()))) {
-            this.selectedDateId.set(dates[0].id);
-          }
-        },
-        error: (err: HttpErrorResponse): void => {
-          this.slotsError.set(
-            getErrorMessage(err, 'Could not load available clinic slots.'),
-          );
-          this.isLoadingSlots.set(false);
-        },
-      });
+    this.slotReload$.next();
   }
 
   onSelectDate(dateId: string): void {
@@ -256,16 +305,12 @@ export class BookingsComponent implements OnInit {
     this.clearErrors();
   }
 
-  onReasonInput(event: Event): void {
-    const target = event.target as HTMLTextAreaElement;
-    this.reasonForVisit.set(target.value);
-  }
-
   onConfirmBooking(): void {
     const slot = this.selectedSlot();
     if (!slot) return;
 
-    if (!this.isRescheduling() && !this.reasonForVisit().trim()) {
+    if (!this.isRescheduling() && this.bookingForm.controls.reasonForVisit.invalid) {
+      this.bookingForm.controls.reasonForVisit.markAsTouched();
       return;
     }
 
@@ -288,7 +333,7 @@ export class BookingsComponent implements OnInit {
       return;
     }
 
-    const trimmedReason = this.reasonForVisit().trim();
+    const trimmedReason = this.bookingForm.controls.reasonForVisit.value.trim();
     if (!trimmedReason) return;
 
     this.executeBooking(slot, trimmedReason);
@@ -303,12 +348,14 @@ export class BookingsComponent implements OnInit {
         slotId: slot.id,
         reasonForVisit: reason,
       })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response): void => {
+          this.appointmentsStore.load();
           this.isBooking.set(false);
           this.bookingSuccess.set(response);
           this.selectedSlotId.set(null);
-          this.reasonForVisit.set('');
+          this.bookingForm.reset();
           this.loadSlots();
         },
         error: (err: HttpErrorResponse): void => {
@@ -334,7 +381,7 @@ export class BookingsComponent implements OnInit {
     this.bookingSuccess.set(null);
     this.rescheduleSuccess.set(false);
     this.selectedSlotId.set(null);
-    this.reasonForVisit.set('');
+    this.bookingForm.reset();
     this.clearErrors();
     this.loadSlots();
   }
@@ -346,8 +393,10 @@ export class BookingsComponent implements OnInit {
 
     this.appointmentsService
       .rescheduleAppointment(appointmentId, { slotId: slot.id })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response): void => {
+          this.appointmentsStore.load();
           this.isBooking.set(false);
           this.rescheduleSuccess.set(true);
           this.bookingSuccess.set(response);

@@ -71,7 +71,7 @@ describe('StaffWalkInComponent', () => {
     expect(element.querySelector('.ticket-card img')).toBeNull();
   });
 
-  it('creates a walk-in ticket using the name and optional reason only', () => {
+  it('creates a walk-in ticket using the name and required reason', () => {
     component.walkInForm.setValue({
       name: '  Jane   Doe ',
       reasonForVisit: '  Headache  ',
@@ -105,24 +105,24 @@ describe('StaffWalkInComponent', () => {
     ).toContain('Headache');
   });
 
-  it('shows a no-reason label and clears the old ticket for a new walk-in', () => {
+  it('rejects a missing reason and shows a required inline error', () => {
     component.walkInForm.setValue({ name: 'Jane Doe', reasonForVisit: '' });
     component.onGenerateQueueNumber();
     fixture.detectChanges();
 
+    expect(queueServiceMock.generateStaffQueueNumber).not.toHaveBeenCalled();
+    expect(component.walkInForm.controls.reasonForVisit.touched).toBeTrue();
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('.ticket-reason')
+      (fixture.nativeElement as HTMLElement).querySelector('.field-error')
         ?.textContent,
-    ).toContain('No reason provided');
-
-    component.onNewWalkIn();
-    fixture.detectChanges();
-
-    expect(component.issuedTicket()).toBeNull();
+    ).toContain('required');
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector('.ticket-placeholder')
-        ?.textContent,
-    ).toContain('Ticket will appear here');
+      (
+        (fixture.nativeElement as HTMLElement).querySelector(
+          'p-button button',
+        ) as HTMLButtonElement
+      )?.disabled,
+    ).toBeTrue();
   });
 
   it('does not submit an invalid name', () => {
@@ -138,7 +138,10 @@ describe('StaffWalkInComponent', () => {
     queueServiceMock.generateStaffQueueNumber.and.returnValue(
       throwError(() => ({ error: { message: 'Queue closed' } })),
     );
-    component.walkInForm.setValue({ name: 'Jane Doe', reasonForVisit: '' });
+    component.walkInForm.setValue({
+      name: 'Jane Doe',
+      reasonForVisit: 'Routine checkup',
+    });
 
     component.onGenerateQueueNumber();
     fixture.detectChanges();

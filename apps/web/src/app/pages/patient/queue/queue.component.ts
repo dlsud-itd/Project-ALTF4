@@ -23,9 +23,13 @@ import {
 } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
-import { QueueService, SseService } from '@core/services';
 import {
-  PatientQueueEntryResponse,
+  PatientAppointmentsStore,
+  QueueService,
+  SseService,
+} from '@core/services';
+import {
+  PatientAppointment,
   QueueStatus,
   QueueStatusResponse,
   TrackingStatusResponse,
@@ -46,6 +50,9 @@ export type DisplayQueueEntry = {
   positionInQueue: number;
   estimatedWaitMinutes: number;
   roomNumber?: string | null;
+  clinicDate?: string;
+  startTime?: string;
+  endTime?: string;
 };
 
 // Page view model mapped from the snake_case status response.
@@ -81,9 +88,6 @@ type RefreshResult = {
   response: QueueStatusResponse | null;
   error: unknown;
 };
-
-// TODO(Lim, Jereign): remove once the API provides today's queue id
-const CURRENT_QUEUE_ID = 1;
 
 // Polling fallback interval, used only while the SSE stream is offline.
 const POLL_INTERVAL_MS = 15000;
@@ -168,6 +172,7 @@ function isQueueNotFound(error: unknown): boolean {
 })
 export class PatientQueueComponent implements OnInit {
   private readonly queueService = inject(QueueService);
+  private readonly appointmentsStore = inject(PatientAppointmentsStore);
   private readonly sseService = inject(SseService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -180,10 +185,31 @@ export class PatientQueueComponent implements OnInit {
   readonly isLive = signal(false);
   readonly isRefreshing = signal(false);
 
-  // Connected to live backend queue entry
-  readonly entry = signal<DisplayQueueEntry | null>(null);
+  private readonly trackingToken = signal<string | null>(null);
+  private readonly trackingEntry = signal<DisplayQueueEntry | null>(null);
+  private readonly trackingError = signal<string | null>(null);
+  private readonly isTrackingLoading = signal(false);
 
-  readonly hasDuplicateEntry = signal(false);
+  readonly entry = computed((): DisplayQueueEntry | null => {
+    const trackingEntry = this.trackingEntry();
+    if (trackingEntry) {
+      return trackingEntry;
+    }
+    const appointment = this.appointmentsStore.activeQueueEntry();
+    return appointment ? this.toDisplayEntry(appointment) : null;
+  });
+  readonly isEntryLoading = computed(
+    () =>
+      this.trackingToken()
+        ? this.isTrackingLoading()
+        : this.appointmentsStore.isLoading(),
+  );
+  readonly entryError = computed(
+    () =>
+      this.trackingToken()
+        ? this.trackingError()
+        : this.appointmentsStore.error(),
+  );
 
   readonly isLoading = computed(
     () => this.viewState() === QUEUE_VIEW_STATE.LOADING,
@@ -264,54 +290,41 @@ export class PatientQueueComponent implements OnInit {
 
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
 
-    this.sseService.subscribeToQueue(CURRENT_QUEUE_ID);
     this.refresh(REFRESH_KIND.INITIAL);
   }
 
   loadEntry(): void {
     const token = this.route.snapshot.queryParamMap.get('token');
+    this.trackingToken.set(token);
     if (token) {
-      this.queueService.trackByToken(token).subscribe({
-        next: (res: TrackingStatusResponse) => {
-          this.entry.set({
-            ticketNumber: res.ticket_number,
-            status: res.status,
-            positionInQueue: res.position_in_queue,
-            estimatedWaitMinutes: res.time_remaining_seconds
-              ? Math.ceil(res.time_remaining_seconds / 60)
-              : res.position_in_queue * 15,
-          });
-        },
-        error: () => {
-          this.entry.set(null);
-        },
-      });
+      this.trackingError.set(null);
+      this.isTrackingLoading.set(true);
+      this.queueService
+        .trackByToken(token)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (res: TrackingStatusResponse) => {
+            this.trackingEntry.set({
+              ticketNumber: res.ticket_number,
+              status: res.status,
+              positionInQueue: res.position_in_queue,
+              estimatedWaitMinutes: res.time_remaining_seconds
+                ? Math.ceil(res.time_remaining_seconds / 60)
+                : res.position_in_queue * 15,
+            });
+            this.isTrackingLoading.set(false);
+          },
+          error: () => {
+            this.trackingEntry.set(null);
+            this.trackingError.set('Could not load this queue ticket.');
+            this.isTrackingLoading.set(false);
+          },
+        });
       return;
     }
 
-    // Authenticated patient lookup
-    this.queueService.getMyQueueEntry(CURRENT_QUEUE_ID).subscribe({
-      next: (entry: PatientQueueEntryResponse | null) => {
-        if (entry) {
-          this.entry.set({
-            ticketNumber: entry.ticket_number,
-            status: entry.status,
-            positionInQueue: entry.position_in_queue,
-            estimatedWaitMinutes: entry.estimated_wait_minutes,
-            roomNumber: entry.room_number,
-          });
-        } else {
-          this.entry.set(null);
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        if (err.status === 409) {
-          this.hasDuplicateEntry.set(true);
-        } else {
-          this.entry.set(null);
-        }
-      },
-    });
+    this.trackingEntry.set(null);
+    this.appointmentsStore.load();
   }
 
   onRefresh(): void {
@@ -329,7 +342,11 @@ export class PatientQueueComponent implements OnInit {
     this.refresh$
       .pipe(
         switchMap((kind) =>
-          this.queueService.getQueueStatus(CURRENT_QUEUE_ID).pipe(
+          this.queueService.getTodayQueue().pipe(
+            switchMap((queue) => {
+              this.sseService.subscribeToQueue(queue.id);
+              return this.queueService.getQueueStatus(queue.id);
+            }),
             map((response): RefreshResult => ({ kind, response, error: null })),
             catchError((error: unknown) =>
               of<RefreshResult>({ kind, response: null, error }),
@@ -377,6 +394,22 @@ export class PatientQueueComponent implements OnInit {
 
   private isShowingData(): boolean {
     return this.isActive() || this.isQueueClosed();
+  }
+
+  private toDisplayEntry(appointment: PatientAppointment): DisplayQueueEntry | null {
+    const reserved = appointment.reservedQueueEntry;
+    if (!reserved) {
+      return null;
+    }
+    return {
+      ticketNumber: reserved.ticketNumber,
+      status: reserved.status ?? QueueStatus.WAITING,
+      positionInQueue: reserved.positionInQueue,
+      estimatedWaitMinutes: reserved.estimatedWaitMinutes,
+      clinicDate: appointment.slot.clinicDate,
+      startTime: appointment.slot.startTime,
+      endTime: appointment.slot.endTime,
+    };
   }
 
   private applyResult(result: RefreshResult): void {

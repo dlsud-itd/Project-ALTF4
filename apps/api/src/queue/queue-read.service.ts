@@ -85,7 +85,9 @@ export class QueueReadService {
     });
 
     return entries.filter((entry) => {
-      const apptDate = (entry as { appointment?: { slot?: { clinicDate?: Date } } | null }).appointment?.slot?.clinicDate;
+      const apptDate = (
+        entry as { appointment?: { slot?: { clinicDate?: Date } } | null }
+      ).appointment?.slot?.clinicDate;
       if (!apptDate) {
         return true;
       }

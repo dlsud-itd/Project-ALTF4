@@ -20,7 +20,11 @@ describe('PatientBookingsHistoryComponent', () => {
     appointmentsServiceSpy = jasmine.createSpyObj('AppointmentsService', [
       'getMyAppointments',
       'cancelAppointment',
+      'archiveAppointment',
     ]);
+    appointmentsServiceSpy.archiveAppointment.and.returnValue(
+      of({ message: 'Appointment archived successfully' }),
+    );
     appointmentsServiceSpy.getMyAppointments.and.returnValue(
       of({
         appointments: [
@@ -37,6 +41,7 @@ describe('PatientBookingsHistoryComponent', () => {
               endTime: '10:00',
               capacity: 1,
               isBookable: true,
+              isExpired: false,
               remainingCapacity: 0,
             },
             reservedQueueEntry: {
@@ -59,6 +64,7 @@ describe('PatientBookingsHistoryComponent', () => {
               endTime: '11:00',
               capacity: 1,
               isBookable: true,
+              isExpired: true,
               remainingCapacity: 0,
             },
           },
@@ -102,5 +108,13 @@ describe('PatientBookingsHistoryComponent', () => {
 
     component.setFilter('ALL');
     expect(component.filteredAppointments().length).toBe(2);
+  });
+
+  it('allows archive only for past completed or cancelled appointments', () => {
+    const completed = component.appointments()[1];
+    const upcoming = component.appointments()[0];
+
+    expect(component.canArchive(completed)).toBeTrue();
+    expect(component.canArchive(upcoming)).toBeFalse();
   });
 });
