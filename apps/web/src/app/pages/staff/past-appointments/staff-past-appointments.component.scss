@@ -34,8 +34,8 @@
   background: #ffffff;
   padding: 0.85rem 1.15rem;
   border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: var(--card-radius-sm);
+  box-shadow: var(--card-shadow);
 }
 
 .filter-tabs {
@@ -43,7 +43,7 @@
   gap: 0.25rem;
   background: var(--surface-100, #f1f5f9);
   padding: 0.25rem;
-  border-radius: 8px;
+  border-radius: var(--pill-radius);
 }
 
 .filter-tab {
@@ -53,7 +53,7 @@
   padding: 0.45rem 0.85rem;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.84rem;
   font-weight: 500;
   color: var(--text-muted, #64748b);
@@ -110,7 +110,7 @@
     padding: 0.4rem 2rem 0.4rem 2.4rem;
     font-size: 0.84rem;
     box-sizing: border-box;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-300, #cbd5e1);
 
     &::placeholder {
@@ -145,10 +145,10 @@
 
 .empty-state-wrapper {
   background: #ffffff;
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 3.5rem 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .patient-avatar-sm {
@@ -168,10 +168,10 @@
 
 .appointments-table-card {
   background: #ffffff;
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .table-header-row {
@@ -228,7 +228,7 @@
     padding: 0.2rem 0.55rem;
     background: #eef4f4;
     color: #075a5b;
-    border-radius: 6px;
+    border-radius: var(--pill-radius);
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -265,19 +265,19 @@
 
 .past-card {
   background: #ffffff;
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 18px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.4rem;
   display: flex;
   flex-direction: column;
   gap: 0.95rem;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
   transition: all 180ms ease;
 
   &:hover {
     border-color: #075a5b;
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(7, 90, 91, 0.08);
+    box-shadow: var(--card-shadow-hover);
   }
 
   .card-top {
@@ -300,17 +300,15 @@
     }
   }
 
-  .card-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
+  // The affiliation badge sits beside the date.
+  .detail-line {
     .affiliation-badge {
       display: inline-block;
+      margin-left: auto;
       padding: 0.2rem 0.55rem;
       background: #eef4f4;
       color: #075a5b;
-      border-radius: 6px;
+      border-radius: var(--pill-radius);
       font-size: 0.75rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -341,8 +339,8 @@
 
 .card-paginator-wrapper {
   background: #ffffff;
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
 }
 
@@ -380,5 +378,33 @@
         flex: 1;
       }
     }
+  }
+}
+
+// Status tags stay on one line (e.g. "No-show" no longer wraps in card view).
+::ng-deep .p-tag {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// Touch targets are at least 44px on tablets, phones and touch screens.
+@media (max-width: 1024px), (pointer: coarse) {
+  .filter-tab {
+    min-height: 44px;
+  }
+
+  .search-box input {
+    height: 44px;
+  }
+}
+
+@media (max-width: 600px) {
+  .search-box {
+    width: 100%;
+  }
+
+  .filter-tabs {
+    max-width: 100%;
+    overflow-x: auto;
   }
 }
