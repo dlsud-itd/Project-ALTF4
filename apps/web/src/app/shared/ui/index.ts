@@ -5,4 +5,6 @@ export * from './empty-state/empty-state.component';
 export * from './error-state/error-state.component';
 export * from './loading-skeleton/loading-skeleton.component';
 export * from './notice/notice.component';
+export * from './paginator/paginator.component';
 export * from './session-timeout-modal/session-timeout-modal.component';
+export * from './view-toggle/view-toggle.component';
