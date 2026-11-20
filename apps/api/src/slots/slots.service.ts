@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { getManilaCalendarDate, isSlotPast } from '../common/is-slot-past.util';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
+import { SlotGenerationService } from './slot-generation.service';
 
 const MS_PER_DAY = 86_400_000;
 const DEFAULT_RANGE_DAYS = 7;
@@ -35,7 +36,10 @@ const todayAsUtcDate = (): Date =>
 
 @Injectable()
 export class SlotsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly slotGeneration: SlotGenerationService,
+  ) {}
 
   async findSlots(from?: string, to?: string, availableOnly = false) {
     const fromDate =
@@ -49,6 +53,9 @@ export class SlotsService {
     if (toDate < fromDate) {
       throw new BadRequestException('to must be on or after from');
     }
+
+    // Backfill the rolling default schedule so staff no longer create every slot.
+    await this.slotGeneration.ensureUpcomingSlots();
 
     const slots = await this.prisma.clinicSlot.findMany({
       where: {
