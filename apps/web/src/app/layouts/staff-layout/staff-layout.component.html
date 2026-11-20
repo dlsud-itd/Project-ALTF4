@@ -29,7 +29,7 @@
       </button>
       <div class="brand-info">
         <h1 class="brand-name">ClinicQueue</h1>
-        <span class="brand-subtitle">Staff Operations</span>
+        <span class="brand-subtitle">{{ isAdmin() ? 'Admin Portal' : 'Staff Operations' }}</span>
       </div>
       <button type="button" class="collapse-toggle" (click)="toggleCollapsed()" [attr.aria-label]="
           isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'
@@ -40,6 +40,54 @@
 
     <!-- Navigation Menu -->
     <nav class="sidebar-nav">
+      <!-- Admin Tools Section -->
+      @if (isAdmin()) {
+        <div class="nav-section-title">Admin Tools</div>
+
+        <a routerLink="/admin/dashboard" routerLinkActive="active" class="nav-link"
+          [attr.title]="isCollapsed() ? 'Admin Overview' : null" (click)="closeMobileMenu()">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span class="nav-label">Admin Overview</span>
+        </a>
+
+        <a routerLink="/admin/users" routerLinkActive="active" class="nav-link"
+          [attr.title]="isCollapsed() ? 'Users' : null" (click)="closeMobileMenu()">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span class="nav-label">Users</span>
+        </a>
+
+        <a routerLink="/admin/appointments" routerLinkActive="active" class="nav-link"
+          [attr.title]="isCollapsed() ? 'All Appointments' : null" (click)="closeMobileMenu()">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="nav-label">All Appointments</span>
+        </a>
+
+        <a routerLink="/admin/audit-logs" routerLinkActive="active" class="nav-link"
+          [attr.title]="isCollapsed() ? 'Audit Logs' : null" (click)="closeMobileMenu()">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span class="nav-label">Audit Logs</span>
+        </a>
+      }
+
+      <div class="nav-section-title">Staff Operations</div>
+
       <a routerLink="/staff/dashboard" routerLinkActive="active" class="nav-link"
         [attr.title]="isCollapsed() ? 'Dashboard' : null" (click)="closeMobileMenu()">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
@@ -102,7 +150,6 @@
 
     <!-- Sidebar Footer / Sign Out -->
     <div class="sidebar-footer mobile-only">
-
       <p-button [label]="isCollapsed() ? undefined : 'Sign Out'" ariaLabel="Sign Out" severity="danger" size="small"
         [fluid]="true" (onClick)="onLogout()">
         <ng-template #icon><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"

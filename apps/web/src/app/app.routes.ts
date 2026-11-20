@@ -18,6 +18,10 @@ import {
   StaffScheduleComponent,
   StaffPastAppointmentsComponent,
   StaffProfileComponent,
+  AdminDashboardComponent,
+  AdminUsersComponent,
+  AdminAppointmentsComponent,
+  AdminAuditLogsComponent,
 } from '@pages';
 import { authGuard, guestGuard, roleGuard } from '@core/guards';
 
@@ -74,6 +78,21 @@ export const routes: Routes = [
       { path: 'schedule', component: StaffScheduleComponent },
       { path: 'past-appointments', component: StaffPastAppointmentsComponent },
       { path: 'profile', component: StaffProfileComponent },
+    ],
+  },
+
+  // Protected Admin Portal (requires authentication & ADMIN role)
+  {
+    path: 'admin',
+    component: StaffLayoutComponent,
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['ADMIN'] },
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', component: AdminDashboardComponent },
+      { path: 'users', component: AdminUsersComponent },
+      { path: 'appointments', component: AdminAppointmentsComponent },
+      { path: 'audit-logs', component: AdminAuditLogsComponent },
     ],
   },
 

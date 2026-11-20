@@ -36,6 +36,24 @@ const DASHBOARD_ROUTE = '/staff/dashboard';
 const DASHBOARD_TITLE = 'Dashboard';
 const DASHBOARD_SUBTITLE = 'Walk-in queue with a 3-minute grace period';
 
+// Admin Routes
+const ADMIN_DASHBOARD_ROUTE = '/admin/dashboard';
+const ADMIN_DASHBOARD_TITLE = 'Admin Overview';
+const ADMIN_DASHBOARD_SUBTITLE =
+  'System statistics and administrative control center';
+const ADMIN_USERS_ROUTE = '/admin/users';
+const ADMIN_USERS_TITLE = 'User Management';
+const ADMIN_USERS_SUBTITLE =
+  'Registry, role assignments, and account authorization';
+const ADMIN_APPOINTMENTS_ROUTE = '/admin/appointments';
+const ADMIN_APPOINTMENTS_TITLE = 'Appointments Master';
+const ADMIN_APPOINTMENTS_SUBTITLE =
+  'Complete institutional consultations and booking record';
+const ADMIN_AUDIT_ROUTE = '/admin/audit-logs';
+const ADMIN_AUDIT_TITLE = 'Audit Trail';
+const ADMIN_AUDIT_SUBTITLE =
+  'Immutable activity history and security operations';
+
 // Title and subtitle shown on the left of the desktop top bar.
 interface PageHeader {
   title: string;
@@ -61,6 +79,9 @@ export class StaffLayoutComponent {
   readonly staffRole = computed(
     (): string => this.authService.currentUser()?.role ?? 'STAFF',
   );
+  readonly isAdmin = computed(
+    (): boolean => this.staffRole().toUpperCase() === 'ADMIN',
+  );
   readonly staffEmail = computed(
     (): string => this.authService.currentUser()?.email ?? '',
   );
@@ -68,7 +89,7 @@ export class StaffLayoutComponent {
     this.staffName().charAt(0).toUpperCase(),
   );
   readonly roleLabel = computed((): string =>
-    this.staffRole() === 'ADMIN' ? 'Admin' : 'Staff',
+    this.isAdmin() ? 'Admin' : 'Staff',
   );
   readonly isProfileMenuOpen = signal<boolean>(false);
   private readonly currentUrl = toSignal(
@@ -79,10 +100,28 @@ export class StaffLayoutComponent {
     ),
     { initialValue: this.router.url },
   );
-  // Title and subtitle for the top bar. The dashboard page keeps only its
-  // queue controls row.
+
+  // Title and subtitle for the top bar.
   readonly pageHeader = computed((): PageHeader | null => {
     const url = this.currentUrl();
+    if (url.startsWith(ADMIN_DASHBOARD_ROUTE)) {
+      return {
+        title: ADMIN_DASHBOARD_TITLE,
+        subtitle: ADMIN_DASHBOARD_SUBTITLE,
+      };
+    }
+    if (url.startsWith(ADMIN_USERS_ROUTE)) {
+      return { title: ADMIN_USERS_TITLE, subtitle: ADMIN_USERS_SUBTITLE };
+    }
+    if (url.startsWith(ADMIN_APPOINTMENTS_ROUTE)) {
+      return {
+        title: ADMIN_APPOINTMENTS_TITLE,
+        subtitle: ADMIN_APPOINTMENTS_SUBTITLE,
+      };
+    }
+    if (url.startsWith(ADMIN_AUDIT_ROUTE)) {
+      return { title: ADMIN_AUDIT_TITLE, subtitle: ADMIN_AUDIT_SUBTITLE };
+    }
     if (url.startsWith(DASHBOARD_ROUTE)) {
       return { title: DASHBOARD_TITLE, subtitle: DASHBOARD_SUBTITLE };
     }
@@ -103,11 +142,14 @@ export class StaffLayoutComponent {
     }
     return null;
   });
-  // The dashboard and past appointments use the light page background.
+
+  // Pages with light surface background.
   readonly hasWhitePageBg = computed((): boolean => {
     const url = this.currentUrl();
     return (
-      url.startsWith(DASHBOARD_ROUTE) || url.startsWith(PAST_APPOINTMENTS_ROUTE)
+      url.startsWith(DASHBOARD_ROUTE) ||
+      url.startsWith(PAST_APPOINTMENTS_ROUTE) ||
+      url.startsWith('/admin')
     );
   });
   readonly isMobileMenuOpen = signal<boolean>(false);
