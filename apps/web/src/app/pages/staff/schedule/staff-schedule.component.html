@@ -62,6 +62,14 @@
             <th scope="col">Status</th>
             <th scope="col" class="actions-col">
               <span class="sr-only">Actions</span>
+              <p-button
+                label="Block day"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="onOpenBlockDay()"
+              >
+                <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M114 398 398 114"/></svg></ng-template>
+              </p-button>
               <p-button label="Add slot" (onClick)="onAddSlot()">
                 <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M175 256H337M256 175V337"/></svg></ng-template>
               </p-button>
@@ -85,6 +93,18 @@
                 @if (slot.isExpired) {
                   <span aria-label="Expired slots cannot be changed">—</span>
                 } @else {
+                  <p-button
+                    [icon]="isSlotOpen(slot) ? 'pi pi-lock' : 'pi pi-lock-open'"
+                    [severity]="isSlotOpen(slot) ? 'secondary' : 'success'"
+                    [text]="true"
+                    size="small"
+                    [loading]="blockingSlotId() === slot.id"
+                    [ariaLabel]="
+                      (isSlotOpen(slot) ? 'Block slot on ' : 'Reopen slot on ') +
+                      slot.clinicDate
+                    "
+                    (onClick)="onRequestSlotBlock(slot)"
+                  />
                   <p-button
                     icon="pi pi-pencil"
                     severity="secondary"
@@ -126,5 +146,14 @@
     [errorMessage]="saveError()"
     (save)="onFormSave($event)"
     (cancel)="onFormCancel()"
+  />
+
+  <app-block-day-form
+    [isVisible]="isDayFormOpen()"
+    [slots]="slots()"
+    [isSaving]="isDaySaving()"
+    [errorMessage]="dayError()"
+    (save)="onDayFormSave($event)"
+    (cancel)="onDayFormCancel()"
   />
 </div>

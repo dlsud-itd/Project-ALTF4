@@ -14,6 +14,7 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
 import {
+  BlockDayValue,
   ClinicSlot,
   SlotFormValue,
   SlotsResponse,
@@ -33,6 +34,7 @@ import {
   LoadingSkeletonComponent,
 } from '@shared/ui';
 import { SlotFormComponent } from './slot-form/slot-form.component';
+import { BlockDayFormComponent } from './block-day/block-day-form.component';
 import { catchError, map, of, Subject, switchMap } from 'rxjs';
 
 // Number of days ahead of today that the staff list covers.
@@ -41,6 +43,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LOAD_ERROR_FALLBACK = 'Could not load the clinic schedule.';
 const SAVE_ERROR_FALLBACK = 'Could not save the slot. Please try again.';
 const DELETE_ERROR_FALLBACK = 'Could not delete the slot. Please try again.';
+const BLOCK_ERROR_FALLBACK = 'Could not change the slot status.';
 
 type TagSeverity = 'success' | 'warn' | 'secondary';
 type SlotFilter = 'ALL' | 'open' | 'full' | 'closed' | 'expired';
@@ -75,6 +78,7 @@ const STATUS_SEVERITIES: Record<SlotStatus, TagSeverity> = {
     ErrorStateComponent,
     LoadingSkeletonComponent,
     SlotFormComponent,
+    BlockDayFormComponent,
   ],
   providers: [ConfirmationService],
   templateUrl: './staff-schedule.component.html',
@@ -138,6 +142,10 @@ export class StaffScheduleComponent implements OnInit {
   readonly isSaving = signal<boolean>(false);
   readonly saveError = signal<string | null>(null);
   readonly deleteError = signal<string | null>(null);
+  readonly isDayFormOpen = signal<boolean>(false);
+  readonly isDaySaving = signal<boolean>(false);
+  readonly dayError = signal<string | null>(null);
+  readonly blockingSlotId = signal<number | null>(null);
 
   ngOnInit(): void {
     this.loadSlots();
@@ -228,6 +236,74 @@ export class StaffScheduleComponent implements OnInit {
     });
   }
 
+  onOpenBlockDay(): void {
+    this.dayError.set(null);
+    this.isDayFormOpen.set(true);
+  }
+
+  onDayFormCancel(): void {
+    this.isDayFormOpen.set(false);
+  }
+
+  // Blocks or reopens every upcoming slot on the chosen date.
+  onDayFormSave(value: BlockDayValue): void {
+    this.dayError.set(null);
+    this.isDaySaving.set(true);
+    this.slotsService
+      .blockDay(value)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (): void => {
+          this.isDaySaving.set(false);
+          this.isDayFormOpen.set(false);
+          this.loadSlots();
+        },
+        error: (error: HttpErrorResponse): void => {
+          this.isDaySaving.set(false);
+          this.dayError.set(getErrorMessage(error, BLOCK_ERROR_FALLBACK));
+        },
+      });
+  }
+
+  // Toggles a single slot between open and closed for booking.
+  onToggleSlotBlock(slot: ClinicSlot): void {
+    this.blockingSlotId.set(slot.id);
+    this.deleteError.set(null);
+    this.slotsService
+      .blockSlot(slot.id, { isBlocked: this.isSlotOpen(slot) })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (): void => {
+          this.blockingSlotId.set(null);
+          this.loadSlots();
+        },
+        error: (error: HttpErrorResponse): void => {
+          this.blockingSlotId.set(null);
+          this.deleteError.set(getErrorMessage(error, BLOCK_ERROR_FALLBACK));
+        },
+      });
+  }
+
+  // Blocking a slot with bookings notifies those patients, so ask first.
+  onRequestSlotBlock(slot: ClinicSlot): void {
+    const booked: number = slot.capacity - slot.remainingCapacity;
+    if (!this.isSlotOpen(slot) || booked === 0) {
+      this.onToggleSlotBlock(slot);
+      return;
+    }
+
+    this.confirmationService.confirm({
+      header: 'Block slot',
+      message: `Block the ${slot.clinicDate} slot at ${this.formatTime(slot.startTime)}? ${booked} booked patient(s) will be notified to reschedule.`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Block slot',
+      rejectLabel: 'Cancel',
+      acceptButtonProps: { severity: 'danger' },
+      rejectButtonProps: { severity: 'secondary', outlined: true },
+      accept: (): void => this.onToggleSlotBlock(slot),
+    });
+  }
+
   private openForm(slot: ClinicSlot | null): void {
     this.editingSlot.set(slot);
     this.saveError.set(null);
@@ -247,6 +323,11 @@ export class StaffScheduleComponent implements OnInit {
 
   statusSeverity(slot: ClinicSlot): TagSeverity {
     return STATUS_SEVERITIES[getSlotStatus(slot)];
+  }
+
+  // True when the slot is still open for booking (a full slot can be open).
+  isSlotOpen(slot: ClinicSlot): boolean {
+    return slot.isOpen ?? slot.isBookable;
   }
 
   formatTimeRange(startTime: string, endTime: string): string {

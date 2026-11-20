@@ -1,0 +1,84 @@
+<p-dialog
+  [header]="form.controls.isBlocked.value ? 'Block a clinic day' : 'Reopen a clinic day'"
+  [visible]="isVisible()"
+  [modal]="true"
+  [closable]="!isSaving()"
+  [draggable]="false"
+  styleClass="slot-dialog"
+  [style]="{ width: '28rem', maxWidth: '95vw' }"
+  (visibleChange)="onVisibleChange($event)"
+>
+  <form class="slot-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    @if (errorMessage(); as message) {
+      <p-message severity="error" [text]="message" />
+    }
+
+    <div class="toggle-field">
+      <p-toggleswitch inputId="day-blocked" formControlName="isBlocked" />
+      <label for="day-blocked">Close the clinic this day</label>
+    </div>
+
+    <div class="field">
+      <label for="day-date">Date</label>
+      <p-datepicker
+        inputId="day-date"
+        formControlName="clinicDate"
+        dateFormat="yy-mm-dd"
+        placeholder="YYYY-MM-DD"
+        [minDate]="minDate"
+        [showIcon]="true"
+        [fluid]="true"
+      />
+      @if (showDateError()) {
+        <small class="field-error">Pick a date.</small>
+      }
+    </div>
+
+    @if (form.controls.clinicDate.value) {
+      @if (upcomingSlotCount() === 0) {
+        <p-message
+          severity="warn"
+          text="No upcoming slots on that date. Nothing will change."
+        />
+      } @else {
+        <p-message
+          severity="info"
+          [text]="
+            upcomingSlotCount() +
+            ' upcoming slot(s) affected. ' +
+            bookedCount() +
+            ' booked seat(s) will receive a reschedule notification.'
+          "
+        />
+      }
+    }
+
+    <div class="field">
+      <label for="day-reason">Reason (optional)</label>
+      <input
+        id="day-reason"
+        type="text"
+        pInputText
+        formControlName="reason"
+        maxlength="200"
+        placeholder="Doctor on leave"
+      />
+    </div>
+
+    <div class="form-actions">
+      <p-button
+        label="Cancel"
+        severity="secondary"
+        [outlined]="true"
+        type="button"
+        [disabled]="isSaving()"
+        (onClick)="onCancel()"
+      />
+      <p-button
+        [label]="form.controls.isBlocked.value ? 'Block day' : 'Reopen day'"
+        type="submit"
+        [loading]="isSaving()"
+      />
+    </div>
+  </form>
+</p-dialog>

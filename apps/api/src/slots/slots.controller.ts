@@ -19,6 +19,8 @@ import {
 } from '@nestjs/swagger';
 import { AccessRole } from '@prisma/client';
 import { SlotsService } from './slots.service';
+import { SlotBlockingService } from './slot-blocking.service';
+import { BlockDayDto, BlockSlotDto } from './dto/block-slot.dto';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,7 +30,10 @@ import { RolesGuard } from '../auth/roles.guard';
 @ApiTags('Clinic Slots')
 @Controller('slots')
 export class SlotsController {
-  constructor(private readonly slotsService: SlotsService) {}
+  constructor(
+    private readonly slotsService: SlotsService,
+    private readonly slotBlocking: SlotBlockingService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List clinic slots in a date range' })
@@ -104,5 +109,36 @@ export class SlotsController {
   })
   async deleteSlot(@Param('id', ParseIntPipe) id: number) {
     return this.slotsService.deleteSlot(id);
+  }
+
+  @Patch(':id/block')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Block or reopen a single clinic slot (Staff/Admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Slot blocked or reopened; affected patients notified',
+  })
+  @ApiResponse({ status: 404, description: 'Slot not found' })
+  async blockSlot(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: BlockSlotDto,
+  ) {
+    return this.slotBlocking.setSlotBlocked(id, dto.isBlocked);
+  }
+
+  @Post('block-day')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(AccessRole.STAFF, AccessRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Block or reopen every slot on a clinic date (Staff/Admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'All slots for the date blocked or reopened',
+  })
+  @ApiResponse({ status: 404, description: 'No slots found for that date' })
+  async blockDay(@Body() dto: BlockDayDto) {
+    return this.slotBlocking.setDayBlocked(dto.clinicDate, dto.isBlocked);
   }
 }

@@ -536,6 +536,11 @@ $schedule-gap-top: 1rem;
   td:last-child {
     text-align: center;
   }
+
+  // Two header buttons (Block day, Add slot) sit side by side.
+  th.actions-col p-button + p-button {
+    margin-left: 0.85rem;
+  }
 }
 
 // Larger column headings (Date, Time, Capacity, Remaining, Status).

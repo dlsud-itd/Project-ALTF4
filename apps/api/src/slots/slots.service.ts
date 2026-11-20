@@ -10,26 +10,10 @@ import { getManilaCalendarDate, isSlotPast } from '../common/is-slot-past.util';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
 import { SlotGenerationService } from './slot-generation.service';
+import { toUtcDate } from './slot-date.util';
 
 const MS_PER_DAY = 86_400_000;
 const DEFAULT_RANGE_DAYS = 7;
-const DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
-
-const toUtcDate = (value: string, fieldName: string): Date => {
-  if (!DATE_FORMAT.test(value)) {
-    throw new BadRequestException(`${fieldName} must use YYYY-MM-DD format`);
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`);
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.toISOString().slice(0, 10) !== value
-  ) {
-    throw new BadRequestException(`${fieldName} must be a valid calendar date`);
-  }
-
-  return date;
-};
 
 const todayAsUtcDate = (): Date =>
   new Date(`${getManilaCalendarDate()}T00:00:00.000Z`);
@@ -91,7 +75,10 @@ export class SlotsService {
         endTime: slot.endTime,
         capacity: slot.capacity,
         remainingCapacity,
+        // `isOpen` is the stored flag; `isBookable` also folds in no-seats-left
+        // and past slots, so the UI can still block a full or open slot.
         isBookable: slot.isBookable && remainingCapacity > 0 && !isExpired,
+        isOpen: slot.isBookable,
         isExpired,
       };
     });

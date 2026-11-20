@@ -7,6 +7,9 @@ export type ClinicSlot = {
   remainingCapacity: number;
   isBookable: boolean;
   isExpired?: boolean;
+  // Stored open/closed flag without the "full" and "past" adjustments, so the
+  // staff list can tell a closed slot from a full one.
+  isOpen?: boolean;
 };
 
 export type SlotsResponse = {
@@ -29,4 +32,31 @@ export type SlotFormValue = {
 export type SlotMutationResponse = {
   message: string;
   id?: number;
+};
+
+// Body for PATCH /slots/:id/block and POST /slots/block-day; the reason is
+// accepted as a placeholder for future audit logging but is not persisted yet.
+export type BlockSlotValue = {
+  isBlocked: boolean;
+  reason?: string;
+};
+
+export type BlockDayValue = BlockSlotValue & {
+  clinicDate: string;
+};
+
+// Result of blocking or reopening slots.
+export type BlockSlotResponse = {
+  message: string;
+  slotId: number;
+  affectedAppointments: number;
+  notificationsSent: number;
+};
+
+export type BlockDayResponse = {
+  message: string;
+  clinicDate: string;
+  slotsAffected: number;
+  pastSlotsSkipped: number;
+  notificationsSent: number;
 };
