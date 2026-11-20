@@ -695,3 +695,37 @@
     padding: 0 0 2rem;
   }
 }
+
+// Alignment polish for the appointments panel.
+// The caption lines up with the heading text, not with the calendar icon.
+.appointments-section.appointments-section .section-header .section-desc {
+  padding-left: 2.5rem;
+}
+
+// Clock and ticket icons sit centred next to their text at a matching size.
+.appointment-card {
+  .appointment-row-time,
+  .appointment-row-ticket {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+
+    i {
+      flex-shrink: 0;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+  }
+
+  .appointment-row-main {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .appointment-row-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+}

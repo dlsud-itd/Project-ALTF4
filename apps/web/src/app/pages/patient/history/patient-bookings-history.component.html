@@ -1,20 +1,6 @@
 <div class="bookings-history-page">
   <p-confirmdialog />
 
-  <!-- Page Top Bar -->
-  <header class="page-top">
-    <div class="header-intro">
-      <h2>Booking History</h2>
-      <p class="subtitle">View and manage your appointments and past consultations</p>
-    </div>
-
-    <div class="header-actions">
-      <a routerLink="/patient/schedule">
-        <p-button label="Schedule Appointment" icon="pi pi-calendar-plus" />
-      </a>
-    </div>
-  </header>
-
   <!-- Action Feedback Alerts -->
   @if (actionSuccess()) {
     <div class="action-alert">
@@ -60,6 +46,10 @@
         <span class="count-badge">{{ pastAppointments().length }}</span>
       </button>
     </div>
+
+    <a class="schedule-link" routerLink="/patient/schedule">
+      <p-button label="Schedule Appointment" icon="pi pi-calendar-plus" />
+    </a>
   </div>
 
   <!-- Content Section -->
@@ -149,18 +139,20 @@
                 <div class="action-buttons">
                   <a routerLink="/patient/schedule" [queryParams]="{ reschedule: appt.id }">
                     <p-button
-                      label="Reschedule"
                       icon="pi pi-calendar"
                       [outlined]="true"
-                      size="small"
+                      [rounded]="true"
+                      ariaLabel="Reschedule appointment"
+                      title="Reschedule"
                     />
                   </a>
                   <p-button
-                    label="Cancel"
                     icon="pi pi-times"
                     severity="danger"
                     [outlined]="true"
-                    size="small"
+                    [rounded]="true"
+                    ariaLabel="Cancel appointment"
+                    title="Cancel"
                     [loading]="cancellingId() === appt.id"
                     (onClick)="onCancelAppointment(appt)"
                   />

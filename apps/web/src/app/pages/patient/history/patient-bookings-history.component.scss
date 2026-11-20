@@ -33,6 +33,11 @@
 }
 
 .filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 
   .filter-tabs {
