@@ -1,0 +1,312 @@
+<div class="admin-audit-page">
+  <!-- Top Banner / Header -->
+  <header class="page-top">
+    <div class="header-intro">
+      <h2>System Audit Trail</h2>
+      <p class="subtitle">Immutable record of authentication, data mutations, and clinic queue operations</p>
+    </div>
+  </header>
+
+  <!-- Toolbar & Filters -->
+  <div class="toolbar-card">
+    <div class="filter-group">
+      <!-- Category Tabs -->
+      <div class="filter-tabs" role="tablist" aria-label="Action category filters">
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="categoryFilter() === 'ALL'"
+          (click)="setCategoryFilter('ALL')"
+        >
+          <span>All Events</span>
+          <span class="badge">{{ logs().length }}</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="categoryFilter() === 'USER'"
+          (click)="setCategoryFilter('USER')"
+        >
+          <span>User Events</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="categoryFilter() === 'APPOINTMENT'"
+          (click)="setCategoryFilter('APPOINTMENT')"
+        >
+          <span>Appointments</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="categoryFilter() === 'QUEUE'"
+          (click)="setCategoryFilter('QUEUE')"
+        >
+          <span>Queue Ops</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="controls-group">
+      <!-- Search Box -->
+      <div class="search-box">
+        <i class="pi pi-search search-icon" aria-hidden="true"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Search by action, actor, entity..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          aria-label="Search audit logs"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            class="clear-btn"
+            (click)="onSearchChange('')"
+            aria-label="Clear search"
+          >
+            <i class="pi pi-times"></i>
+          </button>
+        }
+      </div>
+
+      <!-- View Toggle -->
+      <app-view-toggle
+        [view]="viewMode()"
+        (viewChange)="viewMode.set($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <section class="audit-content">
+    @if (isLoading()) {
+      <app-loading-skeleton [lines]="6" />
+    } @else if (error()) {
+      <app-error-state
+        title="Could not load audit logs"
+        [message]="error()!"
+        (retry)="loadLogs()"
+      />
+    } @else if (filteredLogs().length === 0) {
+      <div class="empty-state-wrapper">
+        <app-empty-state
+          icon="pi-shield"
+          title="No audit entries found"
+          [message]="searchQuery() ? 'No events match your search query.' : 'Audit logs will appear as administrative or clinic actions take place.'"
+        />
+      </div>
+    } @else {
+      <!-- TABLE VIEW -->
+      @if (viewMode() === 'table') {
+        <div class="audit-table-card">
+          <div class="table-header-row">
+            <span class="col-time">Timestamp</span>
+            <span class="col-action">Action</span>
+            <span class="col-actor">Actor</span>
+            <span class="col-target">Target Entity</span>
+            <span class="col-desc">Description</span>
+            <span class="col-details">Payload</span>
+          </div>
+
+          <ul class="table-body">
+            @for (log of pagedLogs(); track log.id) {
+              <li class="table-row-group" [class.is-expanded]="expandedLogId() === log.id">
+                <div class="table-row">
+                  <div class="col-time">
+                    <span class="tbl-date">{{ formatDatePart(log.occurredAt) }}</span>
+                    <span class="tbl-time">{{ formatTimePart(log.occurredAt) }}</span>
+                  </div>
+
+                  <div class="col-action">
+                    <p-tag
+                      [value]="formatActionLabel(log.action)"
+                      [severity]="actionSeverity(log.action)"
+                      [icon]="actionIcon(log.action)"
+                    />
+                  </div>
+
+                  <div class="col-actor">
+                    <div class="tbl-actor">
+                      <div class="actor-avatar-sm" [class.is-system]="!log.actor">
+                        {{ log.actor?.fullName?.charAt(0) || 'S' }}
+                      </div>
+                      <div class="actor-info">
+                        <span class="actor-name">{{ log.actor?.fullName || 'System' }}</span>
+                        @if (log.actor) {
+                          <span class="actor-role-pill">{{ log.actor.role }}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-target">
+                    <span class="target-entity-chip">
+                      <i class="pi pi-database"></i>
+                      <span>{{ formatEntityLabel(log.entityTable, log.entityId) }}</span>
+                    </span>
+                  </div>
+
+                  <div class="col-desc">
+                    <span class="desc-text" [title]="log.description ?? ''">
+                      {{ log.description || '—' }}
+                    </span>
+                  </div>
+
+                  <div class="col-details">
+                    @if (log.oldValues || log.newValues) {
+                      <button
+                        type="button"
+                        class="payload-toggle-btn"
+                        [class.active]="expandedLogId() === log.id"
+                        (click)="toggleExpand(log.id)"
+                        title="Inspect payload changes"
+                      >
+                        <span>{{ expandedLogId() === log.id ? 'Hide' : 'View' }}</span>
+                        <i [class]="expandedLogId() === log.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
+                      </button>
+                    } @else {
+                      <span class="muted-dash">—</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Expandable Payload Panel -->
+                @if (expandedLogId() === log.id) {
+                  <div class="expanded-payload-panel">
+                    @if (log.oldValues) {
+                      <div class="payload-box before-box">
+                        <span class="payload-title">
+                          <i class="pi pi-minus-circle"></i> Previous State
+                        </span>
+                        <pre><code>{{ log.oldValues | json }}</code></pre>
+                      </div>
+                    }
+                    @if (log.newValues) {
+                      <div class="payload-box after-box">
+                        <span class="payload-title">
+                          <i class="pi pi-plus-circle"></i> New State
+                        </span>
+                        <pre><code>{{ log.newValues | json }}</code></pre>
+                      </div>
+                    }
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+
+          <!-- Paginator -->
+          <app-paginator
+            [totalRecords]="filteredLogs().length"
+            [(first)]="first"
+            [(rows)]="rows"
+            [rowsPerPageOptions]="[10, 25, 50]"
+          />
+        </div>
+      }
+
+      <!-- CARDS VIEW -->
+      @if (viewMode() === 'card') {
+        <div class="cards-view-container">
+          <div class="audit-card-grid">
+            @for (log of pagedLogs(); track log.id) {
+              <div class="audit-card">
+                <!-- Top: Action & Timestamp -->
+                <div class="card-head">
+                  <p-tag
+                    [value]="formatActionLabel(log.action)"
+                    [severity]="actionSeverity(log.action)"
+                    [icon]="actionIcon(log.action)"
+                  />
+                  <div class="card-time-pill">
+                    <i class="pi pi-clock"></i>
+                    <span>{{ formatDatePart(log.occurredAt) }}, {{ formatTimePart(log.occurredAt) }}</span>
+                  </div>
+                </div>
+
+                <!-- Actor Info -->
+                <div class="card-actor-row">
+                  <div class="actor-avatar-sm" [class.is-system]="!log.actor">
+                    {{ log.actor?.fullName?.charAt(0) || 'S' }}
+                  </div>
+                  <div class="actor-info">
+                    <div class="actor-name-line">
+                      <span class="actor-name">{{ log.actor?.fullName || 'System Event' }}</span>
+                      @if (log.actor) {
+                        <span class="actor-role-pill">{{ log.actor.role }}</span>
+                      }
+                    </div>
+                    @if (log.actor?.email) {
+                      <span class="actor-email">{{ log.actor?.email }}</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Target Entity -->
+                <div class="card-target-row">
+                  <span class="label">Target:</span>
+                  <span class="target-entity-chip">
+                    <i class="pi pi-database"></i>
+                    <span>{{ formatEntityLabel(log.entityTable, log.entityId) }}</span>
+                  </span>
+                </div>
+
+                <!-- Description Callout -->
+                <div class="card-desc-callout">
+                  <span class="desc-text">{{ log.description || 'No description recorded.' }}</span>
+                </div>
+
+                <!-- Bottom: Inspect Changes -->
+                <div class="card-footer">
+                  @if (log.oldValues || log.newValues) {
+                    <button
+                      type="button"
+                      class="btn-inspect-changes"
+                      [class.active]="expandedLogId() === log.id"
+                      (click)="toggleExpand(log.id)"
+                    >
+                      <span>{{ expandedLogId() === log.id ? 'Hide State Changes' : 'Inspect Changes' }}</span>
+                      <i [class]="expandedLogId() === log.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"></i>
+                    </button>
+
+                    @if (expandedLogId() === log.id) {
+                      <div class="card-payload-details">
+                        @if (log.oldValues) {
+                          <div class="payload-box before-box">
+                            <span class="payload-title"><i class="pi pi-minus-circle"></i> Before:</span>
+                            <pre><code>{{ log.oldValues | json }}</code></pre>
+                          </div>
+                        }
+                        @if (log.newValues) {
+                          <div class="payload-box after-box">
+                            <span class="payload-title"><i class="pi pi-plus-circle"></i> After:</span>
+                            <pre><code>{{ log.newValues | json }}</code></pre>
+                          </div>
+                        }
+                      </div>
+                    }
+                  } @else {
+                    <span class="no-payload-hint">No state mutation payload</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Paginator -->
+          <div class="card-paginator-wrapper">
+            <app-paginator
+              [totalRecords]="filteredLogs().length"
+              [(first)]="first"
+              [(rows)]="rows"
+              [rowsPerPageOptions]="[10, 25, 50]"
+            />
+          </div>
+        </div>
+      }
+    }
+  </section>
+</div>

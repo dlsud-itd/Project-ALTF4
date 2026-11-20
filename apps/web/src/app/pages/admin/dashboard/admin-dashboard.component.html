@@ -1,0 +1,168 @@
+<div class="admin-dashboard-page">
+  <!-- Header / Action bar -->
+  <header class="page-top">
+    <div class="welcome-banner">
+      <h2>Administrative Control Center</h2>
+      <p>System metrics, user registry management, and activity oversight</p>
+    </div>
+
+    <div class="action-buttons">
+      <a routerLink="/admin/users">
+        <p-button
+          label="Manage Users"
+          icon="pi pi-users"
+          severity="primary"
+        />
+      </a>
+      <a routerLink="/admin/audit-logs">
+        <p-button
+          label="Audit Logs"
+          icon="pi pi-shield"
+          severity="secondary"
+          [outlined]="true"
+        />
+      </a>
+    </div>
+  </header>
+
+  @if (isLoading()) {
+    <app-loading-skeleton [lines]="4" />
+  } @else if (error()) {
+    <app-error-state
+      title="Could not load system metrics"
+      [message]="error()!"
+      (retry)="loadStats()"
+    />
+  } @else {
+    @if (stats(); as s) {
+      <!-- Main stats grid -->
+      <section class="stats-overview" aria-label="System statistics">
+        <div class="stats-grid">
+          <!-- Total Users -->
+          <div class="stat-card primary-card">
+            <div class="stat-card-inner">
+              <span class="stat-icon primary" aria-hidden="true">
+                <i class="pi pi-users"></i>
+              </span>
+              <div class="stat-body">
+                <span class="stat-label">Total Registered Users</span>
+                <span class="stat-number primary">{{ s.totalUsers }}</span>
+                <div class="stat-sub-pill">
+                  <span class="dot primary-dot"></span>
+                  <span>{{ s.totalPatients }} Patients &bull; {{ s.totalStaff }} Staff</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- System Admins -->
+          <div class="stat-card info-card">
+            <div class="stat-card-inner">
+              <span class="stat-icon info" aria-hidden="true">
+                <i class="pi pi-key"></i>
+              </span>
+              <div class="stat-body">
+                <span class="stat-label">System Administrators</span>
+                <span class="stat-number info">{{ s.totalAdmins }}</span>
+                <div class="stat-sub-pill">
+                  <span class="dot info-dot"></span>
+                  <span>Root administrative access</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Today's Appointments -->
+          <div class="stat-card success-card">
+            <div class="stat-card-inner">
+              <span class="stat-icon success" aria-hidden="true">
+                <i class="pi pi-calendar"></i>
+              </span>
+              <div class="stat-body">
+                <span class="stat-label">Appointments Today</span>
+                <span class="stat-number success">{{ s.todayAppointments }}</span>
+                <div class="stat-sub-pill">
+                  <span class="dot success-dot"></span>
+                  <span>{{ s.totalAppointments }} lifetime booked</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-time Queue -->
+          <div class="stat-card warning-card">
+            <div class="stat-card-inner">
+              <span class="stat-icon warning" aria-hidden="true">
+                <i class="pi pi-bell"></i>
+              </span>
+              <div class="stat-body">
+                <span class="stat-label">Queue in Progress</span>
+                <span class="stat-number warning">{{ s.waitingQueueCount }}</span>
+                <div class="stat-sub-pill">
+                  <span class="dot warning-dot"></span>
+                  <span>{{ s.inConsultationCount }} currently with doctor</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security / Audit Logs -->
+          <div class="stat-card purple-card">
+            <div class="stat-card-inner">
+              <span class="stat-icon purple" aria-hidden="true">
+                <i class="pi pi-shield"></i>
+              </span>
+              <div class="stat-body">
+                <span class="stat-label">Audit Trail Events</span>
+                <span class="stat-number purple">{{ s.totalAuditLogs }}</span>
+                <div class="stat-sub-pill">
+                  <span class="dot purple-dot"></span>
+                  <span>Immutable security logs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Navigation Hub -->
+      <section class="quick-nav-section" aria-label="Administrative navigation">
+        <h3 class="section-heading">Quick Administration Tools</h3>
+        <div class="nav-cards-grid">
+          <a routerLink="/admin/users" class="nav-card">
+            <div class="nav-card-icon">
+              <i class="pi pi-user-edit"></i>
+            </div>
+            <div class="nav-card-content">
+              <h4>User Management</h4>
+              <p>Create accounts, assign roles, deactivate credentials, and manage affiliations.</p>
+            </div>
+            <i class="pi pi-arrow-right nav-card-arrow"></i>
+          </a>
+
+          <a routerLink="/admin/appointments" class="nav-card">
+            <div class="nav-card-icon">
+              <i class="pi pi-calendar-plus"></i>
+            </div>
+            <div class="nav-card-content">
+              <h4>Appointments Master List</h4>
+              <p>Review consultation history, upcoming bookings, and patient attendance records.</p>
+            </div>
+            <i class="pi pi-arrow-right nav-card-arrow"></i>
+          </a>
+
+          <a routerLink="/admin/audit-logs" class="nav-card">
+            <div class="nav-card-icon">
+              <i class="pi pi-shield"></i>
+            </div>
+            <div class="nav-card-content">
+              <h4>Security & Audit Logs</h4>
+              <p>Inspect immutable record trails for authentication, status transitions, and actions.</p>
+            </div>
+            <i class="pi pi-arrow-right nav-card-arrow"></i>
+          </a>
+        </div>
+      </section>
+    }
+  }
+</div>

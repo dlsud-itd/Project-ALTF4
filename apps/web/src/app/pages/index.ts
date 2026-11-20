@@ -11,3 +11,4 @@ export * from './staff/walk-in/staff-walk-in.component';
 export * from './staff/schedule/staff-schedule.component';
 export * from './staff/past-appointments/staff-past-appointments.component';
 export * from './staff/profile/profile.component';
+export * from './admin';

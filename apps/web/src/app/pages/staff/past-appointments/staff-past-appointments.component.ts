@@ -1,17 +1,19 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
 import { InputText } from 'primeng/inputtext';
 import { AppointmentsService } from '@core/services';
 import { AppointmentStatus, StaffAppointment } from '@core/models';
 import { getErrorMessage } from '@core/utils';
 import {
+  DataViewMode,
   EmptyStateComponent,
   ErrorStateComponent,
   LoadingSkeletonComponent,
+  PaginatorComponent,
+  ViewToggleComponent,
 } from '@shared/ui';
 
 type PastStatusFilter = 'ALL' | 'COMPLETED' | 'NO_SHOW' | 'CANCELLED';
@@ -54,14 +56,14 @@ function formatTimeRange(start: string, end: string): string {
   standalone: true,
   imports: [
     CommonModule,
-    DatePipe,
     FormsModule,
-    Button,
     Tag,
     InputText,
     EmptyStateComponent,
     ErrorStateComponent,
     LoadingSkeletonComponent,
+    PaginatorComponent,
+    ViewToggleComponent,
   ],
   templateUrl: './staff-past-appointments.component.html',
   styleUrl: './staff-past-appointments.component.scss',
@@ -74,6 +76,11 @@ export class StaffPastAppointmentsComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly searchQuery = signal<string>('');
   readonly statusFilter = signal<PastStatusFilter>('ALL');
+  readonly viewMode = signal<DataViewMode>('table');
+
+  // Pagination
+  readonly first = signal<number>(0);
+  readonly rows = signal<number>(10);
 
   readonly todayStr = computed(() => {
     const now = new Date();
@@ -107,6 +114,13 @@ export class StaffPastAppointmentsComponent implements OnInit {
     return list;
   });
 
+  readonly pagedAppointments = computed(() => {
+    const list = this.filteredAppointments();
+    const offset = this.first();
+    const size = this.rows();
+    return list.slice(offset, offset + size);
+  });
+
   ngOnInit(): void {
     this.loadAppointments();
   }
@@ -137,6 +151,12 @@ export class StaffPastAppointmentsComponent implements OnInit {
 
   setStatusFilter(filter: PastStatusFilter): void {
     this.statusFilter.set(filter);
+    this.first.set(0);
+  }
+
+  onSearchChange(val: string): void {
+    this.searchQuery.set(val);
+    this.first.set(0);
   }
 
   formatClinicDate(dateStr: string): string {
