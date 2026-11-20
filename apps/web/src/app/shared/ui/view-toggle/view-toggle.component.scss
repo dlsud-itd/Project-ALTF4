@@ -3,7 +3,7 @@
   align-items: center;
   background: var(--surface-100, #f1f5f9);
   padding: 0.2rem;
-  border-radius: 8px;
+  border-radius: var(--pill-radius);
   gap: 0.2rem;
 }
 
@@ -14,7 +14,7 @@
   padding: 0.4rem 0.75rem;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--text-muted, #64748b);
@@ -34,5 +34,11 @@
     color: var(--primary-color, #0b7777);
     font-weight: 700;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .toggle-btn {
+    min-height: 44px;
   }
 }

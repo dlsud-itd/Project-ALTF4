@@ -9,7 +9,7 @@
   border-top: 1px solid var(--surface-200, #e2e8f0);
   font-size: 0.875rem;
   color: var(--text-muted, #64748b);
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
 }
 
 .paginator-report {
@@ -35,7 +35,7 @@
   min-width: 32px;
   height: 32px;
   padding: 0 0.5rem;
-  border-radius: 8px;
+  border-radius: var(--pill-radius);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-main, #075a5b);
@@ -92,9 +92,15 @@
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-main, #075a5b);
-    border: 1px solid var(--surface-300, #b8dcd3);
-    border-radius: 6px;
+    appearance: none;
+    padding-right: 2rem;
+    border: 2px solid var(--primary-color, #0b7777);
+    border-radius: var(--pill-radius);
     background-color: var(--surface-0, #ffffff);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23075a5b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 0.9rem;
     outline: none;
     cursor: pointer;
     transition: border-color 150ms ease;
@@ -127,5 +133,16 @@
 
   .paginator-size-selector {
     order: 3;
+  }
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .page-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .paginator-size-selector .size-select {
+    min-height: 44px;
   }
 }
