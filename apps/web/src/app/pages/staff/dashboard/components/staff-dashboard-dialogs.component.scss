@@ -92,3 +92,76 @@ $touch-target-min: 44px;
     width: 100%;
   }
 }
+
+// Dialog polish: card radius and shadow, a bolder header, pill inputs with a soft
+// focus ring, and a little more room around the actions.
+:host ::ng-deep .queue-dialog {
+  overflow: hidden;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow-hover);
+
+  .p-dialog-header {
+    padding: 1.5rem 1.75rem 0.5rem;
+
+    .p-dialog-title {
+      color: var(--text-main);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+  }
+
+  .p-dialog-content {
+    padding: 0.5rem 1.75rem 1.75rem;
+  }
+}
+
+.dialog-form {
+  gap: 0.5rem;
+
+  .dialog-lead {
+    margin-bottom: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  label {
+    margin-top: 0.6rem;
+    padding-left: 0.25rem;
+    color: var(--text-main);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  input {
+    padding: 0.75rem 1.1rem;
+    border-radius: var(--pill-radius);
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  textarea {
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--card-radius-sm);
+  }
+
+  input:hover,
+  textarea:hover {
+    border-color: var(--secondary-color);
+  }
+
+  input:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgb(11 119 119 / 0.15);
+  }
+}
+
+.dialog-actions {
+  margin-top: 1.25rem;
+}

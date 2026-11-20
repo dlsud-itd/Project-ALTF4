@@ -53,20 +53,21 @@ describe('StaffDashboardComponent presentation', () => {
     const recall = element.querySelector<HTMLButtonElement>(
       '.button-row button[aria-label="Recall current patient"]',
     );
-    const complete = element.querySelector<HTMLButtonElement>(
-      '.button-row button[aria-label="Complete consultation"]',
-    );
+    const complete = (): HTMLButtonElement | null =>
+      element.querySelector<HTMLButtonElement>(
+        '.now-calling button[aria-label="Complete consultation"]',
+      );
 
     expect(callNext?.disabled).toBeTrue();
     expect(recall?.disabled).toBeTrue();
-    expect(complete?.disabled).toBeFalse();
+    expect(complete()?.disabled).toBeFalse();
 
     component.dashboard.currentTicket.set(null);
     fixture.detectChanges();
 
     expect(callNext?.disabled).toBeFalse();
     expect(recall?.disabled).toBeTrue();
-    expect(complete?.disabled).toBeTrue();
+    expect(complete()).toBeNull();
 
     component.dashboard.waitingCount.set(0);
     fixture.detectChanges();

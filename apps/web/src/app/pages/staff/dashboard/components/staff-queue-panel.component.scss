@@ -357,3 +357,88 @@ $transition-speed: 180ms;
   min-height: 3.25rem;
   margin-top: 0.5rem;
 }
+
+// The "Called - waiting for patient" pill is visually hidden but still read by
+// screen readers.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+// Mark as No-show and Cancel sit side by side.
+.danger-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+// Now Calling card: a clear top-to-bottom order with even spacing.
+// Ticket, name, then the visit details, then (when called) the grace timer, the
+// main action, and the red buttons side by side.
+.now-calling:not(.now-calling--empty) {
+  gap: 0.4rem;
+  padding: 1.5rem 1.25rem 1.6rem;
+
+  .now-calling-ticket {
+    margin-bottom: 0.1rem;
+  }
+
+  .patient-meta {
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+  }
+
+  // Padding keeps the italic letters from being clipped by the ellipsis overflow.
+  .patient-reason {
+    max-width: 100%;
+    padding: 0.1em 0.4em;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .patient-location {
+    font-size: 0.85rem;
+  }
+
+  // Divider between the patient details and the controls.
+  .ticket-actions,
+  .current-status {
+    margin-top: 0.6rem;
+  }
+
+  // All the controls share one row: timer, main action, then the red buttons.
+  // The row wraps only when the card is too narrow to fit them.
+  .ticket-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding-top: 0.9rem;
+    border-top: 1px solid rgb(11 119 119 / 0.15);
+  }
+
+  // The grace timer sits in the upper right corner of the card.
+  position: relative;
+
+  .called-ticket-status {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .danger-actions {
+    flex-wrap: nowrap;
+  }
+
+  // In consultation: the status pill and Cancel are spaced like the called state.
+  .current-status {
+    margin-bottom: 0.1rem;
+  }
+}

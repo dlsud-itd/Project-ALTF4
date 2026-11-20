@@ -40,6 +40,7 @@ export class StaffQueuePanelComponent {
   readonly patientArrived = output<void>();
   readonly markNoShow = output<void>();
   readonly cancelEntry = output<void>();
+  readonly complete = output<void>();
   readonly retryStats = output<void>();
   onCallNext(): void {
     this.callNext.emit();
@@ -55,6 +56,10 @@ export class StaffQueuePanelComponent {
 
   onCancelEntry(): void {
     this.cancelEntry.emit();
+  }
+
+  onComplete(): void {
+    this.complete.emit();
   }
 
   onRetryStats(): void {

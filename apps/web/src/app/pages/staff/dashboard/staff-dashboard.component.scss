@@ -16,7 +16,7 @@ $transition-speed: 180ms;
   margin: 0 auto;
   padding: 1.5rem 0 2rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 0.85fr);
+  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 11.5rem);
   align-items: start;
   gap: 1.25rem;
 }
@@ -544,15 +544,26 @@ $header-gap: 0.75rem;
   }
 }
 
-// The stat cards stretch to the same height as the queue panel beside them, so
-// both columns share the same top and bottom edge.
-@include bp.from-tablet {
-  .dashboard-page > .stats-column {
-    align-self: stretch;
+// Compact stat cards: they keep their own height instead of stretching to the
+// queue panel.
+.stats-grid .stat-card {
+  min-height: 4.5rem;
+  padding: 0.6rem 1rem;
+  gap: 0.6rem;
+
+  .stat-icon {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 
-  .stats-column > .stats-grid {
-    flex: 1;
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+  .stat-number {
+    font-size: 1.6rem;
+  }
+}
+
+// Stat cards sit closer to the right edge of the page on desktop.
+@include bp.from-tablet {
+  .dashboard-page > .stats-column {
+    margin-right: -1.5rem;
   }
 }
