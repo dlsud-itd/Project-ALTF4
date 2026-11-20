@@ -51,6 +51,11 @@ enum QueuePriority {
 }
 
 enum NotificationType {
+  BOOKING_CONFIRMATION
+  BOOKING_CANCELLATION
+  BOOKING_RESCHEDULE
+  QUEUE_STATUS_UPDATE
+  APPROACHING_TURN
   QUEUE_CALL
   APPOINTMENT_REMINDER
   GENERAL
@@ -186,18 +191,21 @@ model QueueStatusHistory {
 
 model Notification {
   id            Int              @id @default(autoincrement())
-  recipientId   Int              @map("recipient_id")
+  userId        Int              @map("user_id")
   type          NotificationType
+  title         String           @db.VarChar(150)
   message       String           @db.Text
   appointmentId Int?             @map("appointment_id")
   queueEntryId  Int?             @map("queue_entry_id")
-  createdAt     DateTime         @default(now()) @map("created_at")
+  isRead        Boolean          @default(false) @map("is_read")
   readAt        DateTime?        @map("read_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
 
-  recipient   User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   queueEntry  QueueEntry?  @relation(fields: [queueEntryId], references: [id], onDelete: SetNull)
 
+  @@index([userId, isRead, createdAt])
   @@map("notification")
 }
 

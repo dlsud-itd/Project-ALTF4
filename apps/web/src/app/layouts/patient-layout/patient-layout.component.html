@@ -229,54 +229,69 @@
                     <span class="panel-count">{{ unreadCount() }}</span>
                   }
                 </span>
-                <span class="panel-sample">Sample data</span>
               </div>
 
-              <ul class="panel-list">
-                @for (item of notifications(); track item.id) {
-                  <li class="panel-item" [class.unread]="item.readAt === null">
-                    <div class="panel-item-body">
-                      <div class="panel-item-meta">
-                        <p-tag
-                          [value]="typeLabel(item.type)"
-                          [severity]="typeSeverity(item.type)"
-                        />
-                        @if (item.readAt === null) {
-                          <span class="visually-hidden">Unread</span>
-                        }
+              @if (notificationActionError(); as error) {
+                <p class="panel-state" role="alert">{{ error }}</p>
+              }
+              @if (notificationsLoading()) {
+                <p class="panel-state" role="status">Loading notifications…</p>
+              } @else if (notificationsError()) {
+                <p class="panel-state" role="alert">
+                  {{ notificationsError() }}
+                  <button type="button" class="panel-action" (click)="retryNotifications()">
+                    Retry
+                  </button>
+                </p>
+              } @else if (notifications().length === 0) {
+                <p class="panel-state" role="status">No notifications yet.</p>
+              } @else {
+                <ul class="panel-list">
+                  @for (item of notifications(); track item.id) {
+                    <li class="panel-item" [class.unread]="!item.isRead">
+                      <div class="panel-item-body">
+                        <div class="panel-item-meta">
+                          <p-tag
+                            [value]="item.title"
+                            [severity]="typeSeverity(item.type)"
+                          />
+                          @if (!item.isRead) {
+                            <span class="visually-hidden">Unread</span>
+                          }
+                        </div>
+                        <p class="panel-item-message">{{ item.message }}</p>
+                        <time
+                          class="panel-item-time"
+                          [attr.datetime]="item.createdAt"
+                        >
+                          {{ item.createdAt | date: 'MMM d, h:mm a' }}
+                        </time>
+                        <div class="panel-item-actions">
+                          @if (routeFor(item.type); as route) {
+                            <a
+                              class="panel-action primary"
+                              [routerLink]="route"
+                              (click)="closeNotifications()"
+                            >
+                              {{ linkLabel(item.type) }}
+                            </a>
+                          }
+                          @if (!item.isRead) {
+                            <button
+                              type="button"
+                              class="panel-action"
+                              (click)="markNotificationRead(item.id)"
+                            >
+                              Mark as read
+                            </button>
+                          }
+                        </div>
                       </div>
-                      <p class="panel-item-message">{{ item.message }}</p>
-                      <time
-                        class="panel-item-time"
-                        [attr.datetime]="item.createdAt"
-                      >
-                        {{ item.createdAt | date: 'MMM d, h:mm a' }}
-                      </time>
-                      <div class="panel-item-actions">
-                        @if (routeFor(item.type); as route) {
-                          <a
-                            class="panel-action primary"
-                            [routerLink]="route"
-                            (click)="closeNotifications()"
-                          >
-                            {{ linkLabel(item.type) }}
-                          </a>
-                        }
-                        @if (item.readAt === null) {
-                          <button
-                            type="button"
-                            class="panel-action"
-                            (click)="markNotificationRead(item.id)"
-                          >
-                            Mark as read
-                          </button>
-                        }
-                      </div>
-                    </div>
-                    <span class="panel-item-dot" aria-hidden="true"></span>
-                  </li>
-                }
-              </ul>
+                      <span class="panel-item-dot" aria-hidden="true"></span>
+                    </li>
+                  }
+                </ul>
+              }
 
               @if (unreadCount() > 0) {
                 <footer class="panel-footer">

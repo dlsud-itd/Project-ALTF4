@@ -3,3 +3,4 @@ export * from './queue.models';
 export * from './slot.models';
 export * from './appointment.models';
 export * from './admin.models';
+export * from './notification.models';

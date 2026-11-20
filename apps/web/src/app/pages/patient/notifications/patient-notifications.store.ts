@@ -1,51 +1,55 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, Observable, catchError, expand, map, of, reduce } from 'rxjs';
+import {
+  NotificationType,
+  PatientNotification,
+} from '@core/models/notification.models';
+import { NotificationsService } from '@core/services';
+import { getErrorMessage } from '@core/utils';
 
 export type NotificationTagSeverity = 'info' | 'warn' | 'secondary';
-export type NotificationType =
-  | 'QUEUE_CALL'
-  | 'APPOINTMENT_REMINDER'
-  | 'GENERAL';
 
-// Mirrors the Prisma Notification model (ids and dates as the API will
-// send them). TODO(Lim, Jereign): move to core/models once the API exists.
-export interface PatientNotification {
-  id: number;
-  type: NotificationType;
-  message: string;
-  appointmentId: number | null;
-  queueEntryId: number | null;
-  createdAt: string;
-  readAt: string | null;
-}
+type NotificationLoadResult =
+  | { notifications: PatientNotification[] }
+  | { errorMessage: string };
 
-const TYPE_LABELS: Record<NotificationType, string> = {
-  QUEUE_CALL: 'Queue call',
-  APPOINTMENT_REMINDER: 'Reminder',
-  GENERAL: 'General',
-};
+const LOAD_ERROR_FALLBACK = 'Could not load notifications.';
+const ACTION_ERROR_FALLBACK = 'Could not update notifications.';
 
 const TYPE_SEVERITIES: Record<NotificationType, NotificationTagSeverity> = {
+  BOOKING_CONFIRMATION: 'info',
+  BOOKING_CANCELLATION: 'info',
+  BOOKING_RESCHEDULE: 'info',
+  QUEUE_STATUS_UPDATE: 'warn',
+  APPROACHING_TURN: 'warn',
   QUEUE_CALL: 'warn',
   APPOINTMENT_REMINDER: 'info',
   GENERAL: 'secondary',
 };
 
-// TODO(Lim, Jereign): replace with deep links (appointment or queue entry)
-// once the API exposes the ids for the patient.
 const TYPE_ROUTES: Record<NotificationType, string | null> = {
+  BOOKING_CONFIRMATION: '/patient/bookings',
+  BOOKING_CANCELLATION: '/patient/bookings',
+  BOOKING_RESCHEDULE: '/patient/bookings',
+  QUEUE_STATUS_UPDATE: '/patient/queue',
+  APPROACHING_TURN: '/patient/queue',
   QUEUE_CALL: '/patient/queue',
   APPOINTMENT_REMINDER: '/patient/bookings',
   GENERAL: null,
 };
 
 const TYPE_LINK_LABELS: Record<NotificationType, string> = {
+  BOOKING_CONFIRMATION: 'View booking history',
+  BOOKING_CANCELLATION: 'View booking history',
+  BOOKING_RESCHEDULE: 'View booking history',
+  QUEUE_STATUS_UPDATE: 'View queue',
+  APPROACHING_TURN: 'View queue',
   QUEUE_CALL: 'View queue',
-  APPOINTMENT_REMINDER: 'View bookings',
+  APPOINTMENT_REMINDER: 'View booking history',
   GENERAL: '',
 };
-
-export const notificationTypeLabel = (type: NotificationType): string =>
-  TYPE_LABELS[type];
 
 export const notificationTypeSeverity = (
   type: NotificationType,
@@ -57,89 +61,128 @@ export const notificationRoute = (type: NotificationType): string | null =>
 export const notificationLinkLabel = (type: NotificationType): string =>
   TYPE_LINK_LABELS[type];
 
-// Sample data only. TODO(Lim, Jereign): replace with the notifications API.
-export const SAMPLE_NOTIFICATIONS: readonly PatientNotification[] = [
-  {
-    id: 5,
-    type: 'QUEUE_CALL',
-    message: 'Your number was called. Please proceed to Station 2.',
-    appointmentId: null,
-    queueEntryId: 41,
-    createdAt: '2026-11-19T09:42:00',
-    readAt: null,
-  },
-  {
-    id: 4,
-    type: 'APPOINTMENT_REMINDER',
-    message: 'Reminder: your appointment is tomorrow at 10:30 AM.',
-    appointmentId: 18,
-    queueEntryId: null,
-    createdAt: '2026-11-19T08:00:00',
-    readAt: null,
-  },
-  {
-    id: 3,
-    type: 'GENERAL',
-    message: 'The clinic will close early on Friday at 3:00 PM.',
-    appointmentId: null,
-    queueEntryId: null,
-    createdAt: '2026-11-18T16:15:00',
-    readAt: null,
-  },
-  {
-    id: 2,
-    type: 'APPOINTMENT_REMINDER',
-    message: 'Your appointment on November 12 was confirmed.',
-    appointmentId: 12,
-    queueEntryId: null,
-    createdAt: '2026-11-11T13:05:00',
-    readAt: '2026-11-11T14:00:00',
-  },
-  {
-    id: 1,
-    type: 'QUEUE_CALL',
-    message: 'You were called to Station 1 and marked as served.',
-    appointmentId: null,
-    queueEntryId: 27,
-    createdAt: '2026-11-05T11:20:00',
-    readAt: '2026-11-05T11:45:00',
-  },
-];
-
-// Shared sample state for the notifications page and the top bar dropdown,
-// so both always show the same items and unread count.
-// TODO(Lim, Jereign): back this with the notifications API.
 @Injectable({ providedIn: 'root' })
 export class PatientNotificationsStore {
-  readonly notifications = signal<PatientNotification[]>([
-    ...SAMPLE_NOTIFICATIONS,
-  ]);
+  private readonly notificationsService = inject(NotificationsService);
+  private readonly destroyRef = inject(DestroyRef);
+  private hasLoaded = false;
+
+  readonly notifications = signal<PatientNotification[]>([]);
+  readonly isLoading = signal(false);
+  readonly loadError = signal<string | null>(null);
+  readonly actionError = signal<string | null>(null);
   readonly unreadCount = computed(
     (): number =>
       this.notifications().filter(
-        (item: PatientNotification): boolean => item.readAt === null,
+        (item: PatientNotification): boolean => !item.isRead,
       ).length,
   );
 
-  // Local only. TODO(Lim, Jereign): PATCH the read state through the API.
+  load(force = false): void {
+    if (this.isLoading() || (this.hasLoaded && !force)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.loadError.set(null);
+    this.getAllNotifications()
+      .pipe(
+        map(
+          (notifications): NotificationLoadResult => ({
+            notifications,
+          }),
+        ),
+        catchError((error: unknown) =>
+          of<NotificationLoadResult>({
+            errorMessage:
+              error instanceof HttpErrorResponse
+                ? getErrorMessage(error, LOAD_ERROR_FALLBACK)
+                : LOAD_ERROR_FALLBACK,
+          }),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => {
+        this.isLoading.set(false);
+        if ('errorMessage' in result) {
+          this.loadError.set(result.errorMessage);
+          return;
+        }
+
+        this.hasLoaded = true;
+        this.loadError.set(null);
+        this.notifications.set(result.notifications);
+      });
+  }
+
   markAsRead(id: number): void {
-    const readAt = new Date().toISOString();
-    this.notifications.update((items: PatientNotification[]) =>
-      items.map(
-        (item: PatientNotification): PatientNotification =>
-          item.id === id && item.readAt === null ? { ...item, readAt } : item,
+    const notification = this.notifications().find((item) => item.id === id);
+    if (!notification || notification.isRead) {
+      return;
+    }
+
+    this.actionError.set(null);
+    this.notificationsService
+      .markAsRead(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updatedNotification): void => {
+          this.notifications.update((items) =>
+            items.map((item) =>
+              item.id === id ? updatedNotification : item,
+            ),
+          );
+        },
+        error: (error: unknown): void => {
+          this.actionError.set(this.getActionError(error));
+        },
+      });
+  }
+
+  markAllAsRead(): void {
+    if (this.unreadCount() === 0) {
+      return;
+    }
+
+    this.actionError.set(null);
+    this.notificationsService
+      .markAllAsRead()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (): void => {
+          const readAt = new Date().toISOString();
+          this.notifications.update((items) =>
+            items.map((item) =>
+              item.isRead ? item : { ...item, isRead: true, readAt },
+            ),
+          );
+        },
+        error: (error: unknown): void => {
+          this.actionError.set(this.getActionError(error));
+        },
+      });
+  }
+
+  private getAllNotifications(): Observable<PatientNotification[]> {
+    return this.notificationsService.getMyNotifications().pipe(
+      expand((response) =>
+        response.page * response.limit < response.totalCount
+          ? this.notificationsService.getMyNotifications(response.page + 1)
+          : EMPTY,
+      ),
+      reduce(
+        (notifications, response) => [
+          ...notifications,
+          ...response.notifications,
+        ],
+        [] as PatientNotification[],
       ),
     );
   }
 
-  // Local only. TODO(Lim, Jereign): call the API once it supports bulk read.
-  markAllAsRead(): void {
-    const readAt = new Date().toISOString();
-    this.notifications.update((items: PatientNotification[]) =>
-      items.map(
-        (item: PatientNotification): PatientNotification =>
-          item.readAt === null ? { ...item, readAt } : item,
-      ),
-    );
+  private getActionError(error: unknown): string {
+    return error instanceof HttpErrorResponse
+      ? getErrorMessage(error, ACTION_ERROR_FALLBACK)
+      : ACTION_ERROR_FALLBACK;
   }
 }

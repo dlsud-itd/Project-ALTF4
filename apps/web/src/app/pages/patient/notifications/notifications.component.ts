@@ -2,14 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnDestroy,
   OnInit,
-  signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
+import { NotificationType } from '@core/models';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
@@ -17,20 +16,15 @@ import {
 } from '@shared/ui';
 import {
   NotificationTagSeverity,
-  NotificationType,
   notificationLinkLabel,
   notificationRoute,
-  notificationTypeLabel,
   notificationTypeSeverity,
   PatientNotificationsStore,
 } from './patient-notifications.store';
 
-type LoadState = 'loading' | 'ready' | 'error';
-
-const SAMPLE_LOAD_DELAY_MS = 600;
 const SKELETON_LINES = 5;
 
-// Patient notifications page. Runs on sample data until the API is ready.
+// Patient notifications page backed by the authenticated notifications API.
 @Component({
   selector: 'app-patient-notifications',
   standalone: true,
@@ -47,31 +41,22 @@ const SKELETON_LINES = 5;
   templateUrl: './notifications.component.html',
   styleUrl: './notifications.component.scss',
 })
-export class PatientNotificationsComponent implements OnInit, OnDestroy {
+export class PatientNotificationsComponent implements OnInit {
   private readonly store = inject(PatientNotificationsStore);
 
   readonly skeletonLines = SKELETON_LINES;
-  readonly loadState = signal<LoadState>('loading');
   readonly notifications = this.store.notifications;
   readonly unreadCount = this.store.unreadCount;
-
-  private loadTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly isLoading = this.store.isLoading;
+  readonly loadError = this.store.loadError;
+  readonly actionError = this.store.actionError;
 
   ngOnInit(): void {
-    this.load();
+    this.store.load();
   }
 
-  ngOnDestroy(): void {
-    this.clearTimer();
-  }
-
-  // TODO(Lim, Jereign): call the notifications API and set 'error' on failure.
   load(): void {
-    this.clearTimer();
-    this.loadState.set('loading');
-    this.loadTimer = setTimeout((): void => {
-      this.loadState.set('ready');
-    }, SAMPLE_LOAD_DELAY_MS);
+    this.store.load(true);
   }
 
   markAsRead(id: number): void {
@@ -80,10 +65,6 @@ export class PatientNotificationsComponent implements OnInit, OnDestroy {
 
   markAllAsRead(): void {
     this.store.markAllAsRead();
-  }
-
-  typeLabel(type: NotificationType): string {
-    return notificationTypeLabel(type);
   }
 
   typeSeverity(type: NotificationType): NotificationTagSeverity {
@@ -96,12 +77,5 @@ export class PatientNotificationsComponent implements OnInit, OnDestroy {
 
   linkLabel(type: NotificationType): string {
     return notificationLinkLabel(type);
-  }
-
-  private clearTimer(): void {
-    if (this.loadTimer !== null) {
-      clearTimeout(this.loadTimer);
-      this.loadTimer = null;
-    }
   }
 }

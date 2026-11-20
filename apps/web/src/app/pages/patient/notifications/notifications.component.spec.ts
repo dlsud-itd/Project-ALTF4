@@ -1,98 +1,132 @@
-import {
-  ComponentFixture,
-  TestBed,
-  fakeAsync,
-  tick,
-} from '@angular/core/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { ApiConfigService } from '@core/services';
+import { NotificationsListResponse, PatientNotification } from '@core/models';
 import { PatientNotificationsComponent } from './notifications.component';
 
-const LOAD_WAIT_MS = 1000;
-const SAMPLE_TOTAL = 5;
-const SAMPLE_UNREAD = 3;
+const notificationFixture: PatientNotification = {
+  id: 8,
+  type: 'BOOKING_CONFIRMATION',
+  title: 'Booking confirmed',
+  message: 'Your booking was confirmed.',
+  appointmentId: 12,
+  queueEntryId: null,
+  isRead: false,
+  readAt: null,
+  createdAt: '2026-11-20T08:00:00.000Z',
+};
+
+const listResponse: NotificationsListResponse = {
+  notifications: [notificationFixture],
+  unreadCount: 1,
+  totalCount: 1,
+  page: 1,
+  limit: 100,
+};
 
 describe('PatientNotificationsComponent', () => {
   let fixture: ComponentFixture<PatientNotificationsComponent>;
   let component: PatientNotificationsComponent;
   let element: HTMLElement;
+  let http: HttpTestingController;
+  let apiUrl: string;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PatientNotificationsComponent],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PatientNotificationsComponent);
     component = fixture.componentInstance;
     element = fixture.nativeElement as HTMLElement;
+    http = TestBed.inject(HttpTestingController);
+    apiUrl = TestBed.inject(ApiConfigService).apiUrl;
   });
 
-  function render(): void {
-    fixture.detectChanges();
-    tick(LOAD_WAIT_MS);
-    fixture.detectChanges();
-  }
+  afterEach(() => {
+    http.verify();
+  });
 
-  it('shows the loading skeleton first', () => {
+  it('loads real notifications from the API and displays their content', () => {
     fixture.detectChanges();
+
+    const request = http.expectOne(
+      (req) =>
+        req.url === `${apiUrl}/notifications` &&
+        req.params.get('page') === '1' &&
+        req.params.get('limit') === '100',
+    );
     expect(element.querySelector('app-loading-skeleton')).toBeTruthy();
-    component.ngOnDestroy();
+    request.flush(listResponse);
+    fixture.detectChanges();
+
+    expect(element.querySelectorAll('.notification-item').length).toBe(1);
+    expect(element.querySelector('p-tag')?.textContent).toContain(
+      notificationFixture.title,
+    );
+    expect(element.querySelector('.item-message')?.textContent).toContain(
+      notificationFixture.message,
+    );
+    expect(element.querySelector('.sample-label')).toBeNull();
+    expect(component.unreadCount()).toBe(1);
   });
 
-  it('renders sample items with the Sample data label', fakeAsync(() => {
-    render();
-    expect(element.querySelectorAll('.notification-item').length).toBe(
-      SAMPLE_TOTAL,
-    );
-    expect(element.querySelector('.sample-label')?.textContent).toContain(
-      'Sample data',
-    );
-    expect(component.unreadCount()).toBe(SAMPLE_UNREAD);
-    expect(element.querySelectorAll('.notification-item.unread').length).toBe(
-      SAMPLE_UNREAD,
-    );
-  }));
-
-  it('marks one item as read locally', fakeAsync(() => {
-    render();
-    component.markAsRead(5);
+  it('persists read changes through the API', () => {
     fixture.detectChanges();
-    expect(component.unreadCount()).toBe(SAMPLE_UNREAD - 1);
-  }));
-
-  it('marks all items as read', fakeAsync(() => {
-    render();
-    component.markAllAsRead();
+    http.expectOne(`${apiUrl}/notifications?page=1&limit=100`).flush(listResponse);
     fixture.detectChanges();
+
+    component.markAsRead(notificationFixture.id);
+    const request = http.expectOne(
+      `${apiUrl}/notifications/${notificationFixture.id}/read`,
+    );
+    expect(request.request.method).toBe('PATCH');
+    request.flush({ ...notificationFixture, isRead: true, readAt: '2026-11-20T08:05:00.000Z' });
+    fixture.detectChanges();
+
     expect(component.unreadCount()).toBe(0);
-    expect(element.querySelectorAll('.notification-item.unread').length).toBe(
-      0,
-    );
-  }));
-
-  it('links queue calls and reminders to their pages', () => {
-    expect(component.routeFor('QUEUE_CALL')).toBe('/patient/queue');
-    expect(component.routeFor('APPOINTMENT_REMINDER')).toBe(
-      '/patient/bookings',
-    );
-    expect(component.routeFor('GENERAL')).toBeNull();
+    expect(element.querySelector('.notification-item.unread')).toBeNull();
   });
 
-  it('shows the empty state when there are no notifications', fakeAsync(() => {
-    render();
-    component.notifications.set([]);
+  it('persists bulk read changes through the API', () => {
     fixture.detectChanges();
-    expect(element.querySelector('app-empty-state')).toBeTruthy();
-  }));
+    http.expectOne(`${apiUrl}/notifications?page=1&limit=100`).flush(listResponse);
+    fixture.detectChanges();
 
-  it('shows the error state and retries', fakeAsync(() => {
-    render();
-    component.loadState.set('error');
+    component.markAllAsRead();
+    const request = http.expectOne(`${apiUrl}/notifications/read-all`);
+    expect(request.request.method).toBe('PATCH');
+    request.flush({ updatedCount: 1 });
+    fixture.detectChanges();
+
+    expect(component.unreadCount()).toBe(0);
+  });
+
+  it('shows an error and retries the API request', () => {
+    fixture.detectChanges();
+    http
+      .expectOne(`${apiUrl}/notifications?page=1&limit=100`)
+      .flush({ message: 'Server unavailable' }, { status: 500, statusText: 'Error' });
     fixture.detectChanges();
     expect(element.querySelector('app-error-state')).toBeTruthy();
+
     component.load();
-    tick(LOAD_WAIT_MS);
+    http.expectOne(`${apiUrl}/notifications?page=1&limit=100`).flush(listResponse);
     fixture.detectChanges();
-    expect(component.loadState()).toBe('ready');
-  }));
+
+    expect(element.querySelector('app-error-state')).toBeNull();
+    expect(element.querySelectorAll('.notification-item').length).toBe(1);
+  });
+
+  it('links booking and queue notification types to their relevant pages', () => {
+    expect(component.routeFor('BOOKING_CONFIRMATION')).toBe('/patient/bookings');
+    expect(component.routeFor('QUEUE_STATUS_UPDATE')).toBe('/patient/queue');
+  });
 });

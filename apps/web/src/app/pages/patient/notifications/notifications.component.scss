@@ -46,16 +46,6 @@ $read-weight: 400;
   }
 }
 
-.sample-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--surface-100);
-  border: 1px dashed var(--surface-300);
-  border-radius: 999px;
-  padding: 0.25rem 0.625rem;
-}
-
 .notifications-page {
   padding: 1.25rem 2rem 2rem;
   max-width: 960px;
@@ -66,6 +56,10 @@ $read-weight: 400;
   margin: 0 0 0.75rem;
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.notification-error {
+  color: var(--danger-color, #b42318);
 }
 
 .notification-list {

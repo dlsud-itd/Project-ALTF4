@@ -1,21 +1,45 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { ApiConfigService } from '@core/services';
 import { PatientLayoutComponent } from './patient-layout.component';
 
 describe('PatientLayoutComponent', () => {
   let component: PatientLayoutComponent;
   let fixture: ComponentFixture<PatientLayoutComponent>;
+  let http: HttpTestingController;
+  let notificationsUrl: string;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PatientLayoutComponent],
-      providers: [provideRouter([]), provideHttpClient()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PatientLayoutComponent);
     component = fixture.componentInstance;
+    http = TestBed.inject(HttpTestingController);
+    notificationsUrl = `${TestBed.inject(ApiConfigService).apiUrl}/notifications?page=1&limit=100`;
     fixture.detectChanges();
+    http.expectOne(notificationsUrl).flush({
+      notifications: [],
+      unreadCount: 0,
+      totalCount: 0,
+      page: 1,
+      limit: 100,
+    });
+  });
+
+  afterEach(() => {
+    http.verify();
   });
 
   it('should create', () => {

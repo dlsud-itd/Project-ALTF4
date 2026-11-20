@@ -37,4 +37,8 @@ describe('HealthController (e2e)', () => {
         expect(res.body.service).toBe('clinicqueue-api');
       });
   });
+
+  it('/notifications (GET) requires authentication', () => {
+    return request(app.getHttpServer()).get('/notifications').expect(401);
+  });
 });

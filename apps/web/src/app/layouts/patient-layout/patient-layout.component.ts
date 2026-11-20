@@ -4,6 +4,7 @@ import {
   ElementRef,
   HostListener,
   inject,
+  OnInit,
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -19,12 +20,11 @@ import { DatePipe } from '@angular/common';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
 import { AuthService } from '@core/services';
+import { NotificationType } from '@core/models';
 import {
   NotificationTagSeverity,
-  NotificationType,
   notificationLinkLabel,
   notificationRoute,
-  notificationTypeLabel,
   notificationTypeSeverity,
   PatientNotificationsStore,
 } from '../../pages/patient/notifications/patient-notifications.store';
@@ -65,7 +65,7 @@ interface PageHeader {
   templateUrl: './patient-layout.component.html',
   styleUrl: './patient-layout.component.scss',
 })
-export class PatientLayoutComponent {
+export class PatientLayoutComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly notificationsStore = inject(PatientNotificationsStore);
@@ -134,16 +134,22 @@ export class PatientLayoutComponent {
   readonly isMobileMenuOpen = signal<boolean>(false);
   readonly isCollapsed = signal<boolean>(false);
 
-  // Shared with the notifications page. TODO(Lim, Jereign): sample data
-  // until the notifications API is ready.
+  // Shared with the notifications page so read state and counts stay in sync.
   readonly notifications = this.notificationsStore.notifications;
   readonly unreadCount = this.notificationsStore.unreadCount;
+  readonly notificationsLoading = this.notificationsStore.isLoading;
+  readonly notificationsError = this.notificationsStore.loadError;
+  readonly notificationActionError = this.notificationsStore.actionError;
   readonly isNotificationsOpen = signal<boolean>(false);
   readonly unreadLabel = computed((): string =>
     this.unreadCount() > MAX_BADGE_COUNT
       ? `${MAX_BADGE_COUNT}+`
       : String(this.unreadCount()),
   );
+
+  ngOnInit(): void {
+    this.notificationsStore.load();
+  }
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen.update((open: boolean): boolean => !open);
@@ -184,8 +190,8 @@ export class PatientLayoutComponent {
     this.notificationsStore.markAllAsRead();
   }
 
-  typeLabel(type: NotificationType): string {
-    return notificationTypeLabel(type);
+  retryNotifications(): void {
+    this.notificationsStore.load(true);
   }
 
   typeSeverity(type: NotificationType): NotificationTagSeverity {
