@@ -4,57 +4,22 @@
   margin: 0 auto;
 }
 
-.page-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  flex-wrap: wrap;
-  margin-bottom: 2.25rem;
-
-  .welcome-banner {
-    h2 {
-      font-size: 1.85rem;
-      font-weight: 700;
-      color: var(--primary-color, #0b7777);
-      margin: 0 0 0.35rem;
-      letter-spacing: -0.01em;
-    }
-
-    p {
-      color: var(--text-muted, #4a7576);
-      font-size: 0.95rem;
-      margin: 0;
-    }
-  }
-
-  .action-buttons {
-    display: inline-flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-
-    ::ng-deep .p-button {
-      border-radius: 999px;
-      font-weight: 600;
-      padding: 0.6rem 1.25rem;
-    }
-  }
-}
-
 /* STATS GRID */
+// Five cards share one row on desktop; on narrower screens they fall into a
+// balanced 3 + 2 layout, then a single column on phones.
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.35rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
   margin-bottom: 2.75rem;
 }
 
 .stat-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 20px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.35rem 1.4rem;
-  box-shadow: 0 4px 18px rgba(7, 90, 91, 0.05);
+  box-shadow: var(--card-shadow);
   position: relative;
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
@@ -72,7 +37,7 @@
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 12px 28px rgba(7, 90, 91, 0.1);
+    box-shadow: var(--card-shadow-hover);
     border-color: rgba(11, 119, 119, 0.35);
   }
 
@@ -92,10 +57,13 @@
     background: #7e22ce;
   }
 
+  // Icon on top, then label, number and caption, so long labels wrap instead of
+  // being cut off.
   .stat-card-inner {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 1.15rem;
+    gap: 0.85rem;
   }
 
   .stat-icon {
@@ -107,7 +75,6 @@
     border-radius: 50%;
     font-size: 1.35rem;
     flex-shrink: 0;
-    margin-top: 0.15rem;
 
     &.primary {
       background: #eef7f5;
@@ -145,13 +112,11 @@
       font-weight: 600;
       color: var(--text-muted, #64748b);
       letter-spacing: -0.01em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.3;
     }
 
     .stat-number {
-      font-size: 2.25rem;
+      font-size: 2rem;
       font-weight: 800;
       color: #075a5b;
       line-height: 1.15;
@@ -176,16 +141,17 @@
 
     .stat-sub-pill {
       display: inline-flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 0.4rem;
       font-size: 0.78rem;
+      line-height: 1.35;
       color: #64748b;
       font-weight: 500;
-      white-space: nowrap;
 
       .dot {
         width: 6px;
         height: 6px;
+        margin-top: 0.4em;
         border-radius: 50%;
         flex-shrink: 0;
 
@@ -230,17 +196,17 @@
   align-items: center;
   gap: 1.25rem;
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 18px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.6rem;
   text-decoration: none;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.05);
+  box-shadow: var(--card-shadow);
   transition: all 180ms ease;
 
   &:hover {
     border-color: var(--primary-color, #0b7777);
     transform: translateY(-3px);
-    box-shadow: 0 12px 28px rgba(11, 119, 119, 0.12);
+    box-shadow: var(--card-shadow-hover);
 
     .nav-card-arrow {
       transform: translateX(5px);
@@ -286,13 +252,189 @@
   }
 }
 
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    .stat-card {
+      grid-column: span 2;
+
+      &:nth-child(n + 4) {
+        grid-column: span 3;
+      }
+    }
+  }
+}
+
 @media (max-width: 860px) {
   .admin-dashboard-page {
     padding: 1rem;
   }
+}
 
-  .page-top {
-    flex-direction: column;
-    align-items: flex-start;
+@media (max-width: 560px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+
+    .stat-card,
+    .stat-card:nth-child(n + 4) {
+      grid-column: auto;
+    }
+  }
+
+  .nav-card {
+    padding: 1.15rem;
+  }
+}
+
+// ---- Enhanced overview ----
+// Stat cards: the dark teal card from the staff dashboard, with every label,
+// number and caption on the same baseline across the row.
+.stats-grid {
+  align-items: stretch;
+}
+
+.stats-grid .stat-card {
+  background: var(--primary-color, #0b7777);
+  color: #ffffff;
+
+  &:hover {
+    border-color: transparent;
+  }
+
+  &::before {
+    display: none;
+  }
+
+  .stat-card-inner {
+    height: 100%;
+    gap: 0.75rem;
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.15rem;
+  }
+
+  .stat-body {
+    flex: 1;
+    width: 100%;
+
+    .stat-label {
+      min-height: 2.6em;
+      color: rgb(255 255 255 / 0.85);
+    }
+
+    .stat-number,
+    .stat-number.primary,
+    .stat-number.info,
+    .stat-number.success,
+    .stat-number.warning,
+    .stat-number.purple {
+      color: #ffffff;
+      margin: 0.1rem 0 0.5rem;
+    }
+
+    .stat-sub-pill {
+      min-height: 2.7em;
+      color: rgb(255 255 255 / 0.8);
+
+      .dot {
+        background: rgb(255 255 255 / 0.85);
+      }
+    }
+  }
+}
+
+// Quick tool cards: icon, title and arrow on one line, description underneath.
+.nav-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon title arrow'
+    'desc desc desc';
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1.25rem 1.4rem;
+
+  .nav-card-icon {
+    grid-area: icon;
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+  }
+
+  // The wrapper no longer lays out its children, so the title and description
+  // can sit in separate grid areas.
+  .nav-card-content {
+    display: contents;
+
+    h4 {
+      grid-area: title;
+      margin: 0;
+    }
+
+    p {
+      grid-area: desc;
+    }
+  }
+
+  .nav-card-arrow {
+    grid-area: arrow;
+  }
+}
+
+// Stat card layout: icon and big number share the top row; the label and the
+// caption sit underneath, so the numbers always line up whatever the label wraps to.
+.stats-grid .stat-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 0.75rem 0.75rem;
+
+  .stat-card-inner,
+  .stat-body {
+    display: contents;
+  }
+
+  .stat-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .stat-body .stat-number {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+    margin: 0;
+    font-size: 2.4rem;
+    line-height: 1;
+  }
+
+  .stat-body .stat-label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .stat-body .stat-sub-pill {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-self: start;
+    min-height: 0;
+    margin-top: -0.35rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgb(255 255 255 / 0.2);
+    color: rgb(255 255 255 / 0.85);
+
+    .dot {
+      display: none;
+    }
   }
 }

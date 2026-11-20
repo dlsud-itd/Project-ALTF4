@@ -1,7 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { Button } from 'primeng/button';
 import { AdminService } from '@core/services';
 import { AdminStats } from '@core/models';
 import {
@@ -16,7 +15,6 @@ import { getErrorMessage } from '@core/utils';
   imports: [
     CommonModule,
     RouterLink,
-    Button,
     ErrorStateComponent,
     LoadingSkeletonComponent,
   ],

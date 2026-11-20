@@ -1,21 +1,4 @@
 <div class="admin-users-page">
-  <!-- Top Banner / Header -->
-  <header class="page-top">
-    <div class="header-intro">
-      <h2>User Management Registry</h2>
-      <p class="subtitle">Search, update roles, create, and manage system user credentials</p>
-    </div>
-
-    <div class="header-actions">
-      <p-button
-        label="Add New User"
-        icon="pi pi-user-plus"
-        severity="primary"
-        (onClick)="openCreateModal()"
-      />
-    </div>
-  </header>
-
   <!-- Notification Banner -->
   @if (notice(); as n) {
     <app-notice
@@ -123,6 +106,17 @@
         [view]="viewMode()"
         (viewChange)="viewMode.set($event)"
       />
+
+      <!-- Add user: a round icon button at the end of the toolbar -->
+      <p-button
+        class="add-user-btn"
+        icon="pi pi-user-plus"
+        severity="primary"
+        [rounded]="true"
+        ariaLabel="Add new user"
+        title="Add new user"
+        (onClick)="openCreateModal()"
+      />
     </div>
   </div>
 
@@ -219,17 +213,6 @@
                     (click)="toggleActive(user)"
                   >
                     <i [class]="user.isActive ? 'pi pi-ban text-warn' : 'pi pi-check-circle text-success'"></i>
-                  </button>
-
-                  <button
-                    type="button"
-                    class="action-icon-btn delete-btn"
-                    title="Soft-delete account"
-                    aria-label="Deactivate account"
-                    [disabled]="user.id === currentUserId() || !user.isActive"
-                    (click)="confirmDeactivate(user)"
-                  >
-                    <i class="pi pi-trash"></i>
                   </button>
                 </div>
               </li>

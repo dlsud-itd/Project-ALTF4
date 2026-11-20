@@ -33,8 +33,8 @@
   background: var(--surface-0, #ffffff);
   padding: 0.85rem 1.15rem;
   border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: var(--card-radius-sm);
+  box-shadow: var(--card-shadow);
 }
 
 .filter-group {
@@ -49,7 +49,7 @@
   gap: 0.25rem;
   background: var(--surface-100, #f1f5f9);
   padding: 0.25rem;
-  border-radius: 8px;
+  border-radius: var(--pill-radius);
 }
 
 .filter-tab {
@@ -59,7 +59,7 @@
   padding: 0.45rem 0.85rem;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.84rem;
   font-weight: 500;
   color: var(--text-muted, #64748b);
@@ -114,7 +114,7 @@
     height: 38px;
     padding: 0.4rem 2rem 0.4rem 2.4rem;
     font-size: 0.84rem;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-300, #cbd5e1);
 
     &:focus {
@@ -140,8 +140,8 @@
 
 .empty-state-wrapper {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 3.5rem 2rem;
 }
 
@@ -166,10 +166,13 @@
 }
 
 .actor-role-pill {
+  align-self: flex-start;
+  width: fit-content;
   font-size: 0.68rem;
   font-weight: 700;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  padding: 0.1rem 0.55rem;
+  line-height: 1.5;
+  border-radius: var(--pill-radius);
   background: rgba(11, 119, 119, 0.12);
   color: var(--primary-color, #0b7777);
   text-transform: uppercase;
@@ -183,7 +186,7 @@
   padding: 0.25rem 0.6rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.78rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 600;
@@ -198,10 +201,10 @@
 /* TABLE VIEW STYLING */
 .audit-table-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .table-header-row {
@@ -275,7 +278,7 @@
   ::ng-deep .p-tag {
     font-size: 0.78rem;
     padding: 0.25rem 0.65rem;
-    border-radius: 6px;
+    border-radius: var(--pill-radius);
     font-weight: 600;
 
     .p-tag-icon {
@@ -334,7 +337,7 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.35rem 0.75rem;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-200, #e2e8f0);
     background: #ffffff;
     font-size: 0.78rem;
@@ -425,19 +428,19 @@
 
 .audit-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.35rem;
   display: flex;
   flex-direction: column;
   gap: 0.95rem;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
   transition: all 180ms ease;
 
   &:hover {
     border-color: var(--primary-color, #0b7777);
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(7, 90, 91, 0.08);
+    box-shadow: var(--card-shadow-hover);
   }
 
   .card-head {
@@ -450,7 +453,7 @@
     ::ng-deep .p-tag {
       font-size: 0.78rem;
       padding: 0.25rem 0.65rem;
-      border-radius: 6px;
+      border-radius: var(--pill-radius);
       font-weight: 600;
     }
 
@@ -463,7 +466,7 @@
       color: var(--text-muted, #64748b);
       background: #f8fafc;
       padding: 0.25rem 0.55rem;
-      border-radius: 6px;
+      border-radius: var(--pill-radius);
       border: 1px solid #e2e8f0;
       white-space: nowrap;
 
@@ -544,7 +547,7 @@
       justify-content: space-between;
       width: 100%;
       padding: 0.5rem 0.85rem;
-      border-radius: 8px;
+      border-radius: var(--pill-radius);
       border: 1px solid #d3e5e1;
       background: #f0f7f5;
       font-size: 0.8rem;
@@ -618,8 +621,8 @@
 
 .card-paginator-wrapper {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 14px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
 }
 
@@ -640,5 +643,43 @@
     width: 100%;
     justify-content: flex-start;
     margin-top: 0.5rem;
+  }
+}
+
+// Touch targets are at least 44px on tablets, phones and touch screens.
+@media (max-width: 1024px), (pointer: coarse) {
+  .filter-tab {
+    min-height: 44px;
+  }
+
+  .search-box input {
+    height: 44px;
+  }
+
+  .search-box .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    right: 0;
+  }
+
+  .payload-toggle-btn,
+  .btn-inspect-changes {
+    min-height: 44px;
+  }
+}
+
+// Phone layout: the toolbar and search use the full width.
+@media (max-width: 600px) {
+  .controls-group,
+  .search-box {
+    width: 100%;
+  }
+
+  .filter-tabs {
+    max-width: 100%;
+    overflow-x: auto;
   }
 }

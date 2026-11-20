@@ -7,10 +7,10 @@
 .page-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1.25rem;
   flex-wrap: wrap;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.25rem;
 
   .header-intro {
     h2 {
@@ -47,8 +47,8 @@
   background: var(--surface-0, #ffffff);
   padding: 0.85rem 1.15rem;
   border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: var(--card-radius-sm);
+  box-shadow: var(--card-shadow);
 }
 
 .filter-group {
@@ -63,7 +63,7 @@
   gap: 0.25rem;
   background: var(--surface-100, #f1f5f9);
   padding: 0.25rem;
-  border-radius: 8px;
+  border-radius: var(--pill-radius);
 }
 
 .filter-tab {
@@ -73,7 +73,7 @@
   padding: 0.45rem 0.85rem;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.84rem;
   font-weight: 500;
   color: var(--text-muted, #64748b);
@@ -128,7 +128,7 @@
     height: 38px;
     padding: 0.4rem 2rem 0.4rem 2.4rem;
     font-size: 0.84rem;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-300, #cbd5e1);
 
     &:focus {
@@ -154,18 +154,18 @@
 
 .empty-state-wrapper {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 3.5rem 2rem;
 }
 
 /* TABLE VIEW STYLING */
 .users-table-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .table-header-row {
@@ -264,7 +264,7 @@
         padding: 0.1rem 0.4rem;
         background: rgba(11, 119, 119, 0.15);
         color: var(--primary-color, #0b7777);
-        border-radius: 4px;
+        border-radius: var(--pill-radius);
         font-weight: 700;
         text-transform: uppercase;
       }
@@ -285,7 +285,7 @@
   padding: 0.2rem 0.55rem;
   background: var(--surface-100, #eef4f4);
   color: #075a5b;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -320,7 +320,7 @@
   .action-icon-btn {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-200, #e2e8f0);
     background: #ffffff;
     display: inline-flex;
@@ -374,19 +374,19 @@
 
 .user-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 18px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.4rem;
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
   transition: all 180ms ease;
 
   &:hover {
     border-color: var(--primary-color, #0b7777);
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(7, 90, 91, 0.08);
+    box-shadow: var(--card-shadow-hover);
   }
 
   &.inactive-card {
@@ -423,7 +423,7 @@
           padding: 0.1rem 0.4rem;
           background: rgba(11, 119, 119, 0.15);
           color: var(--primary-color, #0b7777);
-          border-radius: 4px;
+          border-radius: var(--pill-radius);
           font-weight: 700;
         }
       }
@@ -480,8 +480,8 @@
 
 .card-paginator-wrapper {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
 }
 
@@ -489,9 +489,9 @@
 ::ng-deep .admin-form-dialog {
   width: 32rem;
   max-width: 92vw;
-  border-radius: 20px;
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--card-shadow-hover);
 
   .p-dialog-header {
     padding: 1.35rem 1.6rem 0.6rem;
@@ -628,4 +628,171 @@
     justify-content: flex-end;
     margin-top: 0.5rem;
   }
+}
+
+// Touch targets are at least 44px on tablets, phones and touch screens.
+@media (max-width: 1024px), (pointer: coarse) {
+  .filter-tab {
+    min-height: 44px;
+  }
+
+  .search-box input {
+    height: 44px;
+  }
+
+  .search-box .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    right: 0;
+  }
+
+  .action-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .header-actions ::ng-deep .p-button,
+  .user-card ::ng-deep .p-button,
+  ::ng-deep .admin-form-dialog .p-button {
+    min-height: 44px;
+  }
+}
+
+// Phone layout: the toolbar and search use the full width.
+@media (max-width: 600px) {
+  .controls-group,
+  .search-box {
+    width: 100%;
+  }
+
+  .filter-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+// Toolbar matches the audit trail: filter tabs on the left, search and view
+// toggle on the right of the same row.
+.toolbar-card {
+  .controls-group {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .search-box {
+    flex: 0 1 18rem;
+    min-width: 12rem;
+    width: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .toolbar-card .controls-group {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .toolbar-card .search-box {
+    flex: 1 1 100%;
+  }
+}
+
+// One row only on desktop.
+@media (min-width: 901px) {
+  .toolbar-card {
+    flex-wrap: nowrap;
+
+    .filter-group {
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
+    .filter-tab {
+      padding-inline: 0.65rem;
+      white-space: nowrap;
+    }
+
+    .search-box {
+      min-width: 9rem;
+    }
+  }
+}
+
+// Compact user cards: name and status on top, role chips and booking counts on
+// one line, actions below, with no divider rules or tall gaps between them.
+.user-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'head head'
+    'badges stats'
+    'actions actions';
+  align-items: center;
+  gap: 0.7rem 0.85rem;
+  padding: 1.1rem 1.2rem;
+
+  .card-head {
+    grid-area: head;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .card-badges {
+    grid-area: badges;
+  }
+
+  .card-stats {
+    grid-area: stats;
+    padding-top: 0;
+    border-top: none;
+    gap: 0.7rem;
+    justify-self: end;
+
+    .stat-pill {
+      font-size: 0.78rem;
+    }
+  }
+
+  .card-footer-actions {
+    grid-area: actions;
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+// The avatar styles above are scoped to the table's .col-user, so the card view
+// needs its own copy or the initial renders as a bare letter.
+.user-card .card-head .user-avatar-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eef7f5;
+  color: var(--primary-color, #0b7777);
+  font-size: 1.1rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(11, 119, 119, 0.12);
+
+  &.is-self {
+    background: var(--primary-color, #0b7777);
+    color: #ffffff;
+  }
+}
+
+// The add-user button lives in the toolbar now, so it never leaves the toolbar row.
+.toolbar-card .add-user-btn {
+  flex-shrink: 0;
+}
+
+.toolbar-card .add-user-btn ::ng-deep .p-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
 }

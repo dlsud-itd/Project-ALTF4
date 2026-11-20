@@ -1,12 +1,4 @@
 <div class="admin-appointments-page">
-  <!-- Top Banner / Header -->
-  <header class="page-top">
-    <div class="header-intro">
-      <h2>Appointments Master Record</h2>
-      <p class="subtitle">Complete history of consultation bookings, schedules, and attendance</p>
-    </div>
-  </header>
-
   <!-- Toolbar & Filters -->
   <div class="toolbar-card">
     <div class="filter-group">
@@ -54,27 +46,6 @@
           <span>Cancelled</span>
         </button>
       </div>
-
-      <!-- Date Filter -->
-      <div class="date-picker-box">
-        <input
-          type="date"
-          class="date-input"
-          [ngModel]="dateFilter()"
-          (ngModelChange)="onDateFilterChange($event)"
-          title="Filter by clinic date"
-        />
-        @if (dateFilter()) {
-          <button
-            type="button"
-            class="clear-date-btn"
-            (click)="onDateFilterChange('')"
-            title="Clear date"
-          >
-            <i class="pi pi-times"></i>
-          </button>
-        }
-      </div>
     </div>
 
     <div class="controls-group">
@@ -99,6 +70,33 @@
             <i class="pi pi-times"></i>
           </button>
         }
+        <!-- Date Filter, shares the search pill -->
+        <div class="date-picker-box">
+          <p-datepicker
+            class="date-picker"
+            [class.has-value]="!!dateFilter()"
+            [ngModel]="dateFilterValue()"
+            (ngModelChange)="onDatePicked($event)"
+            dateFormat="M d, yy"
+            placeholder="Date"
+            [showIcon]="true"
+            iconDisplay="button"
+            [showButtonBar]="true"
+            appendTo="body"
+            panelStyleClass="admin-date-panel"
+            ariaLabel="Filter by clinic date"
+          />
+          @if (dateFilter()) {
+            <button
+              type="button"
+              class="clear-date-btn"
+              (click)="onDateFilterChange('')"
+              title="Clear date"
+            >
+              <i class="pi pi-times"></i>
+            </button>
+          }
+        </div>
       </div>
 
       <!-- View Toggle -->
@@ -137,7 +135,6 @@
             <span class="col-date">Date & Time</span>
             <span class="col-ticket">Ticket</span>
             <span class="col-status">Status</span>
-            <span class="col-reason">Reason for Visit</span>
           </div>
 
           <ul class="table-body">
@@ -148,8 +145,8 @@
                     {{ appt.patient.fullName.charAt(0).toUpperCase() }}
                   </div>
                   <div class="patient-text">
-                    <span class="patient-name">{{ appt.patient.fullName }}</span>
-                    <span class="patient-email">{{ appt.patient.email }}</span>
+                    <span class="patient-name" [title]="appt.patient.fullName">{{ appt.patient.fullName }}</span>
+                    <span class="patient-email" [title]="appt.patient.email">{{ appt.patient.email }}</span>
                   </div>
                 </div>
 
@@ -172,12 +169,6 @@
 
                 <div class="col-status">
                   <p-tag [value]="appt.status" [severity]="statusSeverity(appt.status)" />
-                </div>
-
-                <div class="col-reason">
-                  <span class="reason-text" [title]="appt.reasonForVisit ?? ''">
-                    {{ appt.reasonForVisit || 'General Consultation' }}
-                  </span>
                 </div>
               </li>
             }
@@ -228,11 +219,6 @@
                     <i class="pi pi-clock"></i>
                     <span>{{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
                   </div>
-                </div>
-
-                <div class="card-reason-callout">
-                  <span class="reason-label">Reason:</span>
-                  <span class="reason-content">{{ appt.reasonForVisit || 'General Consultation' }}</span>
                 </div>
               </div>
             }

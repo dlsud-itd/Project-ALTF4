@@ -34,8 +34,8 @@
   background: var(--surface-0, #ffffff);
   padding: 0.85rem 1.15rem;
   border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: var(--card-radius-sm);
+  box-shadow: var(--card-shadow);
 }
 
 .filter-group {
@@ -50,7 +50,7 @@
   gap: 0.25rem;
   background: var(--surface-100, #f1f5f9);
   padding: 0.25rem;
-  border-radius: 8px;
+  border-radius: var(--pill-radius);
 }
 
 .filter-tab {
@@ -60,7 +60,7 @@
   padding: 0.45rem 0.85rem;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.84rem;
   font-weight: 500;
   color: var(--text-muted, #64748b);
@@ -97,7 +97,7 @@
     height: 38px;
     padding: 0.35rem 1.85rem 0.35rem 0.85rem;
     font-size: 0.84rem;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-300, #cbd5e1);
     color: #334155;
     background: #ffffff;
@@ -152,7 +152,7 @@
     height: 38px;
     padding: 0.4rem 2rem 0.4rem 2.4rem;
     font-size: 0.84rem;
-    border-radius: 8px;
+    border-radius: var(--pill-radius);
     border: 1px solid var(--surface-300, #cbd5e1);
 
     &:focus {
@@ -178,8 +178,8 @@
 
 .empty-state-wrapper {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 3.5rem 2rem;
 }
 
@@ -204,7 +204,7 @@
   padding: 0.2rem 0.55rem;
   background: var(--surface-100, #eef4f4);
   color: #075a5b;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -219,7 +219,7 @@
   background: #f0fdfa;
   border: 1px solid #ccfbf1;
   color: #0f766e;
-  border-radius: 6px;
+  border-radius: var(--pill-radius);
   font-weight: 700;
   font-size: 0.82rem;
 
@@ -231,15 +231,17 @@
 /* TABLE VIEW */
 .appointments-table-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
+  // Stack the rows based on the card's own width, not the screen's.
+  container-type: inline-size;
 }
 
 .table-header-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1.8fr) 130px minmax(180px, 1.5fr) 120px 125px minmax(160px, 1.5fr);
+  grid-template-columns: minmax(0, 2fr) 110px minmax(0, 1.5fr) 90px 115px;
   gap: 1.25rem;
   padding: 0.95rem 1.5rem;
   background: #f8fafc;
@@ -259,7 +261,7 @@
 
 .table-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1.8fr) 130px minmax(180px, 1.5fr) 120px 125px minmax(160px, 1.5fr);
+  grid-template-columns: minmax(0, 2fr) 110px minmax(0, 1.5fr) 90px 115px;
   gap: 1.25rem;
   align-items: center;
   padding: 1rem 1.5rem;
@@ -363,19 +365,19 @@
 
 .appointment-card {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 18px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.4rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: 0 4px 16px rgba(7, 90, 91, 0.04);
+  box-shadow: var(--card-shadow);
   transition: all 180ms ease;
 
   &:hover {
     border-color: var(--primary-color, #0b7777);
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(7, 90, 91, 0.08);
+    box-shadow: var(--card-shadow-hover);
   }
 
   .card-top {
@@ -417,7 +419,7 @@
     ::ng-deep .p-tag {
       font-size: 0.76rem;
       padding: 0.25rem 0.6rem;
-      border-radius: 6px;
+      border-radius: var(--pill-radius);
       font-weight: 600;
     }
   }
@@ -468,12 +470,263 @@
 
 .card-paginator-wrapper {
   background: var(--surface-0, #ffffff);
-  border: 1px solid var(--surface-200, #e2e8f0);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   overflow: hidden;
 }
 
 @media (max-width: 960px) {
+  .table-header-row {
+    display: none;
+  }
+
+  .table-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 1.25rem;
+  }
+}
+
+// Touch targets are at least 44px on tablets, phones and touch screens.
+@media (max-width: 1024px), (pointer: coarse) {
+  .filter-tab {
+    min-height: 44px;
+  }
+
+  .search-box input {
+    height: 44px;
+  }
+
+  .search-box .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    right: 0;
+  }
+
+  .date-input {
+    height: 44px;
+  }
+
+  .clear-date-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+// Phone layout: the toolbar and search use the full width.
+@media (max-width: 600px) {
+  .controls-group,
+  .search-box {
+    width: 100%;
+  }
+
+  .filter-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+// Toolbar matches the audit trail: tabs on the left, search and view toggle on
+// the right. The date filter lives inside the search pill.
+.toolbar-card {
+  .controls-group {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .search-box {
+    flex: 0 1 25rem;
+    min-width: 15rem;
+    width: auto;
+    background: #ffffff;
+    border: 1px solid var(--surface-300, #cbd5e1);
+    border-radius: var(--pill-radius);
+
+    &:focus-within {
+      border-color: var(--primary-color, #0b7777);
+      box-shadow: 0 0 0 2px rgba(11, 119, 119, 0.15);
+    }
+
+    input[pInputText] {
+      flex: 1 1 auto;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .clear-btn {
+      position: static;
+      flex-shrink: 0;
+    }
+
+    .date-picker-box {
+      flex-shrink: 0;
+      margin: 0.2rem 0.2rem 0.2rem 0.25rem;
+      padding-left: 0.25rem;
+      border-left: 1px solid var(--surface-200, #d3e1db);
+
+      .date-input {
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        width: 9.5rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .toolbar-card .controls-group {
+    flex-wrap: wrap;
+  }
+
+  .toolbar-card .search-box {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    border-radius: var(--card-radius-sm);
+
+    input[pInputText] {
+      flex-basis: 100%;
+    }
+
+    .date-picker-box {
+      width: 100%;
+      margin: 0 0.25rem 0.25rem;
+      padding-left: 0;
+      border-left: none;
+      border-top: 1px solid var(--surface-200, #d3e1db);
+    }
+  }
+}
+
+// One row only on desktop: tabs, search with date, and the view toggle never wrap.
+@media (min-width: 901px) {
+  .toolbar-card {
+    flex-wrap: nowrap;
+
+    .filter-group {
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
+    .filter-tab {
+      padding-inline: 0.65rem;
+      white-space: nowrap;
+    }
+
+    .search-box {
+      flex: 1 1 14rem;
+      min-width: 10rem;
+
+      .date-picker-box .date-input {
+        width: 8.75rem;
+        font-size: 0.8rem;
+      }
+    }
+  }
+}
+
+// Date filter: a calendar icon button that opens the themed date picker. Once a
+// date is picked, its text appears next to the icon (and the clear button).
+.toolbar-card .search-box .date-picker-box {
+  .date-picker {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  // The clear (×) button sits after the calendar icon instead of on top of it.
+  .clear-date-btn {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-right: 0.25rem;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0.7rem;
+
+    &:hover {
+      background: var(--surface-100, #e6ebe3);
+    }
+  }
+
+  // The text input stays in the layout (zero width) while empty, because the
+  // popup is positioned against it; display: none would send the popup to the
+  // top-left of the page.
+  ::ng-deep .date-picker .p-datepicker-input {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0;
+    pointer-events: none;
+    font-size: 0.8rem;
+    font-family: inherit;
+  }
+
+  ::ng-deep .date-picker.has-value .p-datepicker-input {
+    width: 7.75rem;
+    padding: 0 0.25rem 0 0.5rem;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  ::ng-deep .date-picker .p-datepicker-dropdown {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: var(--pill-radius);
+    background: transparent;
+    color: var(--primary-color, #0b7777);
+
+    &:hover {
+      background: var(--primary-light, #e9f4f1);
+    }
+  }
+}
+
+// Calendar popup, matching the card design.
+::ng-deep .admin-date-panel {
+  padding: 0.75rem;
+  border: var(--card-border);
+  border-radius: var(--card-radius-sm);
+  box-shadow: var(--card-shadow-hover);
+
+  .p-datepicker-day,
+  .p-datepicker-day.p-datepicker-day-selected {
+    border-radius: 50%;
+  }
+
+  .p-datepicker-today > .p-datepicker-day:not(.p-datepicker-day-selected) {
+    background: var(--primary-light, #e9f4f1);
+    color: var(--primary-hover, #075a5b);
+    font-weight: 700;
+  }
+
+  .p-datepicker-title {
+    font-weight: 700;
+    color: var(--text-main, #075a5b);
+  }
+
+  .p-datepicker-buttonbar .p-button {
+    border-radius: var(--pill-radius);
+  }
+}
+
+// Columns need about 760px. Narrower than that, each row stacks into a block
+// instead of cutting off names, emails and dates.
+@container (max-width: 760px) {
   .table-header-row {
     display: none;
   }

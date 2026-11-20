@@ -299,9 +299,12 @@ export class AdminUsersComponent implements OnInit {
     const actionWord = newStatus ? 'activate' : 'deactivate';
 
     this.confirmService.confirmWarning({
-      header: `${newStatus ? 'Activate' : 'Deactivate'} User Account`,
-      message: `Are you sure you want to ${actionWord} access for ${user.fullName} (${user.email})?`,
-      acceptLabel: `Yes, ${actionWord}`,
+      header: newStatus ? 'Reactivate Account' : 'Suspend Account',
+      message: newStatus
+        ? `Restore sign-in access for ${user.fullName} (${user.email})?`
+        : `Suspend access for ${user.fullName} (${user.email})? They cannot sign in until you reactivate the account.`,
+      icon: newStatus ? 'pi pi-check-circle' : 'pi pi-ban',
+      acceptLabel: newStatus ? 'Yes, reactivate' : 'Yes, suspend',
       accept: () => {
         this.adminService
           .updateUser(user.id, { isActive: newStatus })
@@ -336,6 +339,7 @@ export class AdminUsersComponent implements OnInit {
     this.confirmService.confirmDestructive({
       header: 'Deactivate User Account',
       message: `Are you sure you want to deactivate ${user.fullName}? They will be immediately blocked from signing in.`,
+      icon: 'pi pi-user-minus',
       acceptLabel: 'Deactivate Account',
       accept: () => {
         this.adminService.deleteUser(user.id).subscribe({

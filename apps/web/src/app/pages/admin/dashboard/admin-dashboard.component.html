@@ -1,30 +1,4 @@
 <div class="admin-dashboard-page">
-  <!-- Header / Action bar -->
-  <header class="page-top">
-    <div class="welcome-banner">
-      <h2>Administrative Control Center</h2>
-      <p>System metrics, user registry management, and activity oversight</p>
-    </div>
-
-    <div class="action-buttons">
-      <a routerLink="/admin/users">
-        <p-button
-          label="Manage Users"
-          icon="pi pi-users"
-          severity="primary"
-        />
-      </a>
-      <a routerLink="/admin/audit-logs">
-        <p-button
-          label="Audit Logs"
-          icon="pi pi-shield"
-          severity="secondary"
-          [outlined]="true"
-        />
-      </a>
-    </div>
-  </header>
-
   @if (isLoading()) {
     <app-loading-skeleton [lines]="4" />
   } @else if (error()) {

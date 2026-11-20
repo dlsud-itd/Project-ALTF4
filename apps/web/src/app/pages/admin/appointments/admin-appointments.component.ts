@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DatePicker } from 'primeng/datepicker';
 import { InputText } from 'primeng/inputtext';
 import { Tag } from 'primeng/tag';
 import { AdminService } from '@core/services';
@@ -24,6 +25,7 @@ type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contr
   imports: [
     CommonModule,
     FormsModule,
+    DatePicker,
     InputText,
     Tag,
     EmptyStateComponent,
@@ -115,6 +117,24 @@ export class AdminAppointmentsComponent implements OnInit {
   onSearchChange(query: string): void {
     this.searchQuery.set(query);
     this.first.set(0);
+  }
+
+  // Date picker works with Date objects; the filter stores a local YYYY-MM-DD string.
+  readonly dateFilterValue = computed<Date | null>(() => {
+    const value = this.dateFilter();
+    if (!value) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  });
+
+  onDatePicked(value: Date | null | undefined): void {
+    if (!value) {
+      this.onDateFilterChange('');
+      return;
+    }
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    this.onDateFilterChange(`${value.getFullYear()}-${month}-${day}`);
   }
 
   onDateFilterChange(val: string): void {
