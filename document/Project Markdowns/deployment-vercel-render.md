@@ -71,7 +71,7 @@ git push origin main
    - **Branch**: `main`
    - **Root Directory**: Leave blank (monorepo root)
    - **Runtime**: `Node`
-   - **Build Command**: `npm install && npm run prisma:generate && npm run build:api`
+   - **Build Command**: `npm ci --include=dev && npm run prisma:generate && npm run build:api`
    - **Start Command**: `node apps/api/dist/main.js`
    - **Plan**: `Starter` (or Free for testing)
 4. Under **Advanced** > **Health Check Path**:
@@ -95,7 +95,7 @@ git push origin main
    - Verify server started and logged `ClinicQueue API server running on http://0.0.0.0:10000`.
 3. Test the live health check endpoint:
    ```bash
-   curl https://clinicqueue-api.onrender.com/health
+   curl https://project-altf4.onrender.com/health
    ```
    Expected response:
    ```json
@@ -107,7 +107,7 @@ git push origin main
      "database": "connected"
    }
    ```
-4. Access Swagger documentation at `https://clinicqueue-api.onrender.com/api/docs`.
+4. Access Swagger documentation at `https://project-altf4.onrender.com/api/docs`.
 
 ---
 
@@ -125,7 +125,7 @@ git push origin main
    ```typescript
    export const environment = {
      production: true,
-     apiUrl: 'https://clinicqueue-api.onrender.com/api/v1',
+     apiUrl: 'https://project-altf4.onrender.com/api/v1',
    };
    ```
 
@@ -134,7 +134,7 @@ git push origin main
 ### Step 8: Deploy the Frontend
 1. Click **Deploy** in Vercel.
 2. Verify that the build succeeds and outputs to `apps/web/dist/web/browser`.
-3. Note your assigned Vercel URL (e.g. `https://clinicqueue.vercel.app`).
+3. Note your assigned Vercel URL (e.g. `https://project-altf4.vercel.app`).
 
 ---
 
@@ -143,15 +143,15 @@ git push origin main
 1. Return to the Render dashboard for `clinicqueue-api`.
 2. Go to **Environment** and update `CORS_ORIGINS`:
    ```
-   https://clinicqueue.vercel.app,http://localhost:4200
+   https://project-altf4.vercel.app,http://localhost:4200
    ```
-3. Save changes. Render will automatically perform a zero-downtime rolling restart.
+3. Save changes. Render will automatically perform a zero-downtime rolling restart. Use the exact origin (scheme and hostname, no trailing slash); add any additional production or preview origin explicitly if needed.
 
 ---
 
 ### Step 10: Verification Checklist
 Perform these checks on the live deployment:
-- [ ] Direct navigation to `https://clinicqueue.vercel.app/display` loads the Queue Board.
+- [ ] Direct navigation to `https://project-altf4.vercel.app/display` loads the Queue Board.
 - [ ] Browser refresh on `/display`, `/patient`, and `/staff` does not throw 404 (rewrites working).
 - [ ] Connection badge in header indicates `Online` (SSE stream connected to Render).
 - [ ] Submitting a patient walk-in generates a sequential ticket number.
