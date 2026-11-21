@@ -1,0 +1,440 @@
+.admin-dashboard-page {
+  padding: 1.5rem 2rem 3.5rem;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+/* STATS GRID */
+// Five cards share one row on desktop; on narrower screens they fall into a
+// balanced 3 + 2 layout, then a single column on phones.
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.75rem;
+}
+
+.stat-card {
+  background: var(--surface-0, #ffffff);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  padding: 1.35rem 1.4rem;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: transparent;
+    transition: background-color 180ms ease;
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: rgba(11, 119, 119, 0.35);
+  }
+
+  &.primary-card:hover::before {
+    background: var(--primary-color, #0b7777);
+  }
+  &.info-card:hover::before {
+    background: #0284c7;
+  }
+  &.success-card:hover::before {
+    background: #16a34a;
+  }
+  &.warning-card:hover::before {
+    background: #f59e0b;
+  }
+  &.purple-card:hover::before {
+    background: #7e22ce;
+  }
+
+  // Icon on top, then label, number and caption, so long labels wrap instead of
+  // being cut off.
+  .stat-card-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+
+    &.primary {
+      background: #eef7f5;
+      color: #0b7777;
+    }
+
+    &.info {
+      background: #e0f2fe;
+      color: #0284c7;
+    }
+
+    &.success {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    &.warning {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    &.purple {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+  }
+
+  .stat-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .stat-label {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-muted, #64748b);
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #075a5b;
+      line-height: 1.15;
+      margin: 0.2rem 0 0.35rem;
+
+      &.primary {
+        color: #0b7777;
+      }
+      &.success {
+        color: #15803d;
+      }
+      &.warning {
+        color: #d97706;
+      }
+      &.info {
+        color: #0284c7;
+      }
+      &.purple {
+        color: #7e22ce;
+      }
+    }
+
+    .stat-sub-pill {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      color: #64748b;
+      font-weight: 500;
+
+      .dot {
+        width: 6px;
+        height: 6px;
+        margin-top: 0.4em;
+        border-radius: 50%;
+        flex-shrink: 0;
+
+        &.primary-dot {
+          background: #0b7777;
+        }
+        &.info-dot {
+          background: #0284c7;
+        }
+        &.success-dot {
+          background: #16a34a;
+        }
+        &.warning-dot {
+          background: #f59e0b;
+        }
+        &.purple-dot {
+          background: #7e22ce;
+        }
+      }
+    }
+  }
+}
+
+/* QUICK TOOLS CARDS */
+.quick-nav-section {
+  .section-heading {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main, #075a5b);
+    margin: 0 0 1.25rem;
+  }
+}
+
+.nav-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.35rem;
+}
+
+.nav-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--surface-0, #ffffff);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  padding: 1.6rem;
+  text-decoration: none;
+  box-shadow: var(--card-shadow);
+  transition: all 180ms ease;
+
+  &:hover {
+    border-color: var(--primary-color, #0b7777);
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow-hover);
+
+    .nav-card-arrow {
+      transform: translateX(5px);
+      color: var(--primary-color, #0b7777);
+    }
+  }
+
+  .nav-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: #eef7f5;
+    color: var(--primary-color, #0b7777);
+    font-size: 1.45rem;
+    flex-shrink: 0;
+  }
+
+  .nav-card-content {
+    flex: 1;
+
+    h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main, #075a5b);
+      margin: 0 0 0.35rem;
+    }
+
+    p {
+      font-size: 0.85rem;
+      color: var(--text-muted, #64748b);
+      margin: 0;
+      line-height: 1.45;
+    }
+  }
+
+  .nav-card-arrow {
+    font-size: 1.1rem;
+    color: var(--text-muted, #94a3b8);
+    transition: transform 180ms ease, color 180ms ease;
+  }
+}
+
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    .stat-card {
+      grid-column: span 2;
+
+      &:nth-child(n + 4) {
+        grid-column: span 3;
+      }
+    }
+  }
+}
+
+@media (max-width: 860px) {
+  .admin-dashboard-page {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+
+    .stat-card,
+    .stat-card:nth-child(n + 4) {
+      grid-column: auto;
+    }
+  }
+
+  .nav-card {
+    padding: 1.15rem;
+  }
+}
+
+// ---- Enhanced overview ----
+// Stat cards: the dark teal card from the staff dashboard, with every label,
+// number and caption on the same baseline across the row.
+.stats-grid {
+  align-items: stretch;
+}
+
+.stats-grid .stat-card {
+  background: var(--primary-color, #0b7777);
+  color: #ffffff;
+
+  &:hover {
+    border-color: transparent;
+  }
+
+  &::before {
+    display: none;
+  }
+
+  .stat-card-inner {
+    height: 100%;
+    gap: 0.75rem;
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.15rem;
+  }
+
+  .stat-body {
+    flex: 1;
+    width: 100%;
+
+    .stat-label {
+      min-height: 2.6em;
+      color: rgb(255 255 255 / 0.85);
+    }
+
+    .stat-number,
+    .stat-number.primary,
+    .stat-number.info,
+    .stat-number.success,
+    .stat-number.warning,
+    .stat-number.purple {
+      color: #ffffff;
+      margin: 0.1rem 0 0.5rem;
+    }
+
+    .stat-sub-pill {
+      min-height: 2.7em;
+      color: rgb(255 255 255 / 0.8);
+
+      .dot {
+        background: rgb(255 255 255 / 0.85);
+      }
+    }
+  }
+}
+
+// Quick tool cards: icon, title and arrow on one line, description underneath.
+.nav-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon title arrow'
+    'desc desc desc';
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1.25rem 1.4rem;
+
+  .nav-card-icon {
+    grid-area: icon;
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+  }
+
+  // The wrapper no longer lays out its children, so the title and description
+  // can sit in separate grid areas.
+  .nav-card-content {
+    display: contents;
+
+    h4 {
+      grid-area: title;
+      margin: 0;
+    }
+
+    p {
+      grid-area: desc;
+    }
+  }
+
+  .nav-card-arrow {
+    grid-area: arrow;
+  }
+}
+
+// Stat card layout: icon and big number share the top row; the label and the
+// caption sit underneath, so the numbers always line up whatever the label wraps to.
+.stats-grid .stat-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 0.75rem 0.75rem;
+
+  .stat-card-inner,
+  .stat-body {
+    display: contents;
+  }
+
+  .stat-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .stat-body .stat-number {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+    margin: 0;
+    font-size: 2.4rem;
+    line-height: 1;
+  }
+
+  .stat-body .stat-label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .stat-body .stat-sub-pill {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-self: start;
+    min-height: 0;
+    margin-top: -0.35rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgb(255 255 255 / 0.2);
+    color: rgb(255 255 255 / 0.85);
+
+    .dot {
+      display: none;
+    }
+  }
+}

@@ -1,0 +1,78 @@
+<!-- Header band: page title and bulk action -->
+<header class="notifications-banner">
+  <div class="banner-text">
+    <h2>Notifications</h2>
+    <p>Updates about your queue and appointments</p>
+  </div>
+  <div class="banner-actions">
+    <p-button
+      label="Mark all as read"
+      icon="pi pi-check"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="unreadCount() === 0"
+      (onClick)="markAllAsRead()"
+    />
+  </div>
+</header>
+
+<div class="notifications-page">
+  @if (isLoading()) {
+    <app-loading-skeleton [lines]="skeletonLines" />
+  } @else if (loadError()) {
+    <app-error-state
+      title="Could not load notifications"
+      [message]="loadError()!"
+      (retry)="load()"
+    />
+  } @else if (notifications().length === 0) {
+    <app-empty-state
+      title="No notifications yet"
+      message="Updates about your bookings and queue will show up here."
+      icon="pi-bell"
+    />
+  } @else {
+    <p class="unread-summary" role="status">{{ unreadCount() }} unread</p>
+    @if (actionError(); as error) {
+      <p class="notification-error" role="alert">{{ error }}</p>
+    }
+    <ul class="notification-list">
+      @for (item of notifications(); track item.id) {
+        <li class="notification-item" [class.unread]="!item.isRead">
+          <span class="status-dot" aria-hidden="true"></span>
+          <div class="item-body">
+            <div class="item-meta">
+              <p-tag
+                [value]="item.title"
+                [severity]="typeSeverity(item.type)"
+              />
+              @if (!item.isRead) {
+                <span class="visually-hidden">Unread</span>
+              }
+              <time class="item-time" [attr.datetime]="item.createdAt">
+                {{ item.createdAt | date: 'MMM d, h:mm a' }}
+              </time>
+            </div>
+            <p class="item-message">{{ item.message }}</p>
+          </div>
+          <div class="item-actions">
+            @if (routeFor(item.type); as route) {
+              <a class="action-link" [routerLink]="route">
+                {{ linkLabel(item.type) }}
+              </a>
+            }
+            @if (!item.isRead) {
+              <button
+                type="button"
+                class="action-button"
+                (click)="markAsRead(item.id)"
+              >
+                Mark as read
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

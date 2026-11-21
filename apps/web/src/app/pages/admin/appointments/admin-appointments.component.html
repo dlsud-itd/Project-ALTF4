@@ -1,0 +1,240 @@
+<div class="admin-appointments-page">
+  <!-- Toolbar & Filters -->
+  <div class="toolbar-card">
+    <div class="filter-group">
+      <!-- Status Tabs -->
+      <div class="filter-tabs" role="tablist" aria-label="Status filters">
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'ALL'"
+          (click)="setStatusFilter('ALL')"
+        >
+          <span>All</span>
+          <span class="badge">{{ appointments().length }}</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'BOOKED'"
+          (click)="setStatusFilter('BOOKED')"
+        >
+          <span>Booked</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'COMPLETED'"
+          (click)="setStatusFilter('COMPLETED')"
+        >
+          <span>Completed</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'NO_SHOW'"
+          (click)="setStatusFilter('NO_SHOW')"
+        >
+          <span>No-show</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'CANCELLED'"
+          (click)="setStatusFilter('CANCELLED')"
+        >
+          <span>Cancelled</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="controls-group">
+      <!-- Search Box -->
+      <div class="search-box">
+        <i class="pi pi-search search-icon" aria-hidden="true"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Search patient, email, ticket..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          aria-label="Search appointments"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            class="clear-btn"
+            (click)="onSearchChange('')"
+            aria-label="Clear search"
+          >
+            <i class="pi pi-times"></i>
+          </button>
+        }
+        <!-- Date Filter, shares the search pill -->
+        <div class="date-picker-box">
+          <p-datepicker
+            class="date-picker"
+            [class.has-value]="!!dateFilter()"
+            [ngModel]="dateFilterValue()"
+            (ngModelChange)="onDatePicked($event)"
+            dateFormat="M d, yy"
+            placeholder="Date"
+            [showIcon]="true"
+            iconDisplay="button"
+            [showButtonBar]="true"
+            appendTo="body"
+            panelStyleClass="admin-date-panel"
+            ariaLabel="Filter by clinic date"
+          />
+          @if (dateFilter()) {
+            <button
+              type="button"
+              class="clear-date-btn"
+              (click)="onDateFilterChange('')"
+              title="Clear date"
+            >
+              <i class="pi pi-times"></i>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- View Toggle -->
+      <app-view-toggle
+        [view]="viewMode()"
+        (viewChange)="viewMode.set($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <section class="appointments-content">
+    @if (isLoading()) {
+      <app-loading-skeleton [lines]="6" />
+    } @else if (error()) {
+      <app-error-state
+        title="Could not load appointments"
+        [message]="error()!"
+        (retry)="loadAppointments()"
+      />
+    } @else if (filteredAppointments().length === 0) {
+      <div class="empty-state-wrapper">
+        <app-empty-state
+          icon="pi-calendar"
+          title="No appointments found"
+          [message]="searchQuery() || dateFilter() ? 'No bookings match your selected filters.' : 'Consultation bookings will appear here.'"
+        />
+      </div>
+    } @else {
+      <!-- TABLE VIEW -->
+      @if (viewMode() === 'table') {
+        <div class="appointments-table-card">
+          <div class="table-header-row">
+            <span class="col-patient">Patient</span>
+            <span class="col-affiliation">Affiliation</span>
+            <span class="col-date">Date & Time</span>
+            <span class="col-ticket">Ticket</span>
+            <span class="col-status">Status</span>
+          </div>
+
+          <ul class="table-body">
+            @for (appt of pagedAppointments(); track appt.id) {
+              <li class="table-row">
+                <div class="col-patient">
+                  <div class="patient-avatar-sm">
+                    {{ appt.patient.fullName.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="patient-text">
+                    <span class="patient-name" [title]="appt.patient.fullName">{{ appt.patient.fullName }}</span>
+                    <span class="patient-email" [title]="appt.patient.email">{{ appt.patient.email }}</span>
+                  </div>
+                </div>
+
+                <div class="col-affiliation">
+                  <span class="affiliation-chip">{{ appt.patient.affiliation }}</span>
+                </div>
+
+                <div class="col-date">
+                  <span class="date-text"><i class="pi pi-calendar"></i> {{ formatDate(appt.slot.clinicDate) }}</span>
+                  <span class="time-text"><i class="pi pi-clock"></i> {{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
+                </div>
+
+                <div class="col-ticket">
+                  @if (appt.ticketNumber) {
+                    <span class="ticket-tag">{{ appt.ticketNumber }}</span>
+                  } @else {
+                    <span class="muted-dash">—</span>
+                  }
+                </div>
+
+                <div class="col-status">
+                  <p-tag [value]="appt.status" [severity]="statusSeverity(appt.status)" />
+                </div>
+              </li>
+            }
+          </ul>
+
+          <!-- Paginator -->
+          <app-paginator
+            [totalRecords]="filteredAppointments().length"
+            [(first)]="first"
+            [(rows)]="rows"
+            [rowsPerPageOptions]="[10, 25, 50]"
+          />
+        </div>
+      }
+
+      <!-- CARDS VIEW -->
+      @if (viewMode() === 'card') {
+        <div class="cards-view-container">
+          <div class="appointments-card-grid">
+            @for (appt of pagedAppointments(); track appt.id) {
+              <div class="appointment-card">
+                <div class="card-top">
+                  <div class="patient-info">
+                    <div class="patient-avatar-sm">
+                      {{ appt.patient.fullName.charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="patient-titles">
+                      <h4 class="card-patient-name">{{ appt.patient.fullName }}</h4>
+                      <span class="card-patient-email">{{ appt.patient.email }}</span>
+                    </div>
+                  </div>
+                  <p-tag [value]="appt.status" [severity]="statusSeverity(appt.status)" />
+                </div>
+
+                <div class="card-meta">
+                  <span class="affiliation-chip">{{ appt.patient.affiliation }}</span>
+                  @if (appt.ticketNumber) {
+                    <span class="ticket-tag"><i class="pi pi-ticket"></i> Ticket: {{ appt.ticketNumber }}</span>
+                  }
+                </div>
+
+                <div class="card-schedule">
+                  <div class="schedule-item">
+                    <i class="pi pi-calendar"></i>
+                    <span>{{ formatDate(appt.slot.clinicDate) }}</span>
+                  </div>
+                  <div class="schedule-item">
+                    <i class="pi pi-clock"></i>
+                    <span>{{ appt.slot.startTime }} - {{ appt.slot.endTime }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Paginator -->
+          <div class="card-paginator-wrapper">
+            <app-paginator
+              [totalRecords]="filteredAppointments().length"
+              [(first)]="first"
+              [(rows)]="rows"
+              [rowsPerPageOptions]="[10, 25, 50]"
+            />
+          </div>
+        </div>
+      }
+    }
+  </section>
+</div>

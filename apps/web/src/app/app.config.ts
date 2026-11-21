@@ -19,9 +19,9 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
-    provideAppInitializer((): void => {
+    provideAppInitializer(() => {
       const authService: AuthService = inject(AuthService);
-      authService.hydrateSession().subscribe();
+      return authService.hydrateSession();
     }),
     ConfirmationService,
     provideAnimationsAsync(),

@@ -6,37 +6,24 @@ import {
 } from '@nestjs/common';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { getManilaCalendarDate, isSlotPast } from '../common/is-slot-past.util';
 import { CreateSlotDto } from './dto/create-slot.dto';
 import { UpdateSlotDto } from './dto/update-slot.dto';
+import { SlotGenerationService } from './slot-generation.service';
+import { toUtcDate } from './slot-date.util';
 
 const MS_PER_DAY = 86_400_000;
 const DEFAULT_RANGE_DAYS = 7;
-const DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 
-const toUtcDate = (value: string, fieldName: string): Date => {
-  if (!DATE_FORMAT.test(value)) {
-    throw new BadRequestException(`${fieldName} must use YYYY-MM-DD format`);
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`);
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.toISOString().slice(0, 10) !== value
-  ) {
-    throw new BadRequestException(`${fieldName} must be a valid calendar date`);
-  }
-
-  return date;
-};
-
-const todayAsUtcDate = (): Date => {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-};
+const todayAsUtcDate = (): Date =>
+  new Date(`${getManilaCalendarDate()}T00:00:00.000Z`);
 
 @Injectable()
 export class SlotsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly slotGeneration: SlotGenerationService,
+  ) {}
 
   async findSlots(from?: string, to?: string, availableOnly = false) {
     const fromDate =
@@ -50,6 +37,9 @@ export class SlotsService {
     if (toDate < fromDate) {
       throw new BadRequestException('to must be on or after from');
     }
+
+    // Backfill the rolling default schedule so staff no longer create every slot.
+    await this.slotGeneration.ensureUpcomingSlots();
 
     const slots = await this.prisma.clinicSlot.findMany({
       where: {
@@ -69,26 +59,36 @@ export class SlotsService {
       orderBy: [{ clinicDate: 'asc' }, { startTime: 'asc' }],
     });
 
+    const now = new Date();
     const mapped = slots.map((slot) => {
       const remainingCapacity = Math.max(
         0,
         slot.capacity - slot.appointments.length,
       );
+      const clinicDate = slot.clinicDate.toISOString().slice(0, 10);
+      const isExpired = isSlotPast(clinicDate, slot.endTime, now);
 
       return {
         id: slot.id,
-        clinicDate: slot.clinicDate.toISOString().slice(0, 10),
+        clinicDate,
         startTime: slot.startTime,
         endTime: slot.endTime,
         capacity: slot.capacity,
         remainingCapacity,
-        isBookable: slot.isBookable && remainingCapacity > 0,
+        // `isOpen` is the stored flag; `isBookable` also folds in no-seats-left
+        // and past slots, so the UI can still block a full or open slot.
+        isBookable: slot.isBookable && remainingCapacity > 0 && !isExpired,
+        isOpen: slot.isBookable,
+        isExpired,
       };
     });
 
     return {
       slots: availableOnly
-        ? mapped.filter((slot) => slot.isBookable && slot.remainingCapacity > 0)
+        ? mapped.filter(
+            (slot) =>
+              slot.isBookable && slot.remainingCapacity > 0 && !slot.isExpired,
+          )
         : mapped,
     };
   }

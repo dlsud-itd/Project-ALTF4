@@ -47,22 +47,6 @@
       "
       (onClick)="dashboard.onRecallCurrent()"
     />
-    <p-button
-      label="Complete Consultation"
-      icon="pi pi-check"
-      severity="success"
-      ariaLabel="Complete consultation"
-      [outlined]="true"
-      [disabled]="!dashboard.isInService() || dashboard.isUpdatingStatus()"
-      [title]="
-        !dashboard.currentTicket()
-          ? 'No patient is being called'
-          : !dashboard.isInService()
-            ? 'The patient must arrive before completing consultation'
-            : ''
-      "
-      (onClick)="dashboard.onComplete()"
-    />
   </div>
 </header>
 
@@ -92,6 +76,7 @@
     (patientArrived)="dashboard.onPatientArrived()"
     (markNoShow)="dashboard.onMarkNoShow()"
     (cancelEntry)="dashboard.onCancelEntry()"
+    (complete)="dashboard.onComplete()"
     (retryStats)="dashboard.onRetryStats()"
   />
 
@@ -123,7 +108,7 @@
               <path d="M12 6v6l4 2" /></svg
           ></span>
           <div class="stat-body">
-            <span class="stat-label">Patients Waiting</span>
+            <span class="stat-label">Waiting</span>
             <span class="stat-number warning">{{
               dashboard.waitingCount()
             }}</span>
@@ -146,7 +131,7 @@
               <path d="m9 11 3 3L22 4" /></svg
           ></span>
           <div class="stat-body">
-            <span class="stat-label">Completed Today</span>
+            <span class="stat-label">Completed</span>
             <span class="stat-number success">{{
               dashboard.completedCount()
             }}</span>
@@ -170,7 +155,7 @@
               <path d="m9 9 6 6" /></svg
           ></span>
           <div class="stat-body">
-            <span class="stat-label">No-shows Today</span>
+            <span class="stat-label">No-shows</span>
             <span class="stat-number danger">{{
               dashboard.noShowCount()
             }}</span>

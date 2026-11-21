@@ -1,0 +1,27 @@
+<div class="view-toggle" role="group" aria-label="View layout toggle">
+  <button
+    type="button"
+    class="toggle-btn"
+    [class.active]="view() === 'table'"
+    [attr.aria-pressed]="view() === 'table'"
+    (click)="selectView('table')"
+    title="Table View"
+    aria-label="Table view"
+  >
+    <i class="pi pi-bars" aria-hidden="true"></i>
+    <span class="btn-text">Table</span>
+  </button>
+
+  <button
+    type="button"
+    class="toggle-btn"
+    [class.active]="view() === 'card'"
+    [attr.aria-pressed]="view() === 'card'"
+    (click)="selectView('card')"
+    title="Card Grid View"
+    aria-label="Card grid view"
+  >
+    <i class="pi pi-th-large" aria-hidden="true"></i>
+    <span class="btn-text">Cards</span>
+  </button>
+</div>

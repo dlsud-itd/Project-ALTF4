@@ -40,7 +40,7 @@
                   (onClick)="onPatientArrived()"
                 />
                 <div class="called-ticket-status">
-                  <span class="current-status current-status--called">
+                  <span class="current-status current-status--called sr-only">
                     Called - waiting for patient
                   </span>
                   <span
@@ -52,23 +52,40 @@
                     {{ graceCountdownText() }}
                   </span>
                 </div>
-                <p-button
-                  label="Mark as No-show"
-                  severity="danger"
-                  [outlined]="true"
-                  [disabled]="isUpdatingStatus()"
-                  (onClick)="onMarkNoShow()"
-                />
+                <div class="danger-actions">
+                  <p-button
+                    label="Mark as No-show"
+                    severity="danger"
+                    size="small"
+                    [disabled]="isUpdatingStatus()"
+                    (onClick)="onMarkNoShow()"
+                  />
+                  <p-button
+                    label="Cancel"
+                    severity="danger"
+                    size="small"
+                    [disabled]="isUpdatingStatus()"
+                    (onClick)="onCancelEntry()"
+                  />
+                </div>
               </div>
             } @else {
               <span class="current-status">In consultation</span>
             }
-            @if (isCalled() || isInService()) {
+            @if (isInService()) {
               <div class="ticket-actions">
+                <p-button
+                  label="Complete Consultation"
+                  icon="pi pi-check"
+                  severity="success"
+                  ariaLabel="Complete consultation"
+                  [disabled]="isUpdatingStatus()"
+                  (onClick)="onComplete()"
+                />
                 <p-button
                   label="Cancel"
                   severity="danger"
-                  [outlined]="true"
+                  size="small"
                   [disabled]="isUpdatingStatus()"
                   (onClick)="onCancelEntry()"
                 />
@@ -88,28 +105,6 @@
                   : "The queue is empty. New walk-ins will appear here."
               }}
             </p>
-            @if (waitingCount() > 0) {
-              <p-button
-                label="Call Next Patient"
-                icon="pi pi-bell"
-                severity="primary"
-                [outlined]="true"
-                [loading]="isGeneratingQueue()"
-                [disabled]="
-                  currentTicket() !== null ||
-                  waitingCount() === 0 ||
-                  isGeneratingQueue()
-                "
-                [title]="
-                  currentTicket()
-                    ? 'A patient is already being called'
-                    : waitingCount() === 0
-                      ? 'The queue is empty'
-                      : ''
-                "
-                (onClick)="onCallNext()"
-              />
-            }
           </div>
         </div>
       }

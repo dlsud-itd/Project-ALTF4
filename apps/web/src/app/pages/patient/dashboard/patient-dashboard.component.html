@@ -5,7 +5,7 @@
   </div>
 
   <div class="button-row">
-    <a routerLink="/patient/bookings">
+    <a routerLink="/patient/schedule">
       <p-button label="Book Appointment" icon="pi pi-calendar-plus" />
     </a>
   </div>
@@ -48,30 +48,29 @@
             <p class="status-value">No Active Ticket</p>
             <span class="status-hint">Not currently in queue</span>
           }
-          @if (joinQueueError()) {
-            <small class="field-error">{{ joinQueueError() }}</small>
-          }
         </div>
 
-        @if (currentTicket()) {
+        @if (activeQueueEntry(); as active) {
           <p-button
             label="Cancel Appointment"
             icon="pi pi-times"
             severity="danger"
             [outlined]="true"
             size="small"
-            (onClick)="onLeaveQueue()"
+            (onClick)="onCancelAppointment(active)"
           />
         } @else if (upcomingAppointments().length > 0) {
           <p-button
-            label="Join Queue"
-            icon="pi pi-ticket"
+            label="Cancel Appointment"
+            icon="pi pi-times"
+            severity="danger"
+            [outlined]="true"
             size="small"
-            [loading]="isJoiningQueue()"
-            (onClick)="onJoinQueue()"
+            [loading]="cancellingId() === upcomingAppointments()[0].id"
+            (onClick)="onCancelAppointment(upcomingAppointments()[0])"
           />
         } @else {
-          <a routerLink="/patient/bookings">
+          <a routerLink="/patient/schedule">
             <p-button
               label="Book to Queue"
               icon="pi pi-calendar-plus"
@@ -107,7 +106,7 @@
           <i class="pi pi-calendar"></i>
           Your Appointments
         </h3>
-        <p class="section-desc">Here's what coming!</p>
+        <p class="section-desc">Here's what's coming!</p>
       </div>
     </div>
 
@@ -131,125 +130,63 @@
         [message]="appointmentsError()!"
         (retry)="loadAppointments()"
       />
-    } @else if (appointments().length === 0) {
+    } @else if (upcomingAppointments().length === 0) {
       <app-empty-state
         icon="pi-calendar-plus"
         title="No upcoming appointments"
         message="Browse available slots to book your next consultation."
       />
     } @else {
-      <!-- Active / Upcoming Consultations -->
-      @if (upcomingAppointments().length > 0) {
-        <div class="appointments-list">
-          @for (appt of upcomingAppointments(); track appt.id) {
-            <div class="appointment-card">
-              <div class="appointment-header">
-                <div class="date-badge">
-                  <i class="pi pi-calendar"></i>
-                  <span>{{ formatClinicDate(appt.slot.clinicDate) }}</span>
-                </div>
+      <div class="appointments-list">
+        @for (appt of upcomingAppointments(); track appt.id) {
+          <article class="appointment-card">
+            <div class="appointment-row-main">
+              <div class="appointment-row-heading">
+                <strong>{{ formatClinicDate(appt.slot.clinicDate) }}</strong>
                 <p-tag
                   [value]="statusLabel(appt.status)"
                   [severity]="statusSeverity(appt.status)"
+                  icon="pi pi-check"
                 />
               </div>
-
-              <div class="appointment-body">
-                <div class="info-row">
-                  <i class="pi pi-clock"></i>
-                  <span class="time-text">{{ formatTimeRange(appt.slot.startTime, appt.slot.endTime) }}</span>
-                </div>
-                <div class="info-row">
-                  <i class="pi pi-user"></i>
-                  <span>Dr. Maria Santos, MD • University Physician</span>
-                </div>
-                <div class="info-row">
-                  <i class="pi pi-map-marker"></i>
-                  <span>DLSU-D University Health Services Clinic</span>
-                </div>
-
-                @if (appt.reservedQueueEntry) {
-                  <div class="queue-reservation-banner">
-                    <div class="reservation-badge">
-                      <i class="pi pi-ticket"></i>
-                      <span class="ticket-tag">Reserved Ticket: <strong>{{ appt.reservedQueueEntry.ticketNumber }}</strong></span>
-                    </div>
-                    <div class="reservation-wait">
-                      <i class="pi pi-users"></i>
-                      <span>
-                        @if (appt.reservedQueueEntry.positionInQueue <= 1) {
-                          You are next in line!
-                        } @else {
-                          {{ appt.reservedQueueEntry.positionInQueue - 1 }} patient(s) ahead of you
-                        }
-                        &bull; ~{{ appt.reservedQueueEntry.estimatedWaitMinutes }} min wait
-                      </span>
-                    </div>
-                  </div>
-                }
-              </div>
-
-              <div class="appointment-footer">
-                <div class="management-actions">
-                  <a routerLink="/patient/bookings" [queryParams]="{ reschedule: appt.id }">
-                    <p-button
-                      label="Reschedule"
-                      icon="pi pi-calendar"
-                      [outlined]="true"
-                      size="small"
-                    />
-                  </a>
-                  <p-button
-                    label="Cancel Appointment"
-                    icon="pi pi-times"
-                    severity="danger"
-                    [outlined]="true"
-                    size="small"
-                    [loading]="cancellingId() === appt.id"
-                    (onClick)="onCancelAppointment(appt)"
-                  />
-                </div>
-              </div>
+              <p class="appointment-row-time">
+                <i class="pi pi-clock"></i>
+                {{ formatTimeRange(appt.slot.startTime, appt.slot.endTime) }}
+              </p>
+              <p class="appointment-row-location">
+                Dr. Maria Santos, MD · DLSU-D University Health Services Clinic
+              </p>
+              @if (appt.reservedQueueEntry; as ticket) {
+                <p class="appointment-row-ticket">
+                  <i class="pi pi-ticket"></i>
+                  Ticket <strong>{{ ticket.ticketNumber }}</strong>
+                  · Position {{ ticket.positionInQueue }}
+                  · ~{{ ticket.estimatedWaitMinutes }} min wait
+                </p>
+              }
             </div>
-          }
-        </div>
-      }
-
-      <!-- Past / Inactive Appointments -->
-      @if (pastAppointments().length > 0) {
-        <div class="past-appointments-block">
-          <h4 class="past-title">
-            <i class="pi pi-history"></i>
-            Past Consultations
-          </h4>
-          <div class="appointments-list past-list">
-            @for (appt of pastAppointments(); track appt.id) {
-              <div class="appointment-card past-card">
-                <div class="appointment-header">
-                  <div class="date-badge">
-                    <i class="pi pi-calendar"></i>
-                    <span>{{ formatClinicDate(appt.slot.clinicDate) }}</span>
-                  </div>
-                  <p-tag
-                    [value]="statusLabel(appt.status)"
-                    [severity]="statusSeverity(appt.status)"
-                  />
-                </div>
-                <div class="appointment-body">
-                  <div class="info-row">
-                    <i class="pi pi-clock"></i>
-                    <span>{{ formatTimeRange(appt.slot.startTime, appt.slot.endTime) }}</span>
-                  </div>
-                  <div class="info-row">
-                    <i class="pi pi-user"></i>
-                    <span>Dr. Maria Santos, MD</span>
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-        </div>
-      }
+            <div class="management-actions">
+              <a routerLink="/patient/schedule" [queryParams]="{ reschedule: appt.id }">
+                <p-button
+                  label="Reschedule"
+                  icon="pi pi-calendar"
+                  [outlined]="true"
+                  size="small"
+                />
+              </a>
+              <p-button
+                label="Cancel"
+                icon="pi pi-times"
+                severity="danger"
+                [outlined]="true"
+                size="small"
+                [loading]="cancellingId() === appt.id"
+                (onClick)="onCancelAppointment(appt)"
+              />
+            </div>
+          </article>
+        }
+      </div>
     }
   </section>
 </div>

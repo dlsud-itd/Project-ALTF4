@@ -1,0 +1,531 @@
+<div class="admin-users-page">
+  <!-- Notification Banner -->
+  @if (notice(); as n) {
+    <app-notice
+      [message]="n.message"
+      [variant]="n.variant"
+      (dismiss)="notice.set(null)"
+    />
+  }
+
+  <!-- Toolbar & Filters -->
+  <div class="toolbar-card">
+    <div class="filter-group">
+      <!-- Role Tabs -->
+      <div class="filter-tabs" role="tablist" aria-label="Role filters">
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="roleFilter() === 'ALL'"
+          (click)="setRoleFilter('ALL')"
+        >
+          <span>All</span>
+          <span class="badge">{{ users().length }}</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="roleFilter() === 'PATIENT'"
+          (click)="setRoleFilter('PATIENT')"
+        >
+          <span>Patients</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="roleFilter() === 'STAFF'"
+          (click)="setRoleFilter('STAFF')"
+        >
+          <span>Staff</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="roleFilter() === 'ADMIN'"
+          (click)="setRoleFilter('ADMIN')"
+        >
+          <span>Admins</span>
+        </button>
+      </div>
+
+      <!-- Status Tabs -->
+      <div class="filter-tabs status-tabs" role="tablist" aria-label="Status filters">
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'ALL'"
+          (click)="setStatusFilter('ALL')"
+        >
+          <span>All Status</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'ACTIVE'"
+          (click)="setStatusFilter('ACTIVE')"
+        >
+          <span>Active</span>
+        </button>
+        <button
+          type="button"
+          class="filter-tab"
+          [class.active]="statusFilter() === 'INACTIVE'"
+          (click)="setStatusFilter('INACTIVE')"
+        >
+          <span>Inactive</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="controls-group">
+      <!-- Search Box -->
+      <div class="search-box">
+        <i class="pi pi-search search-icon" aria-hidden="true"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Search by name or email..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          aria-label="Search users"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            class="clear-btn"
+            (click)="onSearchChange('')"
+            aria-label="Clear search"
+          >
+            <i class="pi pi-times"></i>
+          </button>
+        }
+      </div>
+
+      <!-- View Layout Toggle -->
+      <app-view-toggle
+        [view]="viewMode()"
+        (viewChange)="viewMode.set($event)"
+      />
+
+      <!-- Add user: a round icon button at the end of the toolbar -->
+      <p-button
+        class="add-user-btn"
+        icon="pi pi-user-plus"
+        severity="primary"
+        [rounded]="true"
+        ariaLabel="Add new user"
+        title="Add new user"
+        (onClick)="openCreateModal()"
+      />
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <section class="users-content">
+    @if (isLoading()) {
+      <app-loading-skeleton [lines]="6" />
+    } @else if (error()) {
+      <app-error-state
+        title="Could not load user accounts"
+        [message]="error()!"
+        (retry)="loadUsers()"
+      />
+    } @else if (filteredUsers().length === 0) {
+      <div class="empty-state-wrapper">
+        <app-empty-state
+          icon="pi-users"
+          title="No users found"
+          [message]="searchQuery() ? 'No users match your search criteria.' : 'No users registered for this filter category.'"
+        />
+      </div>
+    } @else {
+      <!-- TABLE VIEW -->
+      @if (viewMode() === 'table') {
+        <div class="users-table-card">
+          <div class="table-header-row">
+            <span class="col-user">User / Identity</span>
+            <span class="col-role">Role</span>
+            <span class="col-affiliation">Affiliation</span>
+            <span class="col-status">Status</span>
+            <span class="col-activity">Activity</span>
+            <span class="col-actions">Actions</span>
+          </div>
+
+          <ul class="table-body">
+            @for (user of pagedUsers(); track user.id) {
+              <li class="table-row" [class.inactive-row]="!user.isActive">
+                <div class="col-user">
+                  <div class="user-avatar-circle" [class.is-self]="user.id === currentUserId()">
+                    {{ user.fullName.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="user-info-text">
+                    <div class="user-name-line">
+                      <span class="user-fullname">{{ user.fullName }}</span>
+                      @if (user.id === currentUserId()) {
+                        <span class="self-badge">You</span>
+                      }
+                    </div>
+                    <span class="user-email">{{ user.email }}</span>
+                  </div>
+                </div>
+
+                <div class="col-role">
+                  <p-tag [value]="user.role" [severity]="roleSeverity(user.role)" />
+                </div>
+
+                <div class="col-affiliation">
+                  <span class="affiliation-chip">{{ user.affiliation }}</span>
+                </div>
+
+                <div class="col-status">
+                  <p-tag
+                    [value]="user.isActive ? 'Active' : 'Inactive'"
+                    [severity]="user.isActive ? 'success' : 'secondary'"
+                  />
+                </div>
+
+                <div class="col-activity">
+                  <span class="activity-metric" title="Appointments count">
+                    <i class="pi pi-calendar"></i> {{ user.appointmentCount ?? 0 }}
+                  </span>
+                  <span class="activity-metric" title="Queue visits count">
+                    <i class="pi pi-bell"></i> {{ user.queueCount ?? 0 }}
+                  </span>
+                </div>
+
+                <div class="col-actions">
+                  <button
+                    type="button"
+                    class="action-icon-btn edit-btn"
+                    title="Edit user details"
+                    aria-label="Edit user"
+                    (click)="openEditModal(user)"
+                  >
+                    <i class="pi pi-pencil"></i>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="action-icon-btn toggle-status-btn"
+                    [title]="user.isActive ? 'Deactivate user' : 'Activate user'"
+                    [attr.aria-label]="user.isActive ? 'Deactivate user' : 'Activate user'"
+                    [disabled]="user.id === currentUserId()"
+                    (click)="toggleActive(user)"
+                  >
+                    <i [class]="user.isActive ? 'pi pi-ban text-warn' : 'pi pi-check-circle text-success'"></i>
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+
+          <!-- Paginator -->
+          <app-paginator
+            [totalRecords]="filteredUsers().length"
+            [(first)]="first"
+            [(rows)]="rows"
+            [rowsPerPageOptions]="[10, 25, 50]"
+          />
+        </div>
+      }
+
+      <!-- CARDS VIEW -->
+      @if (viewMode() === 'card') {
+        <div class="cards-view-container">
+          <div class="users-card-grid">
+            @for (user of pagedUsers(); track user.id) {
+              <div class="user-card" [class.inactive-card]="!user.isActive">
+                <div class="card-head">
+                  <div class="user-avatar-circle large" [class.is-self]="user.id === currentUserId()">
+                    {{ user.fullName.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="user-titles">
+                    <div class="user-name-line">
+                      <h4 class="card-user-name">{{ user.fullName }}</h4>
+                      @if (user.id === currentUserId()) {
+                        <span class="self-badge">You</span>
+                      }
+                    </div>
+                    <span class="card-user-email">{{ user.email }}</span>
+                  </div>
+                  <div class="card-status-tag">
+                    <p-tag
+                      [value]="user.isActive ? 'Active' : 'Inactive'"
+                      [severity]="user.isActive ? 'success' : 'secondary'"
+                    />
+                  </div>
+                </div>
+
+                <div class="card-badges">
+                  <p-tag [value]="user.role" [severity]="roleSeverity(user.role)" />
+                  <span class="affiliation-chip">{{ user.affiliation }}</span>
+                </div>
+
+                <div class="card-stats">
+                  <div class="stat-pill">
+                    <i class="pi pi-calendar"></i>
+                    <span>{{ user.appointmentCount ?? 0 }} Bookings</span>
+                  </div>
+                  <div class="stat-pill">
+                    <i class="pi pi-bell"></i>
+                    <span>{{ user.queueCount ?? 0 }} Queues</span>
+                  </div>
+                </div>
+
+                <div class="card-footer-actions">
+                  <p-button
+                    label="Edit"
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [outlined]="true"
+                    size="small"
+                    (onClick)="openEditModal(user)"
+                  />
+                  <p-button
+                    [label]="user.isActive ? 'Deactivate' : 'Activate'"
+                    [icon]="user.isActive ? 'pi pi-ban' : 'pi pi-check-circle'"
+                    [severity]="user.isActive ? 'warn' : 'success'"
+                    [outlined]="true"
+                    size="small"
+                    [disabled]="user.id === currentUserId()"
+                    (onClick)="toggleActive(user)"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Paginator -->
+          <div class="card-paginator-wrapper">
+            <app-paginator
+              [totalRecords]="filteredUsers().length"
+              [(first)]="first"
+              [(rows)]="rows"
+              [rowsPerPageOptions]="[10, 25, 50]"
+            />
+          </div>
+        </div>
+      }
+    }
+  </section>
+
+  <!-- CREATE USER MODAL -->
+  <p-dialog
+    header="Create New System User"
+    [visible]="isCreateModalOpen()"
+    (visibleChange)="isCreateModalOpen.set($event)"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="admin-form-dialog"
+  >
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      @if (modalError()) {
+        <div class="dialog-error-banner">
+          <i class="pi pi-exclamation-circle"></i>
+          <span>{{ modalError() }}</span>
+        </div>
+      }
+
+      <div class="form-field">
+        <label for="create-fullname">Full Name *</label>
+        <input
+          id="create-fullname"
+          pInputText
+          type="text"
+          formControlName="fullName"
+          placeholder="e.g. Dr. Maria Clara"
+        />
+        @if (createForm.get('fullName')?.touched && createForm.get('fullName')?.errors?.['required']) {
+          <span class="field-error">Full name is required</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="create-email">Email Address *</label>
+        <input
+          id="create-email"
+          pInputText
+          type="email"
+          formControlName="email"
+          placeholder="e.g. mclara@dlsud.edu.ph"
+        />
+        @if (createForm.get('email')?.touched && createForm.get('email')?.errors) {
+          <span class="field-error">A valid email address is required</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="create-password">Initial Password *</label>
+        <input
+          id="create-password"
+          pInputText
+          type="password"
+          formControlName="password"
+          placeholder="At least 6 characters"
+        />
+        @if (createForm.get('password')?.touched && createForm.get('password')?.errors) {
+          <span class="field-error">Password must be at least 6 characters</span>
+        }
+      </div>
+
+      <div class="form-row">
+        <div class="form-field half">
+          <label for="create-role">Access Role *</label>
+          <select id="create-role" formControlName="role" class="form-select">
+            @for (r of availableRoles; track r.value) {
+              <option [value]="r.value">{{ r.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-field half">
+          <label for="create-affil">Affiliation *</label>
+          <select id="create-affil" formControlName="affiliation" class="form-select">
+            @for (a of availableAffiliations; track a.value) {
+              <option [value]="a.value">{{ a.label }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <p-button
+          label="Cancel"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="isSubmitting()"
+          (onClick)="closeCreateModal()"
+        />
+        <p-button
+          label="Create User"
+          icon="pi pi-check"
+          severity="primary"
+          type="submit"
+          [loading]="isSubmitting()"
+        />
+      </div>
+    </form>
+  </p-dialog>
+
+  <!-- EDIT USER MODAL -->
+  <p-dialog
+    header="Edit User Account"
+    [visible]="isEditModalOpen()"
+    (visibleChange)="isEditModalOpen.set($event)"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    styleClass="admin-form-dialog"
+  >
+    @if (editingUser(); as user) {
+      <form [formGroup]="editForm" (ngSubmit)="submitEdit()">
+        @if (modalError()) {
+          <div class="dialog-error-banner">
+            <i class="pi pi-exclamation-circle"></i>
+            <span>{{ modalError() }}</span>
+          </div>
+        }
+
+        <div class="form-field">
+          <label for="edit-fullname">Full Name *</label>
+          <input
+            id="edit-fullname"
+            pInputText
+            type="text"
+            formControlName="fullName"
+          />
+          @if (editForm.get('fullName')?.touched && editForm.get('fullName')?.errors?.['required']) {
+            <span class="field-error">Full name is required</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="edit-email">Email Address *</label>
+          <input
+            id="edit-email"
+            pInputText
+            type="email"
+            formControlName="email"
+          />
+          @if (editForm.get('email')?.touched && editForm.get('email')?.errors) {
+            <span class="field-error">A valid email address is required</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="edit-password">New Password (leave blank to keep current)</label>
+          <input
+            id="edit-password"
+            pInputText
+            type="password"
+            formControlName="password"
+            placeholder="Enter new password if resetting"
+          />
+          @if (editForm.get('password')?.touched && editForm.get('password')?.errors?.['minlength']) {
+            <span class="field-error">New password must be at least 6 characters</span>
+          }
+        </div>
+
+        <div class="form-row">
+          <div class="form-field half">
+            <label for="edit-role">Access Role *</label>
+            <select
+              id="edit-role"
+              formControlName="role"
+              class="form-select"
+              [disabled]="user.id === currentUserId()"
+            >
+              @for (r of availableRoles; track r.value) {
+                <option [value]="r.value">{{ r.label }}</option>
+              }
+            </select>
+            @if (user.id === currentUserId()) {
+              <span class="field-hint">Self-demotion is restricted</span>
+            }
+          </div>
+
+          <div class="form-field half">
+            <label for="edit-affil">Affiliation *</label>
+            <select id="edit-affil" formControlName="affiliation" class="form-select">
+              @for (a of availableAffiliations; track a.value) {
+                <option [value]="a.value">{{ a.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field checkbox-field">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              formControlName="isActive"
+              [disabled]="user.id === currentUserId()"
+            />
+            <span>Account is Active and authorized to sign in</span>
+          </label>
+          @if (user.id === currentUserId()) {
+            <span class="field-hint">Self-deactivation is restricted</span>
+          }
+        </div>
+
+        <div class="dialog-actions">
+          <p-button
+            label="Cancel"
+            severity="secondary"
+            [outlined]="true"
+            [disabled]="isSubmitting()"
+            (onClick)="closeEditModal()"
+          />
+          <p-button
+            label="Save Changes"
+            icon="pi pi-check"
+            severity="primary"
+            type="submit"
+            [loading]="isSubmitting()"
+          />
+        </div>
+      </form>
+    }
+  </p-dialog>
+</div>

@@ -4,7 +4,14 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -53,6 +60,8 @@ describe('AppointmentsService', () => {
   };
 
   beforeEach(async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-01T00:00:00.000Z'));
     Object.values(mockPrismaService.clinicSlot).forEach((mock) =>
       mock.mockReset(),
     );
@@ -80,6 +89,7 @@ describe('AppointmentsService', () => {
         return callback(mockPrismaService);
       },
     );
+    mockPrismaService.$transaction.mockClear();
     mockQueueLifecycle.cancelAppointment.mockResolvedValue([]);
     mockQueueEvents.emit.mockReset();
 
@@ -93,6 +103,10 @@ describe('AppointmentsService', () => {
     }).compile();
 
     service = module.get<AppointmentsService>(AppointmentsService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('bookAppointment', () => {
@@ -177,10 +191,26 @@ describe('AppointmentsService', () => {
         isBookable: false,
         appointments: [],
       });
+      await expect(service.bookAppointment(patientId, dto)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('rejects booking when the slot end time has passed', async () => {
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue({
+        id: 10,
+        clinicDate: new Date('2000-11-12T00:00:00.000Z'),
+        startTime: '09:00',
+        endTime: '09:30',
+        capacity: 2,
+        isBookable: true,
+        appointments: [],
+      });
 
       await expect(service.bookAppointment(patientId, dto)).rejects.toThrow(
         ConflictException,
       );
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
     it('rejects booking when slot is full (capacity reached)', async () => {
@@ -270,7 +300,7 @@ describe('AppointmentsService', () => {
       await service.findAppointments(101, 'PATIENT');
 
       expect(mockPrismaService.appointment.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { patientId: 101 } }),
+        expect.objectContaining({ where: { patientId: 101, archived: false } }),
       );
     });
 
@@ -374,6 +404,7 @@ describe('AppointmentsService', () => {
         status: AppointmentStatus.BOOKED,
         slot: { id: 10 },
       });
+
       mockQueueLifecycle.cancelAppointment.mockResolvedValue([
         {
           id: 70,
@@ -427,6 +458,62 @@ describe('AppointmentsService', () => {
       await expect(service.cancelAppointment(101, 1)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('archiveAppointment', () => {
+    it('soft archives an eligible past cancelled appointment', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        status: AppointmentStatus.CANCELLED,
+        archived: false,
+        slot: {
+          clinicDate: new Date('2000-11-12T00:00:00.000Z'),
+          endTime: '10:30',
+        },
+      });
+      mockPrismaService.appointment.update.mockResolvedValue({ id: 1 });
+
+      await expect(service.archiveAppointment(101, 1)).resolves.toEqual({
+        message: 'Appointment archived successfully',
+      });
+      expect(mockPrismaService.appointment.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { archived: true },
+      });
+    });
+
+    it('rejects active appointments and appointments owned by another patient', async () => {
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 101,
+        status: AppointmentStatus.BOOKED,
+        archived: false,
+        slot: {
+          clinicDate: new Date('2000-11-12T00:00:00.000Z'),
+          endTime: '10:30',
+        },
+      });
+
+      await expect(service.archiveAppointment(101, 1)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      mockPrismaService.appointment.findUnique.mockResolvedValue({
+        id: 1,
+        patientId: 999,
+        status: AppointmentStatus.CANCELLED,
+        archived: false,
+        slot: {
+          clinicDate: new Date('2000-11-12T00:00:00.000Z'),
+          endTime: '10:30',
+        },
+      });
+      await expect(service.archiveAppointment(101, 1)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPrismaService.appointment.update).not.toHaveBeenCalled();
     });
   });
 

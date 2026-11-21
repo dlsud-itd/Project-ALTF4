@@ -22,6 +22,14 @@
   --text-muted: #4a7576;
   --border-radius: 8px;
   --box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  // Card design (rounded, borderless-feel, soft shadow). Colors stay on brand.
+  --card-radius: 20px;
+  --card-radius-sm: 14px;
+  --card-border: 1px solid transparent;
+  --card-shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 10px 28px rgb(0 0 0 / 0.1);
+  --card-shadow-hover: 0 4px 10px rgb(0 0 0 / 0.08), 0 14px 32px rgb(0 0 0 / 0.14);
+  --card-padding: 1.5rem;
+  --pill-radius: 999px;
   --box-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
@@ -52,6 +60,11 @@ button {
 
 /* Point PrimeNG's primary and success (green) scales at the brand palette. */
 :root:root {
+  // All PrimeNG buttons are fully rounded pills (icon-only ones become circles).
+  --p-button-border-radius: 999px;
+  --p-togglebutton-border-radius: 999px;
+  --p-tag-border-radius: 999px;
+
   --p-primary-50: #eef7f5;
   --p-primary-100: #e9f4f1;
   --p-primary-200: #b8dcd3;

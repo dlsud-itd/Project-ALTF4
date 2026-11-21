@@ -2,8 +2,7 @@
 const HOME_ROUTES: Record<string, string> = {
   PATIENT: '/patient',
   STAFF: '/staff',
-  // TODO(Lim, Jereign): point ADMIN to the admin screens once /admin exists
-  ADMIN: '/staff',
+  ADMIN: '/admin/dashboard',
 };
 
 // Resolves the destination URL for a given role, falling back to login if unrecognized.

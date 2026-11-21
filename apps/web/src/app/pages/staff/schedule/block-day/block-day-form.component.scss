@@ -1,0 +1,152 @@
+.slot-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.field-error {
+  color: var(--red-500, #dc2626);
+  font-size: 0.8rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+// ===== Dark green dialog, matching the slot form =====
+// The dialog can render outside the component, so these use ::ng-deep.
+$dialog-green: #0b7777;
+$dialog-green-hover: #075a5b;
+$dialog-radius: 20px;
+$control-height: 44px;
+
+::ng-deep .slot-dialog {
+  --text-main: #{$dialog-green};
+  --p-primary-color: #{$dialog-green};
+  --p-primary-hover-color: #{$dialog-green-hover};
+
+  border: 0;
+  border-radius: $dialog-radius;
+  box-shadow: 0 18px 48px rgb(7 90 91 / 0.28);
+  font-family: 'Poppins', 'Inter', sans-serif;
+
+  .p-dialog-header {
+    padding: 1.25rem 1.5rem 0.5rem;
+  }
+
+  .p-dialog-title {
+    color: $dialog-green;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .p-dialog-header .p-dialog-close-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: $dialog-green;
+
+    &:hover {
+      background: rgb(7 90 91 / 0.1);
+      color: $dialog-green;
+    }
+  }
+
+  .p-dialog-content {
+    padding: 0.5rem 1.5rem 1.5rem;
+  }
+
+  .slot-form label {
+    color: $dialog-green;
+    font-weight: 700;
+  }
+
+  // Inputs: dark green outline, taller, rounded.
+  .p-inputtext,
+  .p-datepicker-input {
+    min-height: $control-height;
+    border: 1px solid rgb(7 90 91 / 0.45);
+    border-radius: 12px;
+    color: $dialog-green;
+
+    &:enabled:hover {
+      border-color: $dialog-green;
+    }
+
+    &:enabled:focus {
+      border-color: $dialog-green;
+      box-shadow: 0 0 0 3px rgb(7 90 91 / 0.18);
+    }
+  }
+
+  .p-datepicker-dropdown {
+    width: $control-height;
+    background: $dialog-green;
+    border: 1px solid $dialog-green;
+    border-radius: 0 12px 12px 0;
+    color: #ffffff;
+
+    &:hover {
+      background: $dialog-green-hover;
+    }
+  }
+
+  // Toggle: dark green when on.
+  .p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-slider,
+  .p-toggleswitch .p-toggleswitch-input:checked + .p-toggleswitch-slider {
+    background: $dialog-green;
+  }
+
+  // Buttons: solid dark green pill and an outlined dark green pill.
+  .form-actions .p-button {
+    min-height: $control-height;
+    padding: 0 1.5rem;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+
+  .form-actions .p-button[type='submit'],
+  .form-actions .p-button:not(.p-button-outlined) {
+    background: $dialog-green;
+    border-color: $dialog-green;
+    color: #ffffff;
+
+    &:not(:disabled):hover {
+      background: $dialog-green-hover;
+      border-color: $dialog-green-hover;
+    }
+  }
+
+  .form-actions .p-button.p-button-outlined {
+    background: transparent;
+    border: 1px solid $dialog-green;
+    color: $dialog-green;
+
+    &:not(:disabled):hover {
+      background: rgb(7 90 91 / 0.08);
+    }
+  }
+}

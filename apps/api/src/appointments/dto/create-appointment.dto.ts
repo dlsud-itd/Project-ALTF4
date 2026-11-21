@@ -1,12 +1,6 @@
-import {
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty, IsString, MaxLength, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAppointmentDto {
   @ApiProperty({
@@ -18,12 +12,15 @@ export class CreateAppointmentDto {
   @IsNotEmpty()
   slotId!: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'Routine checkup and consultation',
-    description: 'Reason for the consultation visit',
+    description: 'Required reason for the consultation visit',
   })
-  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
+  @IsNotEmpty()
   @MaxLength(500)
-  reasonForVisit?: string;
+  reasonForVisit!: string;
 }

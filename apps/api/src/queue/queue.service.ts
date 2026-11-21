@@ -254,6 +254,10 @@ export class QueueService {
     return this.createQueueEntry(queueId, dto, QueueSource.STAFF_GENERATED);
   }
 
+  async getTodayQueue() {
+    return this.queueRead.getOrCreateTodayQueue();
+  }
+
   async getQueueStatus(queueId: number) {
     return this.queueRead.getQueueStatus(queueId);
   }

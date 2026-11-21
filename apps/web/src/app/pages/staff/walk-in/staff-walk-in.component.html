@@ -8,6 +8,16 @@
 <div class="walk-in-page">
   <section class="queue-panel" aria-labelledby="walk-in-title">
     <h3 id="walk-in-title">New walk-in</h3>
+    @if (queueError()) {
+      <p class="form-error" role="alert">{{ queueError() }}</p>
+      <p-button
+        type="button"
+        label="Retry queue load"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="loadQueue()"
+      />
+    }
     <form [formGroup]="walkInForm" (ngSubmit)="onGenerateQueueNumber()">
       <label for="walk-in-name">Name <span>(required)</span></label>
       <input
@@ -25,7 +35,7 @@
         </small>
       }
 
-      <label for="walk-in-reason">Visit reason <span>(optional)</span></label>
+      <label for="walk-in-reason">Visit reason <span>(required)</span></label>
       <textarea
         id="walk-in-reason"
         formControlName="reasonForVisit"
@@ -33,6 +43,18 @@
         rows="2"
         placeholder="Visit reason"
       ></textarea>
+      @if (
+        walkInForm.controls.reasonForVisit.touched &&
+        walkInForm.controls.reasonForVisit.invalid
+      ) {
+        <small class="field-error">
+          @if (walkInForm.controls.reasonForVisit.hasError('required')) {
+            A visit reason is required.
+          } @else {
+            Enter a visit reason of up to 200 characters.
+          }
+        </small>
+      }
 
       @if (walkInError()) {
         <p class="form-error" role="alert">{{ walkInError() }}</p>
@@ -43,6 +65,7 @@
         icon="pi pi-ticket"
         severity="info"
         [loading]="isGeneratingQueue()"
+        [disabled]="walkInForm.invalid || isGeneratingQueue() || isLoadingQueue() || queueId() === null"
       />
     </form>
   </section>

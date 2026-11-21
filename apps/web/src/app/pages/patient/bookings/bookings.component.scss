@@ -37,8 +37,8 @@
 
 .doctor-banner-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 0.75rem 1.25rem;
   margin-bottom: 0;
   display: flex;
@@ -89,8 +89,8 @@
 
 .date-selector-section {
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 0.85rem 1.25rem;
   margin-bottom: 0;
 
@@ -246,7 +246,7 @@
   .no-slots-box {
     background: var(--surface-0);
     border: 1px dashed var(--surface-300);
-    border-radius: var(--border-radius);
+    border-radius: var(--card-radius-sm);
     padding: 3rem 2rem;
     text-align: center;
     color: var(--text-muted);
@@ -268,7 +268,7 @@
 .slot-card {
   background: var(--surface-0);
   border: 1.5px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border-radius: var(--card-radius-sm);
   padding: 1.25rem;
   cursor: pointer;
   display: flex;
@@ -409,8 +409,8 @@
 
 .summary-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1rem 1.15rem;
 
   .summary-header {
@@ -539,8 +539,8 @@
 
 .guidelines-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 0.85rem 1.15rem;
 
   h4 {
@@ -590,7 +590,7 @@
 .no-dates-box {
   background: var(--surface-0);
   border: 1px dashed var(--surface-300);
-  border-radius: var(--border-radius);
+  border-radius: var(--card-radius-sm);
   padding: 2rem;
   text-align: center;
   color: var(--text-muted);
@@ -621,8 +621,8 @@
 
 .confirmation-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-200);
-  border-radius: var(--border-radius);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 2.5rem;
   max-width: 600px;
   width: 100%;
@@ -713,23 +713,20 @@
 
 // Banner becomes the rounded deep petrol header box.
 .bookings-banner {
-  padding: 1rem 1.5rem;
+  padding: 0;
   margin-bottom: 1.25rem;
-  background: var(--surface-900);
-  border-radius: 16px;
-  box-shadow: 0 8px 20px rgb(7 90 91 / 0.18);
 
   .banner-text {
     h2 {
       font-size: 1.4rem;
       font-weight: 600;
       letter-spacing: -0.01em;
-      color: #ffffff;
+      color: var(--text-main);
       margin-bottom: 0.1rem;
     }
 
     p {
-      color: var(--surface-300);
+      color: var(--text-muted);
       font-size: 0.85rem;
     }
   }
@@ -743,19 +740,18 @@
 .summary-card,
 .guidelines-card,
 .confirmation-card {
-  border: 1px solid var(--surface-900);
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .slot-card {
-  border-radius: 16px;
+  border-radius: var(--card-radius);
 }
 
 @include bp.below-tablet {
   .bookings-banner {
-    padding: 1.25rem 1rem;
-    border-radius: 16px;
+    padding: 0;
   }
 }
 
@@ -925,3 +921,27 @@
   }
 }
 
+// On desktop the page title lives in the layout top bar. The heading stays
+// here for screen readers.
+@include bp.from-tablet {
+  .bookings-banner {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+// Spacing shared with the staff pages: content starts 16px from the sidebar
+// and the right edge, 12px under the header.
+@include bp.from-tablet {
+  .bookings-page {
+    width: calc(100% - 2rem);
+    max-width: none;
+    margin: 0.75rem 1rem 0;
+    padding: 0 0 2rem;
+  }
+}

@@ -1,0 +1,112 @@
+<div class="paginator-container" role="navigation" aria-label="Pagination">
+  <!-- Left: Showing records summary -->
+  @if (showReport()) {
+    <div class="paginator-report">
+      Showing <strong>{{ startRecord() }}</strong> to <strong>{{ endRecord() }}</strong> of <strong>{{ totalRecords() }}</strong> entries
+    </div>
+  }
+
+  <!-- Middle: Page controls -->
+  <div class="paginator-controls">
+    <button
+      type="button"
+      class="page-btn nav-btn"
+      [disabled]="isFirstPage()"
+      (click)="firstPage()"
+      aria-label="First page"
+      title="First page"
+    >
+      <i class="pi pi-angle-double-left" aria-hidden="true"></i>
+    </button>
+
+    <button
+      type="button"
+      class="page-btn nav-btn"
+      [disabled]="isFirstPage()"
+      (click)="prevPage()"
+      aria-label="Previous page"
+      title="Previous page"
+    >
+      <i class="pi pi-angle-left" aria-hidden="true"></i>
+    </button>
+
+    @if (visiblePages()[0] > 1) {
+      <button
+        type="button"
+        class="page-btn"
+        (click)="goToPage(1)"
+        aria-label="Page 1"
+      >
+        1
+      </button>
+      @if (visiblePages()[0] > 2) {
+        <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+      }
+    }
+
+    @for (page of visiblePages(); track page) {
+      <button
+        type="button"
+        class="page-btn"
+        [class.active]="page === currentPage()"
+        [attr.aria-current]="page === currentPage() ? 'page' : null"
+        (click)="goToPage(page)"
+        [attr.aria-label]="'Page ' + page"
+      >
+        {{ page }}
+      </button>
+    }
+
+    @if (visiblePages()[visiblePages().length - 1] < totalPages()) {
+      @if (visiblePages()[visiblePages().length - 1] < totalPages() - 1) {
+        <span class="page-ellipsis" aria-hidden="true">&hellip;</span>
+      }
+      <button
+        type="button"
+        class="page-btn"
+        (click)="goToPage(totalPages())"
+        [attr.aria-label]="'Page ' + totalPages()"
+      >
+        {{ totalPages() }}
+      </button>
+    }
+
+    <button
+      type="button"
+      class="page-btn nav-btn"
+      [disabled]="isLastPage()"
+      (click)="nextPage()"
+      aria-label="Next page"
+      title="Next page"
+    >
+      <i class="pi pi-angle-right" aria-hidden="true"></i>
+    </button>
+
+    <button
+      type="button"
+      class="page-btn nav-btn"
+      [disabled]="isLastPage()"
+      (click)="lastPage()"
+      aria-label="Last page"
+      title="Last page"
+    >
+      <i class="pi pi-angle-double-right" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <!-- Right: Page size switcher -->
+  <div class="paginator-size-selector">
+    <label for="paginator-size-select" class="size-label">Rows per page:</label>
+    <select
+      id="paginator-size-select"
+      class="size-select"
+      [ngModel]="rows()"
+      (ngModelChange)="onRowsChange($event)"
+      aria-label="Select number of rows per page"
+    >
+      @for (option of rowsPerPageOptions(); track option) {
+        <option [value]="option">{{ option }}</option>
+      }
+    </select>
+  </div>
+</div>

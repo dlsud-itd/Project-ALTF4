@@ -294,16 +294,25 @@
 
               <!-- Appointment Reason Input -->
               @if (!isRescheduling()) {
-                <div class="reason-preview">
-                  <label for="consultation-reason">Reason for Consultation:</label>
+                <div class="reason-preview" [formGroup]="bookingForm">
+                  <label for="consultation-reason">
+                    Reason for Consultation <span>(required)</span>:
+                  </label>
                   <textarea
                     id="consultation-reason"
                     class="reason-textarea"
                     rows="2"
                     placeholder="e.g. Routine checkup, fever & cold symptoms"
-                    [value]="reasonForVisit()"
-                    (input)="onReasonInput($event)"
+                    formControlName="reasonForVisit"
                   ></textarea>
+                  @if (
+                    bookingForm.controls.reasonForVisit.touched &&
+                    bookingForm.controls.reasonForVisit.invalid
+                  ) {
+                    <small class="field-error">
+                      Enter a reason for consultation.
+                    </small>
+                  }
                 </div>
               }
 

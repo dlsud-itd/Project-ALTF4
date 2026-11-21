@@ -18,11 +18,20 @@ export async function setupStaffDashboard(): Promise<{
   const clinicDate = (date: Date): string =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const queueServiceMock = jasmine.createSpyObj('QueueService', [
+    'getTodayQueue',
     'getStaffQueueStatus',
     'callNext',
     'recallCurrent',
     'updateEntryStatus',
   ]);
+  queueServiceMock.getTodayQueue.and.returnValue(
+    of({
+      id: 1,
+      clinic_date: clinicDate(new Date()),
+      is_open: true,
+      fallback_service_minutes: 15,
+    }),
+  );
   const appointmentsServiceMock = jasmine.createSpyObj('AppointmentsService', [
     'getAppointments',
   ]);

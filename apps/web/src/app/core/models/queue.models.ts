@@ -46,7 +46,7 @@ export type QueueTicketSummary = {
 export type WalkInRequest = {
   name: string;
   patientId?: number;
-  reasonForVisit?: string;
+  reasonForVisit: string;
 };
 
 export type WalkInResponse = {
@@ -128,4 +128,11 @@ export type WebSocketConnectionStatus = {
   connected: boolean;
   socketId?: string;
   timestamp: string;
+};
+
+export type DailyQueueSession = {
+  id: number;
+  clinic_date: string;
+  is_open: boolean;
+  fallback_service_minutes: number;
 };

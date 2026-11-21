@@ -3,7 +3,11 @@
     <h2>Slot Schedule</h2>
     <p>Clinic slots for the next two weeks</p>
   </div>
-  <p-button label="Add slot" icon="pi pi-plus" (onClick)="onAddSlot()" />
+  @if (isLoading() || errorMessage() !== null || slots().length === 0) {
+    <p-button label="Add slot" (onClick)="onAddSlot()">
+      <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M175 256H337M256 175V337"/></svg></ng-template>
+    </p-button>
+  }
 </header>
 
 <div class="schedule-page">
@@ -16,6 +20,21 @@
       (onClose)="deleteError.set(null)"
     />
   }
+
+  <div class="schedule-filters">
+    <label for="slot-status-filter">Filter by status</label>
+    <select
+      id="slot-status-filter"
+      [value]="statusFilter()"
+      (change)="onStatusFilterChange($event)"
+    >
+      <option value="ALL">All</option>
+      <option value="open">Open</option>
+      <option value="full">Full</option>
+      <option value="closed">Closed</option>
+      <option value="expired">Expired</option>
+    </select>
+  </div>
 
   @if (isLoading()) {
     <app-loading-skeleton [lines]="5" />
@@ -41,13 +60,26 @@
             <th scope="col">Capacity</th>
             <th scope="col">Remaining</th>
             <th scope="col">Status</th>
-            <th scope="col"><span class="sr-only">Actions</span></th>
+            <th scope="col" class="actions-col">
+              <span class="sr-only">Actions</span>
+              <p-button
+                label="Block day"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="onOpenBlockDay()"
+              >
+                <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M114 398 398 114"/></svg></ng-template>
+              </p-button>
+              <p-button label="Add slot" (onClick)="onAddSlot()">
+                <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M175 256H337M256 175V337"/></svg></ng-template>
+              </p-button>
+            </th>
           </tr>
         </thead>
         <tbody>
-          @for (slot of slots(); track slot.id) {
+          @for (slot of filteredSlots(); track slot.id) {
             <tr>
-              <td>{{ slot.clinicDate }}</td>
+              <td>{{ formatDisplayDate(slot.clinicDate) }}</td>
               <td>{{ formatTimeRange(slot.startTime, slot.endTime) }}</td>
               <td>{{ slot.capacity }}</td>
               <td>{{ slot.remainingCapacity }}</td>
@@ -58,22 +90,45 @@
                 />
               </td>
               <td>
-                <p-button
-                  icon="pi pi-pencil"
-                  severity="secondary"
-                  [text]="true"
-                  size="small"
-                  [ariaLabel]="'Edit slot on ' + slot.clinicDate"
-                  (onClick)="onEditSlot(slot)"
-                />
-                <p-button
-                  icon="pi pi-trash"
-                  severity="danger"
-                  [text]="true"
-                  size="small"
-                  [ariaLabel]="'Delete slot on ' + slot.clinicDate"
-                  (onClick)="onDeleteSlot(slot)"
-                />
+                @if (slot.isExpired) {
+                  <span aria-label="Expired slots cannot be changed">—</span>
+                } @else {
+                  <p-button
+                    [icon]="isSlotOpen(slot) ? 'pi pi-lock' : 'pi pi-lock-open'"
+                    [severity]="isSlotOpen(slot) ? 'secondary' : 'success'"
+                    [text]="true"
+                    size="small"
+                    [loading]="blockingSlotId() === slot.id"
+                    [ariaLabel]="
+                      (isSlotOpen(slot) ? 'Block slot on ' : 'Reopen slot on ') +
+                      slot.clinicDate
+                    "
+                    (onClick)="onRequestSlotBlock(slot)"
+                  />
+                  <p-button
+                    icon="pi pi-pencil"
+                    severity="secondary"
+                    [text]="true"
+                    size="small"
+                    [ariaLabel]="'Edit slot on ' + slot.clinicDate"
+                    (onClick)="onEditSlot(slot)"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    size="small"
+                    [ariaLabel]="'Delete slot on ' + slot.clinicDate"
+                    (onClick)="onDeleteSlot(slot)"
+                  />
+                }
+              </td>
+            </tr>
+          }
+          @if (filteredSlots().length === 0) {
+            <tr>
+              <td colspan="6" class="no-filter-results">
+                No slots match this status filter.
               </td>
             </tr>
           }
@@ -91,5 +146,14 @@
     [errorMessage]="saveError()"
     (save)="onFormSave($event)"
     (cancel)="onFormCancel()"
+  />
+
+  <app-block-day-form
+    [isVisible]="isDayFormOpen()"
+    [slots]="slots()"
+    [isSaving]="isDaySaving()"
+    [errorMessage]="dayError()"
+    (save)="onDayFormSave($event)"
+    (cancel)="onDayFormCancel()"
   />
 </div>

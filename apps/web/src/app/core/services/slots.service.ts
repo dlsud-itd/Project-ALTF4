@@ -3,6 +3,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiConfigService } from './api-config.service';
 import {
+  BlockDayResponse,
+  BlockDayValue,
+  BlockSlotResponse,
+  BlockSlotValue,
   SlotFormValue,
   SlotMutationResponse,
   SlotsResponse,
@@ -50,6 +54,20 @@ export class SlotsService {
   updateSlot(id: number, value: SlotFormValue): Observable<SlotMutationResponse> {
     return this.http.patch<SlotMutationResponse>(
       `${this.apiConfig.apiUrl}/slots/${id}`,
+      value,
+    );
+  }
+
+  blockSlot(id: number, value: BlockSlotValue): Observable<BlockSlotResponse> {
+    return this.http.patch<BlockSlotResponse>(
+      `${this.apiConfig.apiUrl}/slots/${id}/block`,
+      value,
+    );
+  }
+
+  blockDay(value: BlockDayValue): Observable<BlockDayResponse> {
+    return this.http.post<BlockDayResponse>(
+      `${this.apiConfig.apiUrl}/slots/block-day`,
       value,
     );
   }

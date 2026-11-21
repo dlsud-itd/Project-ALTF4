@@ -5,7 +5,12 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { BookingsComponent } from './bookings.component';
-import { SlotsService, AppointmentsService, AppConfirmService } from '@core/services';
+import {
+  SlotsService,
+  AppointmentsService,
+  AppConfirmService,
+  PatientAppointmentsStore,
+} from '@core/services';
 import { ClinicSlot, PatientAppointment } from '@core/models';
 
 describe('BookingsComponent', () => {
@@ -14,6 +19,7 @@ describe('BookingsComponent', () => {
   let slotsServiceSpy: jasmine.SpyObj<SlotsService>;
   let appointmentsServiceSpy: jasmine.SpyObj<AppointmentsService>;
   let confirmServiceSpy: jasmine.SpyObj<AppConfirmService>;
+  let appointmentsStoreSpy: jasmine.SpyObj<PatientAppointmentsStore>;
 
   const mockSlots: ClinicSlot[] = [
     {
@@ -64,6 +70,9 @@ describe('BookingsComponent', () => {
       'confirmDestructive',
       'confirmWarning',
     ]);
+    appointmentsStoreSpy = jasmine.createSpyObj('PatientAppointmentsStore', [
+      'load',
+    ]);
     confirmServiceSpy.confirmReview.and.callFake((opts: any) => opts.accept());
 
     slotsServiceSpy.getSlots.and.returnValue(of({ slots: mockSlots }));
@@ -77,6 +86,7 @@ describe('BookingsComponent', () => {
         { provide: SlotsService, useValue: slotsServiceSpy },
         { provide: AppointmentsService, useValue: appointmentsServiceSpy },
         { provide: AppConfirmService, useValue: confirmServiceSpy },
+        { provide: PatientAppointmentsStore, useValue: appointmentsStoreSpy },
       ],
     }).compileComponents();
 
@@ -133,7 +143,7 @@ describe('BookingsComponent', () => {
   it('should submit booking details and display success screen on successful response', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
-    component.reasonForVisit.set('Routine health checkup');
+    component.bookingForm.controls.reasonForVisit.setValue('Routine health checkup');
 
     const mockResponse = {
       message: 'Appointment booked successfully',
@@ -172,7 +182,7 @@ describe('BookingsComponent', () => {
   it('should open review confirmation modal before sending booking request', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
-    component.reasonForVisit.set('Pre-employment checkup');
+    component.bookingForm.controls.reasonForVisit.setValue('Pre-employment checkup');
 
     component.onConfirmBooking();
 
@@ -183,20 +193,20 @@ describe('BookingsComponent', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
 
-    component.reasonForVisit.set('');
+    component.bookingForm.controls.reasonForVisit.setValue('');
     expect(component.isConfirmDisabled()).toBeTrue();
 
-    component.reasonForVisit.set('   ');
+    component.bookingForm.controls.reasonForVisit.setValue('   ');
     expect(component.isConfirmDisabled()).toBeTrue();
 
-    component.reasonForVisit.set('Fever and cough');
+    component.bookingForm.controls.reasonForVisit.setValue('Fever and cough');
     expect(component.isConfirmDisabled()).toBeFalse();
   });
 
   it('should handle conflict response (409) when a slot becomes unavailable', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
-    component.reasonForVisit.set('Follow-up checkup');
+    component.bookingForm.controls.reasonForVisit.setValue('Follow-up checkup');
 
     const conflictError = new HttpErrorResponse({
       status: 409,

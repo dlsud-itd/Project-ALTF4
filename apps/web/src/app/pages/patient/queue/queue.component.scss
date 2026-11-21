@@ -18,10 +18,8 @@ $tracker-line: 2px;
   width: calc(100% - 2rem);
   max-width: calc(1200px - 4rem);
   margin: 1rem auto 0;
-  padding: 1.25rem 1.25rem;
-  background: var(--surface-900);
-  border-radius: $band-radius;
-  box-shadow: 0 8px 20px rgb(7 90 91 / 0.18);
+  padding: 0.25rem 0;
+  background: transparent;
 
   .welcome-banner {
     margin: 0;
@@ -31,7 +29,7 @@ $tracker-line: 2px;
       font-size: 1.4rem;
       font-weight: 600;
       letter-spacing: -0.01em;
-      color: #ffffff;
+      color: var(--text-main);
       margin: 0;
     }
   }
@@ -39,7 +37,7 @@ $tracker-line: 2px;
   @include bp.from-tablet {
     width: calc(100% - 4rem);
     margin-top: 1.5rem;
-    padding: 1.5rem 2rem;
+    padding: 0.25rem 0;
 
     .welcome-banner h2 {
       font-size: 1.75rem;
@@ -71,13 +69,13 @@ $tracker-line: 2px;
 
 .queue-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-900);
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   padding: 1.25rem;
 
   &:hover {
-    box-shadow: 0 8px 22px rgb(7 90 91 / 0.12);
+    box-shadow: var(--card-shadow-hover);
   }
 
   @include bp.from-tablet {
@@ -86,7 +84,7 @@ $tracker-line: 2px;
 }
 
 .ticket-card {
-  border-top: 4px solid var(--primary-color);
+  box-shadow: var(--card-shadow);
 }
 
 .card-label {
@@ -176,7 +174,7 @@ $tracker-line: 2px;
 .terminal-note {
   margin: 0;
   padding: 0.75rem 1rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--card-radius-sm);
   background: var(--surface-50);
   color: var(--text-main);
   font-size: 0.9rem;
@@ -338,8 +336,8 @@ $touch-target: 44px;
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 600;
-  background: rgb(255 255 255 / 0.12);
-  color: #ffffff;
+  background: var(--primary-light);
+  color: var(--text-main);
 
   .pill-dot {
     width: 8px;
@@ -354,18 +352,21 @@ $touch-target: 44px;
 }
 
 :host ::ng-deep .page-top .p-button {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: var(--surface-900);
-  padding: 0.55rem 1rem;
-  border-radius: 12px;
+  min-height: 44px;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--pill-radius);
   font-size: 0.875rem;
   font-weight: 600;
 
-  &:hover {
-    background: var(--primary-light);
-    border-color: var(--primary-light);
-    color: var(--surface-900);
+  &:not(.p-button-outlined):not(.p-button-secondary) {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #ffffff;
+
+    &:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
   }
 }
 
@@ -390,7 +391,7 @@ $touch-target: 44px;
   gap: 0.6rem;
   margin: 0;
   padding: 0.75rem 1rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--card-radius-sm);
   background: var(--surface-50);
   color: var(--text-main);
   font-weight: 600;
@@ -420,8 +421,10 @@ $touch-target: 44px;
   }
 }
 
-// Column that holds the banners and the ticket card (or empty state).
-.ticket-column {
+// Columns: banners and the ticket card (left), next-in-line notice and the
+// queue summary (right).
+.ticket-column,
+.summary-column {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -433,15 +436,20 @@ $touch-target: 44px;
   align-items: center;
   gap: 0.6rem;
   margin: 0;
-  padding: 0.75rem 1rem;
-  border-radius: var(--border-radius);
+  padding: 0.875rem 1.125rem;
+  border-radius: var(--card-radius-sm);
   font-size: 0.9rem;
   font-weight: 600;
 
   &.next-banner {
-    background: var(--primary-light);
-    border: 1px solid var(--secondary-color);
+    background: var(--surface-0);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
     color: var(--text-main);
+
+    i {
+      color: var(--primary-color);
+    }
   }
 
   &.duplicate-banner {
@@ -486,9 +494,9 @@ $touch-target: 44px;
   margin: 0 auto;
 
   .no-entry-card {
-    border-radius: 16px;
-    border: 1px solid var(--surface-900);
-    box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+    border-radius: var(--card-radius);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
     padding: 2rem 1.5rem;
     text-align: center;
     background: var(--surface-0);
@@ -508,10 +516,10 @@ $touch-target: 44px;
 
 .guide-card {
   background: var(--surface-0);
-  border: 1px solid var(--surface-900);
-  border-radius: 16px;
+  border: var(--card-border);
+  border-radius: var(--card-radius);
   padding: 1.5rem;
-  box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -608,3 +616,57 @@ $touch-target: 44px;
   }
 }
 
+// On desktop the page title lives in the layout top bar and the live pill and
+// Refresh are placed in that same header, just left of the bell and avatar.
+// The heading stays in the page for screen readers.
+$topbar-height: 88px;
+$topbar-side-padding: 2rem;
+$topbar-icons-width: 100px;
+$topbar-gap: 0.75rem;
+
+@include bp.from-tablet {
+  .page-top {
+    position: absolute;
+    top: 0;
+    right: calc(#{$topbar-side-padding} + #{$topbar-icons-width} + #{$topbar-gap});
+    width: auto;
+    max-width: none;
+    height: $topbar-height;
+    margin: 0;
+    padding: 0;
+    justify-content: flex-end;
+
+    .welcome-banner {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+  }
+}
+
+// Even columns: the ticket card and the right column (notice + summary) share
+// the same top and bottom edge, and the cards stretch to fill their column.
+@include bp.from-desktop {
+  .in-queue-grid {
+    align-items: stretch;
+  }
+
+  .in-queue-grid > .ticket-column > .ticket-card,
+  .in-queue-grid > .summary-column > .summary-card {
+    flex: 1;
+  }
+}
+
+// Spacing shared with the staff pages: content starts 16px from the sidebar
+// and the right edge, 12px under the header.
+@include bp.from-tablet {
+  .queue-page {
+    width: calc(100% - 2rem);
+    max-width: none;
+    margin: 0.75rem 1rem 0;
+    padding: 0 0 2rem;
+  }
+}

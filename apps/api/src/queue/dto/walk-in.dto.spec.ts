@@ -3,7 +3,7 @@ import { validate } from 'class-validator';
 import { WalkInDto } from './walk-in.dto';
 
 describe('WalkInDto', () => {
-  it('requires only a normalized name and accepts an optional visit reason', async () => {
+  it('requires and normalizes a visit reason', async () => {
     const dto = plainToInstance(WalkInDto, {
       name: "  Jane   O'Neil  ",
       reasonForVisit: '  General checkup  ',
@@ -24,12 +24,19 @@ describe('WalkInDto', () => {
     expect(await validate(longName)).not.toHaveLength(0);
   });
 
-  it('limits the optional visit reason to 200 characters', async () => {
+  it('rejects a missing, blank, or overlong visit reason', async () => {
+    const missingReason = plainToInstance(WalkInDto, { name: 'Jane Doe' });
+    const blankReason = plainToInstance(WalkInDto, {
+      name: 'Jane Doe',
+      reasonForVisit: '   ',
+    });
     const dto = plainToInstance(WalkInDto, {
       name: 'Jane Doe',
       reasonForVisit: 'R'.repeat(201),
     });
 
+    expect(await validate(missingReason)).not.toHaveLength(0);
+    expect(await validate(blankReason)).not.toHaveLength(0);
     expect(await validate(dto)).not.toHaveLength(0);
   });
 });

@@ -70,6 +70,7 @@ export class SessionTimeoutService {
   // Stops all timers and removes event listeners.
   stopMonitoring(): void {
     this.cleanup();
+    this.resetDefaults();
   }
 
   // Extends the session when the user clicks "Stay Signed In".
@@ -152,7 +153,7 @@ export class SessionTimeoutService {
   // Starts the 1-second interval countdown for the warning modal.
   private startCountdown(): void {
     this.clearCountdown();
-    this.countdownSubscription = timer(0, 1000)
+    this.countdownSubscription = timer(1000, 1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         const remaining = this.secondsRemaining() - 1;
@@ -164,6 +165,12 @@ export class SessionTimeoutService {
           this.secondsRemaining.set(remaining);
         }
       });
+  }
+
+  private resetDefaults(): void {
+    this.idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS;
+    this.warningCountdownSeconds = DEFAULT_COUNTDOWN_SECONDS;
+    this.secondsRemaining.set(DEFAULT_COUNTDOWN_SECONDS);
   }
 
   // Synchronizes session termination across multiple browser tabs via storage events.
@@ -212,8 +219,5 @@ export class SessionTimeoutService {
     this.clearCountdown();
     this.clearActivity();
     this.isWarningVisible.set(false);
-    this.idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS;
-    this.warningCountdownSeconds = DEFAULT_COUNTDOWN_SECONDS;
-    this.secondsRemaining.set(DEFAULT_COUNTDOWN_SECONDS);
   }
 }

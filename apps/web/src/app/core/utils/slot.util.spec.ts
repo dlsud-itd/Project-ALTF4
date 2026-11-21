@@ -16,6 +16,7 @@ const buildSlot = (overrides: Partial<ClinicSlot> = {}): ClinicSlot => ({
   capacity: 3,
   remainingCapacity: 3,
   isBookable: true,
+  isOpen: true,
   ...overrides,
 });
 
@@ -30,7 +31,24 @@ describe('getSlotStatus', () => {
   });
 
   it('reports closed when seats remain but booking is off', () => {
-    expect(getSlotStatus(buildSlot({ isBookable: false }))).toBe('closed');
+    expect(
+      getSlotStatus(buildSlot({ isBookable: false, isOpen: false })),
+    ).toBe('closed');
+  });
+
+  // The API clears isBookable for a full slot, so the stored flag decides.
+  it('reports full, not closed, for a full slot that was never blocked', () => {
+    const slot = buildSlot({
+      remainingCapacity: 0,
+      isBookable: false,
+      isOpen: true,
+    });
+    expect(getSlotStatus(slot)).toBe('full');
+  });
+
+  it('reports closed for a blocked slot that still has seats', () => {
+    const slot = buildSlot({ isBookable: true, isOpen: false });
+    expect(getSlotStatus(slot)).toBe('closed');
   });
 });
 

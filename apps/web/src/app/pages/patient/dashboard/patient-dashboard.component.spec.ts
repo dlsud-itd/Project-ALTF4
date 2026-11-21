@@ -13,6 +13,11 @@ describe('PatientDashboardComponent', () => {
   let appointmentsService: jasmine.SpyObj<AppointmentsService>;
   let confirmationService: ConfirmationService;
 
+  const todayStr = (): string => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const mockAppointments: PatientAppointment[] = [
     {
       id: 1,
@@ -20,12 +25,18 @@ describe('PatientDashboardComponent', () => {
       createdAt: '2026-10-31T00:00:00.000Z',
       slot: {
         id: 10,
-        clinicDate: '2026-11-12',
+        clinicDate: todayStr(),
         startTime: '10:00',
         endTime: '10:30',
         capacity: 2,
         remainingCapacity: 1,
         isBookable: true,
+      },
+      reservedQueueEntry: {
+        ticketNumber: 'A-001',
+        queueNumber: 1,
+        positionInQueue: 1,
+        estimatedWaitMinutes: 0,
       },
     },
   ];
@@ -38,10 +49,19 @@ describe('PatientDashboardComponent', () => {
     spy.getMyAppointments.and.returnValue(of({ appointments: [] }));
 
     const queueServiceMock = jasmine.createSpyObj('QueueService', [
+      'getTodayQueue',
       'getQueueStatus',
       'getMyQueueEntry',
       'joinOnline',
     ]);
+    queueServiceMock.getTodayQueue.and.returnValue(
+      of({
+        id: 1,
+        clinic_date: '2026-11-19',
+        is_open: true,
+        fallback_service_minutes: 15,
+      }),
+    );
     queueServiceMock.joinOnline.and.returnValue(
       of({
         queue_entry_id: 10,
@@ -167,13 +187,13 @@ describe('PatientDashboardComponent', () => {
     );
   });
 
-  it('should allow joining the queue online directly from the dashboard card when appointment is booked', () => {
-    const queueService = TestBed.inject(QueueService);
+  it('shows the primary appointment ticket and its queue estimate', () => {
     component.appointments.set(mockAppointments);
-    component.onJoinQueue();
+    fixture.detectChanges();
 
-    expect(queueService.joinOnline).toHaveBeenCalled();
-    expect(component.currentTicket()).toBe('A-010');
-    expect(component.estimatedWaitMinutes()).toBe(15);
+    expect(component.currentTicket()).toBe('A-001');
+    expect(component.positionInQueue()).toBe(1);
+    expect(component.estimatedWaitMinutes()).toBe(0);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('A-001');
   });
 });

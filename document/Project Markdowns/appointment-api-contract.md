@@ -8,11 +8,13 @@ so no request accepts a `patientId`.
 
 `POST /api/v1/appointments` is available to patients. The authenticated patient becomes the
 appointment owner. The request requires a positive `slotId` and may include a
-`reasonForVisit` of up to 500 characters.
+`reasonForVisit` of up to 500 characters. A reason is required and whitespace-only
+values are rejected.
 
 Booking is rejected when the slot does not exist, the slot is not bookable, the slot has
 reached capacity, the patient already holds an active appointment in that slot, or the
-patient already holds an active appointment on the same clinic date and start time. Active
+patient already holds an active appointment on the same clinic date and start time. Slots
+whose end datetime has passed in Asia/Manila are rejected. Active
 means an appointment in `BOOKED` status. Only `BOOKED` appointments count toward capacity
 and duplicate detection, so a cancelled appointment frees both the seat and the patient's
 ability to rebook.
@@ -23,11 +25,13 @@ appointments at the same clinic date and start time even across different slots.
 ## Listing
 
 `GET /api/v1/appointments` returns the authenticated patient's appointments for patient
-accounts. Staff and admins receive all appointments. `GET /api/v1/appointments/my` remains
-available to patients as a shorthand for their own list.
+accounts. Archived patient appointments are omitted. Staff and admins receive all
+appointments. `GET /api/v1/appointments/my` remains available to patients as a shorthand
+for their own list.
 
-List responses contain the appointment status and creation date, slot details, and the
-patient's ID, name, and clinic affiliation only.
+List responses contain the appointment status and creation date, slot details (including
+whether the slot has expired), the appointment's archived flag, and the patient's ID,
+name, and clinic affiliation only.
 
 ## Detail
 
@@ -48,6 +52,13 @@ for the appointment remains resolvable. In the same transaction, active queue en
 linked to this appointment are cancelled, their `cancelledAt` timestamp and status history
 are recorded, and a queue refresh event is published after commit. Other standalone queue
 entries for the patient are not changed.
+
+## Archive
+
+`PATCH /api/v1/appointments/:id/archive` is available to the owning patient. It sets
+`archived` to `true` only for past appointments in `COMPLETED` or `CANCELLED` status.
+Archived appointments remain in the database and are excluded from the patient's default
+appointment list.
 
 ## Capacity
 
@@ -108,3 +119,6 @@ The migration `20261021161000_auth_only_tables` drops the `appointment`, `clinic
 them. A database built from the migration history has the appointment status enum but no
 appointment table. A migration that restores these tables is required before the endpoints
 can be exercised.
+
+Apply the appointment archive column migration with `npm run prisma:migrate:deploy` before
+deploying the API version that reads or writes `appointment.archived`.

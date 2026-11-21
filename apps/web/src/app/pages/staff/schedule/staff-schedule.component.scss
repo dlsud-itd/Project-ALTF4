@@ -1,3 +1,5 @@
+@use '../../../shared/styles/breakpoints' as bp;
+
 :host {
   display: block;
 }
@@ -40,8 +42,54 @@
   clip: rect(0, 0, 0, 0);
 }
 
+.schedule-filters {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  select {
+    min-height: 44px;
+    padding: 0.4rem 2rem 0.4rem 1rem;
+    appearance: none;
+    border: 2px solid var(--primary-color);
+    border-radius: var(--pill-radius);
+    background-color: var(--surface-0);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23075a5b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 1rem;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .schedule-filters {
+    justify-content: space-between;
+
+    select {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+}
+
 .table-wrapper {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(68vh, 720px);
   background: var(--surface-0);
   border: 1px solid var(--surface-200);
   border-radius: var(--border-radius);
@@ -65,6 +113,14 @@
     text-transform: uppercase;
     color: var(--text-muted);
     border-bottom: 1px solid var(--surface-200);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .no-filter-results {
+    text-align: center !important;
+    padding: 1.5rem !important;
   }
 
   td {
@@ -98,7 +154,7 @@
 
 // Frosted glass container in muted seafoam.
 .table-wrapper {
-  --text-main: #043536;
+  --text-main: #075a5b;
   --text-muted: #0a4d4e;
 
   background:
@@ -153,7 +209,7 @@
 
   .slot-table {
     thead th {
-      background: #043536;
+      background: #0b7777;
       color: var(--surface-300);
       border-bottom: 1px solid rgb(184 220 211 / 0.25);
     }
@@ -302,4 +358,193 @@
     margin-top: 1rem;
     border-radius: 16px;
   }
+}
+
+// ===== Match the patient portal design =====
+.table-wrapper {
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+.page-header {
+  width: calc(100% - 4rem);
+  max-width: none;
+  margin: 1.25rem auto 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  h2 {
+    color: var(--text-main);
+  }
+
+  p {
+    color: var(--text-muted);
+  }
+}
+
+:host ::ng-deep .page-header .p-button {
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: var(--pill-radius);
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+
+  &:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+}
+
+// On desktop the title lives in the layout header. The heading stays here for
+// screen readers; the Add slot button stays on the right.
+@include bp.from-tablet {
+  .page-header > div {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .page-header {
+    justify-content: flex-end;
+  }
+}
+
+// The layout provides the page background.
+:host {
+  background: transparent;
+  min-height: 0;
+}
+
+// Add slot sits in the layout header, just left of the avatar.
+$header-height: 88px;
+$header-side-padding: 2rem;
+$header-avatar-width: 44px;
+$header-gap: 0.75rem;
+
+@include bp.from-tablet {
+  .page-header {
+    position: absolute;
+    top: 0;
+    right: calc(#{$header-side-padding} + #{$header-avatar-width} + #{$header-gap});
+    width: auto;
+    max-width: none;
+    height: $header-height;
+    margin: 0;
+    align-items: center;
+  }
+}
+
+// Slot table: dark green header row and dark green text for dates and times.
+.table-wrapper {
+  --text-main: #075a5b;
+
+  .slot-table {
+    thead th {
+      background: #0b7777;
+      color: #ffffff;
+    }
+
+    tbody td {
+      color: #0b7777;
+    }
+  }
+}
+
+// Same spacing as the staff dashboard: a little left and close to the header.
+@include bp.from-tablet {
+  .schedule-page {
+    width: calc(100% - 3rem);
+    max-width: none;
+    margin: 0.75rem auto 0 1rem;
+    padding: 0 0 2rem;
+  }
+}
+
+// Same spacing as the dashboard and walk-in: clean card container that wraps content neatly
+$schedule-gap-side: 1.5rem;
+$schedule-gap-top: 1rem;
+
+@include bp.from-tablet {
+  .schedule-page {
+    width: auto;
+    max-width: 1200px;
+    min-height: auto;
+    margin: $schedule-gap-top auto 2rem;
+    padding: 0 $schedule-gap-side;
+    background: transparent;
+  }
+
+  .schedule-page > .table-wrapper {
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgb(7 90 91 / 0.08);
+    overflow: auto;
+    max-height: min(68vh, 720px);
+    background: var(--surface-0);
+  }
+
+  .schedule-page .slot-table th:first-child,
+  .schedule-page .slot-table td:first-child {
+    padding-left: 1.5rem;
+  }
+}
+
+// Add slot: circled plus icon on a white button in the dark green table header.
+.add-ico {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+:host ::ng-deep .slot-table th.actions-col {
+  .p-button {
+    min-height: 34px;
+    padding: 0 0.875rem;
+    border-radius: var(--pill-radius);
+    background: #ffffff;
+    border: 1px solid #ffffff;
+    color: var(--primary-hover);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: none;
+    gap: 0.4rem;
+
+    &:hover {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+      color: var(--primary-hover);
+    }
+
+    .p-button-label {
+      color: var(--primary-hover);
+    }
+  }
+}
+
+// Add slot is centered over the edit and delete icons in the same column.
+:host ::ng-deep .slot-table {
+  th.actions-col,
+  td:last-child {
+    text-align: center;
+  }
+
+  // Two header buttons (Block day, Add slot) sit side by side.
+  th.actions-col p-button + p-button {
+    margin-left: 0.85rem;
+  }
+}
+
+// Larger column headings (Date, Time, Capacity, Remaining, Status).
+.table-wrapper .slot-table thead th {
+  font-size: 1rem;
+  letter-spacing: 0.02em;
 }

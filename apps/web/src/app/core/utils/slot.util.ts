@@ -1,11 +1,14 @@
 import { ClinicSlot, SlotStatus } from '@core/models';
 
-// Full wins over closed because the API folds "no seats left" into isBookable.
+// A slot that has been blocked is closed even if it still has free seats.
 export const getSlotStatus = (slot: ClinicSlot): SlotStatus => {
-  if (slot.remainingCapacity <= 0) {
-    return 'full';
+  if (slot.isExpired) {
+    return 'expired';
   }
-  return slot.isBookable ? 'open' : 'closed';
+  if (slot.isOpen === false) {
+    return 'closed';
+  }
+  return slot.remainingCapacity > 0 ? 'open' : 'full';
 };
 
 // Formats a Date as YYYY-MM-DD in local time, the format the slots API uses.

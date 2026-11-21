@@ -19,6 +19,7 @@ const buildSlot = (overrides: Partial<ClinicSlot> = {}): ClinicSlot => ({
   capacity: 3,
   remainingCapacity: 2,
   isBookable: true,
+  isExpired: false,
   ...overrides,
 });
 
@@ -70,6 +71,28 @@ describe('StaffScheduleComponent', () => {
     expect(rows[0].textContent).toContain('Open');
     expect(rows[1].textContent).toContain('Full');
     expect(rows[2].textContent).toContain('Closed');
+  });
+
+  it('sorts slots by date and filters expired rows without allowing actions', () => {
+    flushSlots([
+      buildSlot({ id: 2, clinicDate: '2026-11-22', startTime: '09:00' }),
+      buildSlot({
+        id: 3,
+        clinicDate: '2026-11-21',
+        isBookable: false,
+        isExpired: true,
+      }),
+      buildSlot({ id: 1, clinicDate: '2026-11-21', startTime: '08:00' }),
+    ]);
+
+    expect(component.filteredSlots().map((slot) => slot.id)).toEqual([1, 3, 2]);
+    component.setStatusFilter('expired');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(component.filteredSlots().map((slot) => slot.id)).toEqual([3]);
+    expect(element.querySelector('tbody')?.textContent).toContain('Expired');
+    expect(element.querySelector('tbody .pi-pencil')).toBeNull();
   });
 
   it('opens the form in add mode and in edit mode for a row', () => {

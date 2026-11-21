@@ -5,6 +5,7 @@ import { ApiConfigService } from './api-config.service';
 import { AuthService } from './auth.service';
 import {
   QueueStatusResponse,
+  DailyQueueSession,
   WalkInRequest,
   WalkInResponse,
   CallNextRequest,
@@ -25,6 +26,10 @@ export class QueueService {
     private readonly apiConfig: ApiConfigService,
     private readonly authService: AuthService,
   ) {}
+
+  getTodayQueue(): Observable<DailyQueueSession> {
+    return this.http.get<DailyQueueSession>(`${this.apiConfig.apiUrl}/queues/today`);
+  }
 
   getQueueStatus(queueId: number): Observable<QueueStatusResponse> {
     return this.http.get<QueueStatusResponse>(`${this.apiConfig.apiUrl}/queues/${queueId}/status`);

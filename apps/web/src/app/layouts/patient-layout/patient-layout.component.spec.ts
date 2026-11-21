@@ -1,33 +1,72 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { ApiConfigService } from '@core/services';
 import { PatientLayoutComponent } from './patient-layout.component';
 
 describe('PatientLayoutComponent', () => {
   let component: PatientLayoutComponent;
   let fixture: ComponentFixture<PatientLayoutComponent>;
+  let http: HttpTestingController;
+  let notificationsUrl: string;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PatientLayoutComponent],
-      providers: [provideRouter([]), provideHttpClient()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PatientLayoutComponent);
     component = fixture.componentInstance;
+    http = TestBed.inject(HttpTestingController);
+    notificationsUrl = `${TestBed.inject(ApiConfigService).apiUrl}/notifications?page=1&limit=100`;
     fixture.detectChanges();
+    http.expectOne(notificationsUrl).flush({
+      notifications: [],
+      unreadCount: 0,
+      totalCount: 0,
+      page: 1,
+      limit: 100,
+    });
+  });
+
+  afterEach(() => {
+    http.verify();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render sidebar navigation links for Dashboard, Bookings, Queue, and Profile', () => {
+  it('should render sidebar navigation links in order', () => {
+    const element = fixture.nativeElement as HTMLElement;
     const navItems = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.sidebar-nav .nav-link'),
+      element.querySelectorAll('.sidebar-nav .nav-label'),
     ).map((item) => item.textContent?.trim());
 
-    expect(navItems).toEqual(['Dashboard', 'Bookings', 'Queue', 'Profile']);
+    expect(navItems).toEqual([
+      'Dashboard',
+      'Queue',
+      'Schedule',
+      'Booking History',
+      'Profile',
+    ]);
+  });
+
+  it('should not list Notifications in the sidebar', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const links = Array.from(
+      element.querySelectorAll('.sidebar-nav a'),
+    ).map((item) => item.getAttribute('href'));
+    expect(links).not.toContain('/patient/notifications');
   });
 
   it('should display brand title in the sidebar', () => {
