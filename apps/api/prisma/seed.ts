@@ -39,6 +39,22 @@ async function main() {
   });
   console.log(`Created staff user: ${staff.email}`);
 
+  // Create sample patient user
+  const patientPasswordHash = await argon2.hash('Patient123!');
+  const patient = await prisma.user.upsert({
+    where: { email: 'patient@clinicqueue.internal' },
+    update: {},
+    create: {
+      fullName: 'Juan Dela Cruz',
+      email: 'patient@clinicqueue.internal',
+      passwordHash: patientPasswordHash,
+      affiliation: ClinicAffiliation.STUDENT,
+      role: AccessRole.PATIENT,
+      isActive: true,
+    },
+  });
+  console.log(`Created patient user: ${patient.email}`);
+
   // Create today's daily queue
   const today = new Date();
   today.setHours(0, 0, 0, 0);

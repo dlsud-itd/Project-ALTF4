@@ -96,6 +96,18 @@ npm run prisma:migrate:dev
 npm run prisma:seed
 ```
 
+### Sample Accounts
+
+`npm run prisma:seed` creates one sample user per role for demonstration:
+
+| Role    | Email                          | Password      |
+| :------ | :----------------------------- | :------------ |
+| Admin   | `admin@clinicqueue.internal`   | `Admin123!`   |
+| Staff   | `nurse@clinicqueue.internal`   | `Staff123!`   |
+| Patient | `patient@clinicqueue.internal` | `Patient123!` |
+
+> These are demo credentials for local/presentation use only. Change or remove them in any real deployment.
+
 ### 4. Run Development Servers
 
 In separate terminals or concurrent windows:
@@ -125,7 +137,7 @@ npm run dev:web
 | `npm run prisma:generate`       | Generate Prisma Client from `schema.prisma`                |
 | `npm run prisma:migrate:dev`    | Create and apply development database migrations           |
 | `npm run prisma:migrate:deploy` | Apply pending production migrations safely                 |
-| `npm run prisma:seed`           | Seed initial admin, staff, and daily queue records         |
+| `npm run prisma:seed`           | Seed sample admin, staff, patient, and daily queue records |
 
 ---
 
