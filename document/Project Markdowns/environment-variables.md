@@ -12,9 +12,9 @@ This document lists all configuration variables required by the ClinicQueue mono
 | `DIRECT_URL` | Backend (`api`), Prisma | Local & Render | **YES** | Supabase direct connection string (port 5432) for running migrations. |
 | `JWT_SECRET` | Backend (`api`) | Local & Render | **YES** | Required cryptographic key used to sign and verify JSON Web Tokens; the API does not use a built-in fallback. |
 | `JWT_EXPIRES_IN`| Backend (`api`) | Local & Render | No | Token lifetime window. Default: `1d`. |
-| `CORS_ORIGINS` | Backend (`api`) | Local & Render | No | Comma-separated allowed frontend origins (e.g. `http://localhost:4200,https://clinicqueue.vercel.app`). |
+| `CORS_ORIGINS` | Backend (`api`) | Local & Render | No | Comma-separated exact frontend origins (e.g. `http://localhost:4200,https://project-altf4.vercel.app`). |
 | `PUBLIC_API_URL`| Frontend (`web`) | Local & Vercel | No | Publicly accessible base URL of the NestJS REST API (`/api/v1`). |
-| `PUBLIC_SSE_URL` | Frontend (`web`) | Local & Vercel | No | Publicly accessible base URL of the NestJS API used to open the SSE event stream (e.g. `https://clinicqueue-api.onrender.com/api/v1/queues/:id/events`). |
+| `PUBLIC_SSE_URL` | Frontend (`web`) | Local & Vercel | No | Publicly accessible base URL of the NestJS API used to open the SSE event stream (e.g. `https://project-altf4.onrender.com/api/v1/queues/:id/events`). |
 
 ---
 
@@ -35,7 +35,7 @@ Configure the following under **Environment** for your `clinicqueue-api` Web Ser
 - `DIRECT_URL`: `postgresql://postgres.[REF]:[PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`
 - `JWT_SECRET`: *(Generate a secure random string, e.g. using `openssl rand -base64 32`)*
 - `JWT_EXPIRES_IN`: `1d`
-- `CORS_ORIGINS`: `https://[your-vercel-app].vercel.app`
+- `CORS_ORIGINS`: `https://project-altf4.vercel.app`
 
 ### Vercel Frontend Configuration (Vercel Dashboard)
 Angular browser code executes on the client device and cannot securely consume server-side secrets. The public API URL is configured via:
@@ -43,7 +43,7 @@ Angular browser code executes on the client device and cannot securely consume s
    ```typescript
    export const environment = {
      production: true,
-     apiUrl: 'https://clinicqueue-api.onrender.com/api/v1',
+     apiUrl: 'https://project-altf4.onrender.com/api/v1',
    };
    ```
 2. **Optional Runtime Injection**: Set a script variable in `index.html` or configure Vercel rewrite rules if dynamic domain changes are required without recompiling.
