@@ -563,21 +563,6 @@
   }
 }
 
-.form-select {
-  width: 100%;
-  padding: 0.55rem 0.85rem;
-  border-radius: 8px;
-  border: 1px solid var(--surface-300, #cbd5e1);
-  background-color: #ffffff;
-  font-size: 0.88rem;
-  color: #334155;
-  outline: none;
-
-  &:focus {
-    border-color: var(--primary-color, #0b7777);
-  }
-}
-
 .checkbox-field {
   .checkbox-label {
     display: inline-flex;
@@ -728,9 +713,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    'head head'
-    'badges stats'
-    'actions actions';
+    "head head"
+    "badges stats"
+    "actions actions";
   align-items: center;
   gap: 0.7rem 0.85rem;
   padding: 1.1rem 1.2rem;

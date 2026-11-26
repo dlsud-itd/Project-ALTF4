@@ -1,4 +1,4 @@
-@use '../../../shared/styles/breakpoints' as bp;
+@use "../../../shared/styles/breakpoints" as bp;
 
 :host {
   display: block;
@@ -31,8 +31,6 @@
       font-size: 0.95rem;
     }
   }
-
-
 }
 
 .doctor-banner-card {
@@ -413,6 +411,21 @@
   border-radius: var(--card-radius);
   padding: 1rem 1.15rem;
 
+  .booking-limit-note {
+    margin: 0 0 0.85rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--surface-200);
+    border-radius: var(--card-radius-sm);
+    background: var(--primary-light);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    line-height: 1.4;
+
+    &.limit-reached {
+      border-color: var(--danger-color);
+    }
+  }
+
   .summary-header {
     display: flex;
     justify-content: space-between;
@@ -586,7 +599,6 @@
   }
 }
 
-
 .no-dates-box {
   background: var(--surface-0);
   border: 1px dashed var(--surface-300);
@@ -730,8 +742,6 @@
       font-size: 0.85rem;
     }
   }
-
-
 }
 
 // White cards with a deep petrol border.

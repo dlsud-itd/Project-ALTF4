@@ -15,6 +15,7 @@ import {
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MAX_ACTIVE_BOOKINGS } from '../common/clinic.constants';
 import { QueueEventsService } from '../queue/queue-events.service';
 import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
 import { AppointmentsService } from './appointments.service';
@@ -24,12 +25,14 @@ describe('AppointmentsService', () => {
   let service: AppointmentsService;
 
   const mockPrismaService = {
+    $queryRaw: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     $transaction: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     clinicSlot: {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
     appointment: {
       create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      count: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       findFirst: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -44,6 +47,7 @@ describe('AppointmentsService', () => {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
     queueEntry: {
+      findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       count: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
@@ -89,7 +93,11 @@ describe('AppointmentsService', () => {
         return callback(mockPrismaService);
       },
     );
+    mockPrismaService.$queryRaw.mockResolvedValue([]);
     mockPrismaService.$transaction.mockClear();
+    mockPrismaService.appointment.findMany.mockResolvedValue([]);
+    mockPrismaService.queueEntry.findMany.mockResolvedValue([]);
+    mockPrismaService.queueEntry.count.mockResolvedValue(0);
     mockQueueLifecycle.cancelAppointment.mockResolvedValue([]);
     mockQueueEvents.emit.mockReset();
 
@@ -174,6 +182,39 @@ describe('AppointmentsService', () => {
         'queue:updated',
         expect.objectContaining({ status: 'WAITING' }),
       );
+      expect(mockPrismaService.$queryRaw).toHaveBeenCalled();
+    });
+
+    it('rejects bookings at the active-booking limit inside the locked transaction', async () => {
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue({
+        id: 10,
+        clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+        startTime: '09:00',
+        endTime: '09:30',
+        capacity: 4,
+        isBookable: true,
+        appointments: [],
+      });
+      mockPrismaService.appointment.findFirst.mockResolvedValue(null);
+      mockPrismaService.appointment.findMany.mockResolvedValue(
+        Array.from({ length: MAX_ACTIVE_BOOKINGS }, () => ({
+          status: AppointmentStatus.BOOKED,
+          slot: {
+            clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+            endTime: '09:30',
+          },
+        })),
+      );
+
+      await expect(
+        service.bookAppointment(patientId, dto),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'MAX_ACTIVE_BOOKINGS',
+        }),
+      });
+      expect(mockPrismaService.$queryRaw).toHaveBeenCalled();
+      expect(mockPrismaService.appointment.create).not.toHaveBeenCalled();
     });
 
     it('rejects booking when slot does not exist', async () => {
@@ -283,6 +324,7 @@ describe('AppointmentsService', () => {
             capacity: 2,
             isBookable: true,
           },
+          queueEntries: [],
         },
       ]);
 
@@ -290,6 +332,163 @@ describe('AppointmentsService', () => {
       expect(result.appointments).toHaveLength(1);
       expect(result.appointments[0].id).toBe(1);
       expect(result.appointments[0].slot.clinicDate).toBe('2026-11-12');
+      expect(result.activeBookingCount).toBe(1);
+      expect(result.maxActiveBookings).toBe(MAX_ACTIVE_BOOKINGS);
+    });
+
+    it('counts only unexpired booked appointments toward the active limit', async () => {
+      const statuses = [
+        AppointmentStatus.BOOKED,
+        AppointmentStatus.CANCELLED,
+        AppointmentStatus.COMPLETED,
+        AppointmentStatus.NO_SHOW,
+      ];
+      mockPrismaService.appointment.findMany.mockResolvedValue(
+        statuses.map((status, index) => ({
+          id: index + 1,
+          status,
+          createdAt: new Date('2026-10-31T00:00:00.000Z'),
+          patient: {
+            id: 101,
+            fullName: 'Patient One',
+            affiliation: 'STUDENT',
+          },
+          slot: {
+            id: index + 10,
+            clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+            startTime: '10:00',
+            endTime: '10:30',
+            capacity: 2,
+            isBookable: true,
+          },
+          queueEntries: [],
+        })),
+      );
+
+      const result = await service.findPatientAppointments(101);
+
+      expect(result.activeBookingCount).toBe(1);
+    });
+
+    it('does not count booked appointments whose slots have already passed', async () => {
+      mockPrismaService.appointment.findMany.mockResolvedValue([
+        {
+          id: 1,
+          status: AppointmentStatus.BOOKED,
+          createdAt: new Date('2026-10-31T00:00:00.000Z'),
+          patient: {
+            id: 101,
+            fullName: 'Patient One',
+            affiliation: 'STUDENT',
+          },
+          slot: {
+            id: 10,
+            clinicDate: new Date('2026-10-31T00:00:00.000Z'),
+            startTime: '10:00',
+            endTime: '10:30',
+            capacity: 2,
+            isBookable: true,
+          },
+          queueEntries: [],
+        },
+        {
+          id: 2,
+          status: AppointmentStatus.BOOKED,
+          createdAt: new Date('2026-10-31T00:00:00.000Z'),
+          patient: {
+            id: 101,
+            fullName: 'Patient One',
+            affiliation: 'STUDENT',
+          },
+          slot: {
+            id: 11,
+            clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+            startTime: '10:00',
+            endTime: '10:30',
+            capacity: 2,
+            isBookable: true,
+          },
+          queueEntries: [],
+        },
+      ]);
+
+      const result = await service.findPatientAppointments(101);
+
+      expect(result.activeBookingCount).toBe(1);
+    });
+
+    it('returns every active queue ticket with its current position and completed-ticket estimate', async () => {
+      mockPrismaService.appointment.findMany.mockResolvedValue([
+        {
+          id: 1,
+          status: AppointmentStatus.BOOKED,
+          createdAt: new Date('2026-10-31T00:00:00.000Z'),
+          patient: {
+            id: 101,
+            fullName: 'Patient One',
+            affiliation: 'STUDENT',
+          },
+          slot: {
+            id: 10,
+            clinicDate: new Date('2026-11-12T00:00:00.000Z'),
+            startTime: '10:00',
+            endTime: '10:30',
+            capacity: 2,
+            isBookable: true,
+          },
+          queueEntries: [
+            {
+              id: 31,
+              ticketNumber: 'A-005',
+              queueNumber: 5,
+              status: 'CALLED',
+              dailyQueueId: 21,
+              roomNumber: 'Counter 1',
+              dailyQueue: { fallbackServiceMinutes: 15 },
+            },
+            {
+              id: 32,
+              ticketNumber: 'A-006',
+              queueNumber: 6,
+              status: 'WAITING',
+              dailyQueueId: 21,
+              roomNumber: null,
+              dailyQueue: { fallbackServiceMinutes: 15 },
+            },
+          ],
+        },
+      ]);
+      mockPrismaService.queueEntry.findMany.mockResolvedValue([
+        {
+          consultationStartedAt: new Date('2026-11-12T08:00:00.000Z'),
+          completedAt: new Date('2026-11-12T08:10:00.000Z'),
+        },
+      ]);
+      mockPrismaService.queueEntry.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(1);
+
+      const result = await service.findPatientAppointments(101);
+      const ticketEntries = result.appointments[0].reservedQueueEntries;
+
+      expect(ticketEntries).toMatchObject([
+        {
+          ticketNumber: 'A-005',
+          status: 'CALLED',
+          positionInQueue: 1,
+          estimatedWaitMinutes: 0,
+          roomNumber: 'Counter 1',
+        },
+        {
+          ticketNumber: 'A-006',
+          status: 'WAITING',
+          positionInQueue: 2,
+          estimatedWaitMinutes: 10,
+        },
+      ]);
+      expect(result.appointments[0].reservedQueueEntry).toEqual(
+        ticketEntries[0],
+      );
     });
   });
 
@@ -323,6 +522,7 @@ describe('AppointmentsService', () => {
             capacity: 2,
             isBookable: true,
           },
+          queueEntries: [],
         },
       ]);
 

@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { timer } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
@@ -23,10 +24,12 @@ import {
   ErrorStateComponent,
   LoadingSkeletonComponent,
 } from '@shared/ui';
+import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 
 export type HistoryFilterTab = 'ALL' | 'UPCOMING' | 'PAST';
 
-type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
+type TagSeverity =
+  'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   BOOKED: 'Confirmed',
@@ -122,6 +125,12 @@ export class PatientBookingsHistoryComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAppointments();
+    timer(
+      PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+      PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.appointmentsStore.refresh());
   }
 
   loadAppointments(): void {
@@ -205,17 +214,20 @@ export class PatientBookingsHistoryComponent implements OnInit {
           .cancelAppointment(appointment.id)
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe({
-          next: (): void => {
-            this.cancellingId.set(null);
-            this.actionSuccess.set('Appointment cancelled successfully.');
-            this.appointmentsStore.load();
-          },
-          error: (err: HttpErrorResponse): void => {
-            this.cancellingId.set(null);
-            this.actionError.set(
-              getErrorMessage(err, 'Could not cancel the appointment. Please try again.'),
-            );
-          },
+            next: (): void => {
+              this.cancellingId.set(null);
+              this.actionSuccess.set('Appointment cancelled successfully.');
+              this.appointmentsStore.load();
+            },
+            error: (err: HttpErrorResponse): void => {
+              this.cancellingId.set(null);
+              this.actionError.set(
+                getErrorMessage(
+                  err,
+                  'Could not cancel the appointment. Please try again.',
+                ),
+              );
+            },
           });
       },
     });
@@ -242,17 +254,17 @@ export class PatientBookingsHistoryComponent implements OnInit {
           .archiveAppointment(appointment.id)
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe({
-          next: (): void => {
-            this.archivingId.set(null);
-            this.actionSuccess.set('Booking archived successfully.');
-            this.appointmentsStore.load();
-          },
-          error: (error: HttpErrorResponse): void => {
-            this.archivingId.set(null);
-            this.actionError.set(
-              getErrorMessage(error, 'Could not archive this booking.'),
-            );
-          },
+            next: (): void => {
+              this.archivingId.set(null);
+              this.actionSuccess.set('Booking archived successfully.');
+              this.appointmentsStore.load();
+            },
+            error: (error: HttpErrorResponse): void => {
+              this.archivingId.set(null);
+              this.actionError.set(
+                getErrorMessage(error, 'Could not archive this booking.'),
+              );
+            },
           });
       },
     });

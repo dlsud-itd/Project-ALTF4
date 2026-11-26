@@ -1,14 +1,17 @@
 import { ClinicSlot } from './slot.models';
 import { QueueStatus } from './queue.models';
 
-export type AppointmentStatus = 'BOOKED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
+export type AppointmentStatus =
+  'BOOKED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
 
 export type ReservedQueueEntry = {
+  id?: number;
   ticketNumber: string;
   queueNumber: number;
   status?: QueueStatus;
   positionInQueue: number;
   estimatedWaitMinutes: number;
+  roomNumber?: string | null;
 };
 
 export type PatientAppointment = {
@@ -18,6 +21,7 @@ export type PatientAppointment = {
   archived?: boolean;
   slot: ClinicSlot;
   reservedQueueEntry?: ReservedQueueEntry | null;
+  reservedQueueEntries?: ReservedQueueEntry[];
 };
 
 export type StaffAppointment = PatientAppointment & {
@@ -34,6 +38,8 @@ export type StaffAppointmentsResponse = {
 
 export type AppointmentsResponse = {
   appointments: PatientAppointment[];
+  activeBookingCount: number;
+  maxActiveBookings: number;
 };
 
 export type CreateAppointmentRequest = {
@@ -53,4 +59,3 @@ export type AppointmentBookingResponse = {
 export type AppointmentMutationResponse = {
   message: string;
 };
-

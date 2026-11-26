@@ -7,9 +7,19 @@
           <div class="success-icon">
             <i class="pi pi-check"></i>
           </div>
-          <h2>{{ rescheduleSuccess() ? 'Appointment Rescheduled!' : 'Appointment Confirmed!' }}</h2>
+          <h2>
+            {{
+              rescheduleSuccess()
+                ? "Appointment Rescheduled!"
+                : "Appointment Confirmed!"
+            }}
+          </h2>
           <p class="confirmation-subtitle">
-            {{ rescheduleSuccess() ? 'Your clinic consultation has been moved to the new schedule.' : 'Your clinic consultation has been successfully scheduled.' }}
+            {{
+              rescheduleSuccess()
+                ? "Your clinic consultation has been moved to the new schedule."
+                : "Your clinic consultation has been successfully scheduled."
+            }}
           </p>
         </div>
 
@@ -21,7 +31,8 @@
           <div class="detail-row">
             <span class="label">Time:</span>
             <span class="value highlight">
-              {{ success.appointment.slot.startTime }} - {{ success.appointment.slot.endTime }}
+              {{ success.appointment.slot.startTime }} -
+              {{ success.appointment.slot.endTime }}
             </span>
           </div>
           <div class="detail-row">
@@ -34,13 +45,20 @@
           </div>
           <div class="detail-row">
             <span class="label">Status:</span>
-            <span class="value"><p-tag value="Confirmed" severity="success" /></span>
+            <span class="value"
+              ><p-tag value="Confirmed" severity="success"
+            /></span>
           </div>
           @if (success.appointment.reservedQueueEntry; as queue) {
             <div class="detail-row">
               <span class="label">Reserved Ticket:</span>
               <span class="value highlight">
-                {{ queue.ticketNumber }} ({{ queue.positionInQueue === 1 ? 'Next in line' : (queue.positionInQueue - 1) + ' patient(s) ahead' }} &bull; ~{{ queue.estimatedWaitMinutes }} mins wait)
+                {{ queue.ticketNumber }} ({{
+                  queue.positionInQueue === 1
+                    ? "Next in line"
+                    : queue.positionInQueue - 1 + " patient(s) ahead"
+                }}
+                &bull; ~{{ queue.estimatedWaitMinutes }} mins wait)
               </span>
             </div>
           }
@@ -78,7 +96,10 @@
       <!-- Left Column: Doctor Info, Date Strip, Filters & Slots -->
       <div class="booking-main-column">
         <!-- Dedicated Clinic Doctor Card -->
-        <section class="doctor-banner-card" aria-label="Attending clinic physician">
+        <section
+          class="doctor-banner-card"
+          aria-label="Attending clinic physician"
+        >
           <div class="doctor-avatar">
             <i class="pi pi-user"></i>
           </div>
@@ -91,7 +112,10 @@
         </section>
 
         <!-- Date Selection Strip -->
-        <section class="date-selector-section" aria-label="Available appointment dates">
+        <section
+          class="date-selector-section"
+          aria-label="Available appointment dates"
+        >
           <div class="section-title">
             <i class="pi pi-calendar"></i>
             <span>Select Clinic Date</span>
@@ -108,7 +132,10 @@
           } @else if (availableDates().length === 0) {
             <div class="no-dates-box">
               <i class="pi pi-calendar-times"></i>
-              <p>No available clinic slots scheduled by the staff for the next 14 days.</p>
+              <p>
+                No available clinic slots scheduled by the staff for the next 14
+                days.
+              </p>
             </div>
           } @else {
             <div class="date-strip">
@@ -163,12 +190,18 @@
           </div>
 
           <div class="slot-summary-count">
-            <span>Showing <strong>{{ availableCount() }}</strong> available slots</span>
+            <span
+              >Showing <strong>{{ availableCount() }}</strong> available
+              slots</span
+            >
           </div>
         </section>
 
         <!-- Slot Cards Grid -->
-        <section class="slots-grid-container" aria-label="Available consultation slots">
+        <section
+          class="slots-grid-container"
+          aria-label="Available consultation slots"
+        >
           @if (isLoadingSlots()) {
             <app-loading-skeleton [lines]="6" />
           } @else if (filteredSlots().length === 0) {
@@ -221,7 +254,10 @@
                   <div class="slot-footer">
                     <div class="capacity-indicator">
                       <span class="capacity-text">
-                        {{ slot.remainingCapacity }}/{{ slot.totalCapacity }} capacity available
+                        {{ slot.remainingCapacity }}/{{
+                          slot.totalCapacity
+                        }}
+                        capacity available
                       </span>
                     </div>
 
@@ -264,6 +300,16 @@
               </button>
             }
           </div>
+
+          @if (!isRescheduling()) {
+            <p
+              class="booking-limit-note"
+              [class.limit-reached]="isBookingLimitReached()"
+              role="status"
+            >
+              {{ activeBookingLimitMessage() }}
+            </p>
+          }
 
           @if (selectedSlot(); as slot) {
             <div class="selected-details">
@@ -328,16 +374,17 @@
 
               @if (bookingGeneralError()) {
                 <div class="booking-error-alert">
-                  <p-message
-                    severity="error"
-                    [text]="bookingGeneralError()!"
-                  />
+                  <p-message severity="error" [text]="bookingGeneralError()!" />
                 </div>
               }
 
               <div class="action-box">
                 <p-button
-                  [label]="isRescheduling() ? 'Confirm Reschedule' : 'Confirm Appointment'"
+                  [label]="
+                    isRescheduling()
+                      ? 'Confirm Reschedule'
+                      : 'Confirm Appointment'
+                  "
                   icon="pi pi-check"
                   severity="primary"
                   [fluid]="true"
@@ -351,7 +398,10 @@
             <div class="empty-selection">
               <i class="pi pi-hand-pointer"></i>
               <h4>No Slot Selected</h4>
-              <p>Click on any available consultation slot card above to view appointment details and confirm.</p>
+              <p>
+                Click on any available consultation slot card above to view
+                appointment details and confirm.
+              </p>
             </div>
           }
         </div>
@@ -374,7 +424,11 @@
 
   <!-- Enhanced Appointment Review & Confirmation Modal -->
   <p-dialog
-    [header]="isRescheduling() ? 'Confirm Appointment Reschedule' : 'Confirm Appointment Booking'"
+    [header]="
+      isRescheduling()
+        ? 'Confirm Appointment Reschedule'
+        : 'Confirm Appointment Booking'
+    "
     [visible]="isReviewModalOpen()"
     (visibleChange)="onReviewModalVisibleChange($event)"
     [modal]="true"
@@ -402,16 +456,24 @@
             <span class="item-value">{{ activeDate().fullDate }}</span>
           </div>
           <div class="detail-item">
-            <span class="item-label"><i class="pi pi-clock"></i> Time Window</span>
-            <span class="item-value time-highlight">{{ slot.timeRange }} ({{ slot.session }})</span>
+            <span class="item-label"
+              ><i class="pi pi-clock"></i> Time Window</span
+            >
+            <span class="item-value time-highlight"
+              >{{ slot.timeRange }} ({{ slot.session }})</span
+            >
           </div>
           <div class="detail-item">
-            <span class="item-label"><i class="pi pi-map-marker"></i> Location</span>
+            <span class="item-label"
+              ><i class="pi pi-map-marker"></i> Location</span
+            >
             <span class="item-value">{{ clinicLocation }}</span>
           </div>
           @if (reasonForVisit().trim(); as reason) {
             <div class="detail-item reason-item">
-              <span class="item-label"><i class="pi pi-file-edit"></i> Reason for Consultation</span>
+              <span class="item-label"
+                ><i class="pi pi-file-edit"></i> Reason for Consultation</span
+              >
               <span class="item-value">{{ reason }}</span>
             </div>
           }
@@ -420,7 +482,10 @@
         <!-- Guidelines Note -->
         <div class="review-notice">
           <i class="pi pi-info-circle"></i>
-          <span>Please bring your valid University ID and arrive 10 minutes prior to your consultation.</span>
+          <span
+            >Please bring your valid University ID and arrive 10 minutes prior
+            to your consultation.</span
+          >
         </div>
 
         <!-- Action Buttons -->
@@ -437,6 +502,7 @@
             icon="pi pi-check"
             severity="primary"
             [loading]="isBooking()"
+            [disabled]="isConfirmDisabled()"
             (onClick)="executeConfirmedBooking()"
           />
         </div>

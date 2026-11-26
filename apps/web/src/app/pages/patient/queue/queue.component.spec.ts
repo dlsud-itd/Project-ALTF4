@@ -5,12 +5,7 @@ import {
   fakeAsync,
   tick,
 } from '@angular/core/testing';
-import {
-  computed,
-  Signal,
-  signal,
-  WritableSignal,
-} from '@angular/core';
+import { computed, Signal, signal, WritableSignal } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import {
@@ -24,6 +19,7 @@ import {
   QueueStatus,
   QueueStatusResponse,
 } from '@core/models';
+import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 import {
   ApiConfigService,
   QueueCalledEvent,
@@ -35,9 +31,9 @@ import {
 import { PatientQueueComponent } from './queue.component';
 
 const QUEUE_ID = 1;
-const POLL_INTERVAL_MS = 15000;
 const SERVER_ERROR = { status: 500, statusText: 'Server Error' };
-const NEXT_IN_LINE_TEXT = 'You are next in line. Please head to the clinic.';
+const NEXT_IN_LINE_TEXT =
+  'One of your tickets is next in line. Please head to the clinic.';
 const PRIVATE_NAME = 'Jane Secret';
 const PRIVATE_PHONE = '09171234567';
 const PRIVATE_EXTRA = 'Other Patient Notes';
@@ -107,6 +103,7 @@ describe('PatientQueueComponent', () => {
     error: WritableSignal<string | null>;
     activeQueueEntry: Signal<PatientAppointment | null>;
     load: jasmine.Spy;
+    refresh: jasmine.Spy;
   };
 
   const getElement = (): HTMLElement => fixture.nativeElement as HTMLElement;
@@ -180,6 +177,7 @@ describe('PatientQueueComponent', () => {
         selectActiveQueueEntry(patientAppointments()),
       ),
       load: jasmine.createSpy('load'),
+      refresh: jasmine.createSpy('refresh'),
     };
 
     await TestBed.configureTestingModule({
@@ -244,6 +242,54 @@ describe('PatientQueueComponent', () => {
       ).toContain('Waiting');
     });
 
+    it('should render every active ticket and highlight the ticket currently being served', () => {
+      patientAppointments.set([
+        {
+          ...patientAppointments()[0],
+          reservedQueueEntries: [
+            {
+              id: 1,
+              ticketNumber: 'A-011',
+              queueNumber: 11,
+              status: QueueStatus.CALLED,
+              positionInQueue: 1,
+              estimatedWaitMinutes: 0,
+            },
+            {
+              id: 14,
+              ticketNumber: 'A-014',
+              queueNumber: 14,
+              status: QueueStatus.WAITING,
+              positionInQueue: 3,
+              estimatedWaitMinutes: 30,
+            },
+            {
+              id: 15,
+              ticketNumber: 'A-015',
+              queueNumber: 15,
+              status: QueueStatus.COMPLETED,
+              positionInQueue: 1,
+              estimatedWaitMinutes: 0,
+            },
+          ],
+        },
+      ]);
+      fixture.detectChanges();
+
+      expect(getElement().querySelectorAll('.ticket-card').length).toBe(2);
+      expect(getText()).toContain('A-011');
+      expect(getText()).toContain('A-014');
+      expect(getText()).not.toContain('A-015');
+      expect(
+        getElement().querySelector('.ticket-card.currently-serving')
+          ?.textContent,
+      ).toContain('A-011');
+      expect(
+        getElement().querySelector('.ticket-card.currently-serving')
+          ?.textContent,
+      ).toContain('Now serving');
+    });
+
     it('should compute people ahead from the position', () => {
       setEntry({ positionInQueue: 1 });
       expect(component.peopleAhead()).toBe(0);
@@ -284,26 +330,30 @@ describe('PatientQueueComponent', () => {
       ];
 
       for (const [status, label] of expected) {
-        setEntry({ status });
-        expect(component.statusLabel()).toBe(label);
+        const entry = component.entry() as TicketEntry;
+        expect(component.statusLabelFor({ ...entry, status })).toBe(label);
       }
     });
 
-    it('should mark every step done once the ticket is completed', () => {
+    it('should hide completed tickets from the active view', () => {
       setEntry({ status: QueueStatus.COMPLETED });
 
-      const element = getElement();
-      expect(element.querySelectorAll('.tracker-step.done').length).toBe(4);
-      expect(element.querySelectorAll('.tracker-step.current').length).toBe(0);
+      expect(component.entries().length).toBe(0);
+      expect(getElement().querySelector('.ticket-card')).toBeNull();
     });
 
-    it('should hide the tracker for cancelled and no-show tickets', () => {
+    it('should hide cancelled and no-show tickets from the active view', () => {
       for (const status of [QueueStatus.CANCELLED, QueueStatus.NO_SHOW]) {
+        setEntryValue({
+          ticketNumber: 'A-014',
+          status: QueueStatus.WAITING,
+          positionInQueue: 3,
+          estimatedWaitMinutes: 15,
+        });
         setEntry({ status });
 
-        const element = getElement();
-        expect(element.querySelector('.tracker')).toBeNull();
-        expect(element.querySelector('.terminal-note')).toBeTruthy();
+        expect(component.entries().length).toBe(0);
+        expect(getElement().querySelector('.ticket-card')).toBeNull();
       }
     });
   });
@@ -532,11 +582,11 @@ describe('PatientQueueComponent', () => {
       fixture.detectChanges();
       flushStatus();
 
-      tick(POLL_INTERVAL_MS);
+      tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS);
       flushStatus();
       expect(component.isActive()).toBeTrue();
 
-      tick(POLL_INTERVAL_MS);
+      tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS);
       flushStatus();
       expect(component.isActive()).toBeTrue();
 
@@ -549,7 +599,7 @@ describe('PatientQueueComponent', () => {
       fixture.detectChanges();
       flushStatus();
 
-      tick(POLL_INTERVAL_MS * 3);
+      tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS * 3);
       http.expectNone(todayQueueUrl);
       expect(http.match(statusUrl).length).toBe(0);
     }));
@@ -558,13 +608,26 @@ describe('PatientQueueComponent', () => {
       fixture.detectChanges();
       flushStatus();
 
-      tick(POLL_INTERVAL_MS);
+      tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS);
       flushStatus();
 
       sse.connected.next(true);
-      tick(POLL_INTERVAL_MS * 3);
+      tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS * 3);
       http.expectNone(todayQueueUrl);
       expect(http.match(statusUrl).length).toBe(0);
+    }));
+
+    it('should refresh the patient ticket list periodically while SSE is connected', fakeAsync(() => {
+      fixture.detectChanges();
+      flushStatus();
+      sse.connected.next(true);
+      const refreshCount = appointmentsStore.refresh.calls.count();
+
+      tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS);
+
+      expect(appointmentsStore.refresh).toHaveBeenCalledTimes(refreshCount + 1);
+      fixture.destroy();
+      discardPeriodicTasks();
     }));
   });
 

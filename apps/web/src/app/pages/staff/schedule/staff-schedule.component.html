@@ -5,7 +5,20 @@
   </div>
   @if (isLoading() || errorMessage() !== null || slots().length === 0) {
     <p-button label="Add slot" (onClick)="onAddSlot()">
-      <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M175 256H337M256 175V337"/></svg></ng-template>
+      <ng-template #icon
+        ><svg
+          class="add-ico"
+          viewBox="0 0 512 512"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="36"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="256" cy="256" r="190" />
+          <path d="M175 256H337M256 175V337" /></svg
+      ></ng-template>
     </p-button>
   }
 </header>
@@ -25,6 +38,7 @@
     <label for="slot-status-filter">Filter by status</label>
     <select
       id="slot-status-filter"
+      class="form-select"
       [value]="statusFilter()"
       (change)="onStatusFilterChange($event)"
     >
@@ -68,10 +82,35 @@
                 [outlined]="true"
                 (onClick)="onOpenBlockDay()"
               >
-                <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M114 398 398 114"/></svg></ng-template>
+                <ng-template #icon
+                  ><svg
+                    class="add-ico"
+                    viewBox="0 0 512 512"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="40"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="256" cy="256" r="190" />
+                    <path d="M114 398 398 114" /></svg
+                ></ng-template>
               </p-button>
               <p-button label="Add slot" (onClick)="onAddSlot()">
-                <ng-template #icon><svg class="add-ico" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="256" cy="256" r="190"/><path d="M175 256H337M256 175V337"/></svg></ng-template>
+                <ng-template #icon
+                  ><svg
+                    class="add-ico"
+                    viewBox="0 0 512 512"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="36"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="256" cy="256" r="190" />
+                    <path d="M175 256H337M256 175V337" /></svg
+                ></ng-template>
               </p-button>
             </th>
           </tr>
@@ -100,8 +139,9 @@
                     size="small"
                     [loading]="blockingSlotId() === slot.id"
                     [ariaLabel]="
-                      (isSlotOpen(slot) ? 'Block slot on ' : 'Reopen slot on ') +
-                      slot.clinicDate
+                      (isSlotOpen(slot)
+                        ? 'Block slot on '
+                        : 'Reopen slot on ') + slot.clinicDate
                     "
                     (onClick)="onRequestSlotBlock(slot)"
                   />

@@ -1,4 +1,11 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  discardPeriodicTasks,
+  fakeAsync,
+  tick,
+} from '@angular/core/testing';
+import { signal, WritableSignal } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -12,6 +19,7 @@ import {
   PatientAppointmentsStore,
 } from '@core/services';
 import { ClinicSlot, PatientAppointment } from '@core/models';
+import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 
 describe('BookingsComponent', () => {
   let component: BookingsComponent;
@@ -19,7 +27,14 @@ describe('BookingsComponent', () => {
   let slotsServiceSpy: jasmine.SpyObj<SlotsService>;
   let appointmentsServiceSpy: jasmine.SpyObj<AppointmentsService>;
   let confirmServiceSpy: jasmine.SpyObj<AppConfirmService>;
-  let appointmentsStoreSpy: jasmine.SpyObj<PatientAppointmentsStore>;
+  let appointmentsStoreSpy: {
+    load: jasmine.Spy;
+    refresh: jasmine.Spy;
+    activeBookingCount: WritableSignal<number | null>;
+    maxActiveBookings: WritableSignal<number | null>;
+    isLoading: WritableSignal<boolean>;
+    error: WritableSignal<string | null>;
+  };
 
   const mockSlots: ClinicSlot[] = [
     {
@@ -70,9 +85,14 @@ describe('BookingsComponent', () => {
       'confirmDestructive',
       'confirmWarning',
     ]);
-    appointmentsStoreSpy = jasmine.createSpyObj('PatientAppointmentsStore', [
-      'load',
-    ]);
+    appointmentsStoreSpy = {
+      load: jasmine.createSpy('load'),
+      refresh: jasmine.createSpy('refresh'),
+      activeBookingCount: signal<number | null>(0),
+      maxActiveBookings: signal<number | null>(3),
+      isLoading: signal(false),
+      error: signal<string | null>(null),
+    };
     confirmServiceSpy.confirmReview.and.callFake((opts: any) => opts.accept());
 
     slotsServiceSpy.getSlots.and.returnValue(of({ slots: mockSlots }));
@@ -99,6 +119,19 @@ describe('BookingsComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('refreshes the active-booking count while scheduling is open', fakeAsync(() => {
+    fixture.destroy();
+    fixture = TestBed.createComponent(BookingsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS);
+
+    expect(appointmentsStoreSpy.refresh).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+    discardPeriodicTasks();
+  }));
+
   it('should fetch and show available slots, hiding non-bookable and full slots from patients', () => {
     // Only slot 1 and slot 2 have remainingCapacity > 0 and isBookable === true
     expect(component.availableSlots().length).toBe(2);
@@ -109,7 +142,9 @@ describe('BookingsComponent', () => {
   });
 
   it('should display the attending doctor profile header', () => {
-    const doctorCard = fixture.nativeElement.querySelector('.doctor-banner-card');
+    const doctorCard = fixture.nativeElement.querySelector(
+      '.doctor-banner-card',
+    );
     expect(doctorCard).toBeTruthy();
     expect(doctorCard.textContent).toContain(component.clinicDoctor);
   });
@@ -143,7 +178,9 @@ describe('BookingsComponent', () => {
   it('should submit booking details and display success screen on successful response', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
-    component.bookingForm.controls.reasonForVisit.setValue('Routine health checkup');
+    component.bookingForm.controls.reasonForVisit.setValue(
+      'Routine health checkup',
+    );
 
     const mockResponse = {
       message: 'Appointment booked successfully',
@@ -182,7 +219,9 @@ describe('BookingsComponent', () => {
   it('should open review confirmation modal before sending booking request', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
-    component.bookingForm.controls.reasonForVisit.setValue('Pre-employment checkup');
+    component.bookingForm.controls.reasonForVisit.setValue(
+      'Pre-employment checkup',
+    );
 
     component.onConfirmBooking();
 
@@ -203,6 +242,19 @@ describe('BookingsComponent', () => {
     expect(component.isConfirmDisabled()).toBeFalse();
   });
 
+  it('should disable booking and show the active limit when all allowed bookings are active', () => {
+    const slot = component.filteredSlots()[0];
+    component.onSelectSlot(slot);
+    component.bookingForm.controls.reasonForVisit.setValue('Fever and cough');
+    appointmentsStoreSpy.activeBookingCount.set(3);
+    fixture.detectChanges();
+
+    expect(component.isConfirmDisabled()).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain(
+      '3 active bookings out of 3',
+    );
+  });
+
   it('should handle conflict response (409) when a slot becomes unavailable', () => {
     const slot = component.filteredSlots()[0];
     component.onSelectSlot(slot);
@@ -211,10 +263,14 @@ describe('BookingsComponent', () => {
     const conflictError = new HttpErrorResponse({
       status: 409,
       statusText: 'Conflict',
-      error: { message: 'This slot is now fully booked. Please select another slot.' },
+      error: {
+        message: 'This slot is now fully booked. Please select another slot.',
+      },
     });
 
-    appointmentsServiceSpy.bookAppointment.and.returnValue(throwError(() => conflictError));
+    appointmentsServiceSpy.bookAppointment.and.returnValue(
+      throwError(() => conflictError),
+    );
     component.onConfirmBooking();
     component.executeConfirmedBooking();
     fixture.detectChanges();
