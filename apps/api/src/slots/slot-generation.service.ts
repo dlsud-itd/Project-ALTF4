@@ -49,9 +49,10 @@ const toTime = (minutes: number): string =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
 // Builds every half-hour slot between the start and end of a window.
-const buildWindowSlots = (
-  window: { start: string; end: string },
-): { startTime: string; endTime: string }[] => {
+const buildWindowSlots = (window: {
+  start: string;
+  end: string;
+}): { startTime: string; endTime: string }[] => {
   const slots: { startTime: string; endTime: string }[] = [];
   for (
     let cursor = toMinutes(window.start);
@@ -66,8 +67,10 @@ const buildWindowSlots = (
   return slots;
 };
 
-export const DEFAULT_DAY_SLOTS: readonly { startTime: string; endTime: string }[] =
-  DAILY_WINDOWS.flatMap(buildWindowSlots);
+export const DEFAULT_DAY_SLOTS: readonly {
+  startTime: string;
+  endTime: string;
+}[] = DAILY_WINDOWS.flatMap(buildWindowSlots);
 
 // Returns the weekdays (YYYY-MM-DD) from today through dayCount days ahead.
 export const getUpcomingWeekdayDates = (
@@ -104,7 +107,11 @@ export class SlotGenerationService {
     );
 
     const existing = await this.prisma.clinicSlot.findMany({
-      where: { clinicDate: { in: dates.map((date) => new Date(`${date}T00:00:00.000Z`)) } },
+      where: {
+        clinicDate: {
+          in: dates.map((date) => new Date(`${date}T00:00:00.000Z`)),
+        },
+      },
       select: { clinicDate: true, startTime: true, endTime: true },
     });
 

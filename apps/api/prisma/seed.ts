@@ -22,6 +22,7 @@ async function main() {
     create: {
       fullName: 'System Administrator',
       email: 'admin@clinicqueue.internal',
+      phoneNumber: '+639170000001',
       passwordHash: adminPasswordHash,
       affiliation: ClinicAffiliation.STAFF,
       role: AccessRole.ADMIN,
@@ -38,6 +39,7 @@ async function main() {
     create: {
       fullName: 'Nurse Jane Doe',
       email: 'nurse@clinicqueue.internal',
+      phoneNumber: '+639170000002',
       passwordHash: staffPasswordHash,
       affiliation: ClinicAffiliation.STAFF,
       role: AccessRole.STAFF,
@@ -54,6 +56,7 @@ async function main() {
     create: {
       fullName: 'Juan Dela Cruz',
       email: 'patient@clinicqueue.internal',
+      phoneNumber: '+639170000003',
       passwordHash: patientPasswordHash,
       affiliation: ClinicAffiliation.STUDENT,
       role: AccessRole.PATIENT,

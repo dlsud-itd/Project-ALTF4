@@ -6,6 +6,7 @@ export interface AdminUser {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber: string | null;
   role: AccessRole | string;
   affiliation: ClinicAffiliation | string;
   isActive: boolean;
@@ -22,6 +23,7 @@ export interface AdminUsersResponse {
 export interface AdminCreateUserRequest {
   fullName: string;
   email: string;
+  phoneNumber: string;
   password: string;
   role: AccessRole;
   affiliation: ClinicAffiliation;
@@ -30,6 +32,7 @@ export interface AdminCreateUserRequest {
 export interface AdminUpdateUserRequest {
   fullName?: string;
   email?: string;
+  phoneNumber?: string;
   password?: string;
   role?: AccessRole;
   affiliation?: ClinicAffiliation;

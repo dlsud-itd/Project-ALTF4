@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueController } from './queue.controller';
 import { QueueEventsService } from './queue-events.service';
 import { QueueLifecycleService } from './queue-lifecycle.service';
@@ -7,7 +8,7 @@ import { QueueReadService } from './queue-read.service';
 import { QueueService } from './queue.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, NotificationsModule],
   controllers: [QueueController],
   providers: [
     QueueEventsService,

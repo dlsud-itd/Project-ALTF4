@@ -163,6 +163,8 @@ export class QueueLifecycleService {
       where: { id: entry.id },
       select: {
         id: true,
+        patientId: true,
+        phoneNumber: true,
         ticketNumber: true,
         status: true,
         updatedAt: true,

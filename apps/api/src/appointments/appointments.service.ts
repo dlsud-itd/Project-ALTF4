@@ -4,14 +4,18 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   AccessRole,
   AppointmentStatus,
+  NotificationType,
   QueueSource,
   QueueStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRecipientRole } from '../notifications/notification-events';
 import { QueueEventsService } from '../queue/queue-events.service';
 import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
 import { isSlotPast } from '../common/is-slot-past.util';
@@ -49,6 +53,7 @@ export class AppointmentsService {
     private readonly prisma: PrismaService,
     private readonly events: QueueEventsService,
     private readonly queueLifecycle: QueueLifecycleService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   async bookAppointment(patientId: number, dto: CreateAppointmentDto) {
@@ -171,7 +176,7 @@ export class AppointmentsService {
         });
         const patientRecord = await tx.user.findUnique({
           where: { id: patientId },
-          select: { fullName: true },
+          select: { fullName: true, phoneNumber: true },
         });
         const slotDateOnly = new Date(
           `${slot.clinicDate.toISOString().slice(0, 10)}T00:00:00.000Z`,
@@ -205,6 +210,7 @@ export class AppointmentsService {
             source: QueueSource.ONLINE,
             status: QueueStatus.WAITING,
             firstName: patientRecord?.fullName ?? 'Patient',
+            phoneNumber: patientRecord?.phoneNumber ?? null,
             reasonForVisit: dto.reasonForVisit ?? 'Scheduled Consultation',
           },
         });
@@ -282,6 +288,15 @@ export class AppointmentsService {
     } catch {
       // Audit log non-blocking
     }
+
+    await this.notifyBooking(
+      NotificationType.BOOKING_CONFIRMATION,
+      appointment.id,
+      slot.clinicDate,
+      slot.startTime,
+      patientId,
+      false,
+    );
 
     return {
       message: 'Appointment booked successfully',
@@ -567,6 +582,15 @@ export class AppointmentsService {
       // Audit log non-blocking
     }
 
+    await this.notifyBooking(
+      NotificationType.BOOKING_CANCELLATION,
+      appointment.id,
+      appointment.slot.clinicDate,
+      appointment.slot.startTime,
+      patientId,
+      true,
+    );
+
     return {
       message: 'Appointment cancelled successfully',
     };
@@ -747,7 +771,7 @@ export class AppointmentsService {
 
       const patientRecord = await this.prisma.user.findUnique({
         where: { id: patientId },
-        select: { fullName: true },
+        select: { fullName: true, phoneNumber: true },
       });
 
       await this.prisma.queueEntry.create({
@@ -760,6 +784,7 @@ export class AppointmentsService {
           source: QueueSource.ONLINE,
           status: QueueStatus.WAITING,
           firstName: patientRecord?.fullName ?? 'Patient',
+          phoneNumber: patientRecord?.phoneNumber ?? null,
           reasonForVisit: 'Rescheduled Consultation',
         },
       });
@@ -793,6 +818,15 @@ export class AppointmentsService {
       // Audit log non-blocking
     }
 
+    await this.notifyBooking(
+      NotificationType.BOOKING_RESCHEDULE,
+      appointmentId,
+      slot.clinicDate,
+      slot.startTime,
+      patientId,
+      true,
+    );
+
     return {
       message: 'Appointment rescheduled successfully',
       appointment: {
@@ -812,5 +846,51 @@ export class AppointmentsService {
         },
       },
     };
+  }
+
+  private async notifyBooking(
+    type:
+      | typeof NotificationType.BOOKING_CONFIRMATION
+      | typeof NotificationType.BOOKING_CANCELLATION
+      | typeof NotificationType.BOOKING_RESCHEDULE,
+    appointmentId: number,
+    clinicDate: Date,
+    appointmentTime: string,
+    patientId: number,
+    includeStaff: boolean,
+  ): Promise<void> {
+    if (!this.notifications) {
+      return;
+    }
+
+    try {
+      let staffIds: number[] = [];
+      if (includeStaff && this.prisma.user?.findMany) {
+        const staffUsers = await this.prisma.user.findMany({
+          where: { role: AccessRole.STAFF, isActive: true },
+          select: { id: true },
+        });
+        staffIds = staffUsers?.map((user) => user.id) ?? [];
+      }
+
+      await this.notifications.createForRecipients(
+        {
+          type,
+          context: {
+            appointmentId,
+            appointmentDate: clinicDate.toISOString().slice(0, 10),
+            appointmentTime,
+          },
+        },
+        {
+          [NotificationRecipientRole.PATIENT]: [patientId],
+          ...(includeStaff
+            ? { [NotificationRecipientRole.STAFF]: staffIds }
+            : {}),
+        },
+      );
+    } catch {
+      // Notifications are non-blocking
+    }
   }
 }

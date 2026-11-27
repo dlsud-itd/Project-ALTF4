@@ -44,12 +44,12 @@ export class SlotBlockingService {
       data: { isBookable: !isBlocked },
     });
 
-    const notified = isBlocked
-      ? await this.notifyAffectedPatients(slot)
-      : 0;
+    const notified = isBlocked ? await this.notifyAffectedPatients(slot) : 0;
 
     return {
-      message: isBlocked ? 'Slot blocked successfully' : 'Slot reopened successfully',
+      message: isBlocked
+        ? 'Slot blocked successfully'
+        : 'Slot reopened successfully',
       slotId,
       affectedAppointments: slot.appointments.length,
       notificationsSent: notified,

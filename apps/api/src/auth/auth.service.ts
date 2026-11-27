@@ -37,6 +37,7 @@ export class AuthService {
         data: {
           fullName: dto.fullName,
           email: dto.email,
+          phoneNumber: dto.phoneNumber,
           passwordHash,
           affiliation: dto.affiliation,
           role: AccessRole.PATIENT,

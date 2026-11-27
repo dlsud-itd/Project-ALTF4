@@ -4,9 +4,17 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
-import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
+import {
+  NotificationType,
+  Prisma,
+  QueueSource,
+  QueueStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRecipientRole } from '../notifications/notification-events';
 import { ACTIVE_QUEUE_STATUSES } from '../common/clinic.constants';
 import { CallNextDto } from './dto/call-next.dto';
 import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
@@ -24,6 +32,7 @@ export class QueueService {
     private readonly events: QueueEventsService,
     private readonly queueRead: QueueReadService,
     private readonly lifecycle: QueueLifecycleService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   getQueueEvents(queueId: number) {
@@ -152,6 +161,7 @@ export class QueueService {
                 status: QueueStatus.WAITING,
                 trackingToken: trackingTokenHash,
                 firstName: dto.name,
+                phoneNumber: dto.phoneNumber,
                 reasonForVisit: dto.reasonForVisit,
               },
               select: {
@@ -353,6 +363,8 @@ export class QueueService {
         where: { id: nextEntry.id },
         select: {
           id: true,
+          patientId: true,
+          phoneNumber: true,
           ticketNumber: true,
           status: true,
           firstName: true,
@@ -387,6 +399,16 @@ export class QueueService {
       graceExpiresAt: graceExpiresAt.toISOString(),
     });
 
+    await this.notifyQueueEntry(updatedEntry, {
+      type: NotificationType.QUEUE_CALL,
+      context: {
+        queueEntryId: updatedEntry.id,
+        ticketNumber: updatedEntry.ticketNumber,
+        roomNumber: room,
+      },
+    });
+    await this.notifyApproachingPatients(queueId);
+
     return {
       queue_entry_id: updatedEntry.id,
       ticket_number: updatedEntry.ticketNumber,
@@ -409,6 +431,8 @@ export class QueueService {
       orderBy: { calledAt: 'desc' },
       select: {
         id: true,
+        patientId: true,
+        phoneNumber: true,
         ticketNumber: true,
         roomNumber: true,
         calledAt: true,
@@ -430,6 +454,15 @@ export class QueueService {
       calledAt:
         currentEntry.calledAt?.toISOString() ?? new Date().toISOString(),
       recalled: true,
+    });
+
+    await this.notifyQueueEntry(currentEntry, {
+      type: NotificationType.QUEUE_CALL,
+      context: {
+        queueEntryId: currentEntry.id,
+        ticketNumber: currentEntry.ticketNumber,
+        roomNumber: currentEntry.roomNumber || 'Counter 1',
+      },
     });
 
     return {
@@ -498,6 +531,15 @@ export class QueueService {
       cancelledAt: updated.cancelledAt?.toISOString() ?? null,
     });
 
+    await this.notifyQueueEntry(updated, {
+      type: NotificationType.QUEUE_STATUS_UPDATE,
+      context: {
+        queueEntryId: updated.id,
+        ticketNumber: updated.ticketNumber,
+        status: updated.status,
+      },
+    });
+
     return {
       queue_entry_id: updated.id,
       queue_id: queueId,
@@ -521,5 +563,84 @@ export class QueueService {
 
   async getMyQueueEntry(queueId: number, patientId: number) {
     return this.queueRead.getMyQueueEntry(queueId, patientId);
+  }
+
+  private async notifyApproachingPatients(queueId: number): Promise<void> {
+    if (!this.notifications || !this.prisma.queueEntry?.findMany) {
+      return;
+    }
+
+    try {
+      const approaching = await this.prisma.queueEntry.findMany({
+        where: { dailyQueueId: queueId, status: QueueStatus.WAITING },
+        orderBy: [{ createdAt: 'asc' }, { queueNumber: 'asc' }, { id: 'asc' }],
+        take: 2,
+        select: {
+          id: true,
+          ticketNumber: true,
+          patientId: true,
+          phoneNumber: true,
+        },
+      });
+      if (!Array.isArray(approaching)) {
+        return;
+      }
+
+      for (const entry of approaching) {
+        await this.notifyQueueEntry(entry, {
+          type: NotificationType.APPROACHING_TURN,
+          context: {
+            queueEntryId: entry.id,
+            ticketNumber: entry.ticketNumber,
+          },
+        });
+      }
+    } catch {
+      // Notifications are non-blocking
+    }
+  }
+
+  private async notifyQueueEntry(
+    entry: {
+      patientId?: number | null;
+      phoneNumber?: string | null;
+    },
+    event:
+      | {
+          type: typeof NotificationType.QUEUE_CALL;
+          context: {
+            queueEntryId: number;
+            ticketNumber: string;
+            roomNumber?: string;
+          };
+        }
+      | {
+          type: typeof NotificationType.APPROACHING_TURN;
+          context: { queueEntryId: number; ticketNumber: string };
+        }
+      | {
+          type: typeof NotificationType.QUEUE_STATUS_UPDATE;
+          context: {
+            queueEntryId: number;
+            ticketNumber: string;
+            status: QueueStatus;
+          };
+        },
+  ): Promise<void> {
+    if (!this.notifications) {
+      return;
+    }
+
+    try {
+      if (entry.patientId) {
+        await this.notifications.createForRecipients(event, {
+          [NotificationRecipientRole.PATIENT]: [entry.patientId],
+        });
+      } else if (entry.phoneNumber) {
+        await this.notifications.notifyWalkInSms(entry.phoneNumber, event);
+      }
+    } catch {
+      // Notifications are non-blocking
+    }
   }
 }

@@ -22,12 +22,19 @@ export interface ApproachingTurnContext {
   ticketNumber: string;
 }
 
+export interface QueueCallContext {
+  queueEntryId: number;
+  ticketNumber: string;
+  roomNumber?: string;
+}
+
 export interface NotificationContextByType {
   [NotificationType.BOOKING_CONFIRMATION]: AppointmentNotificationContext;
   [NotificationType.BOOKING_CANCELLATION]: AppointmentNotificationContext;
   [NotificationType.BOOKING_RESCHEDULE]: AppointmentNotificationContext;
   [NotificationType.QUEUE_STATUS_UPDATE]: QueueNotificationContext;
   [NotificationType.APPROACHING_TURN]: ApproachingTurnContext;
+  [NotificationType.QUEUE_CALL]: QueueCallContext;
 }
 
 type NotificationEventType = keyof NotificationContextByType;
@@ -109,6 +116,16 @@ export const NOTIFICATION_EVENT_RULES: {
       `Ticket ${ticketNumber} is approaching its turn.`,
     references: ({ queueEntryId }) => ({ queueEntryId }),
   },
+  [NotificationType.QUEUE_CALL]: {
+    recipients: [NotificationRecipientRole.PATIENT],
+    referenceFields: ['queueEntryId'],
+    title: 'Your turn is here',
+    message: ({ ticketNumber, roomNumber }) =>
+      roomNumber
+        ? `Ticket ${ticketNumber} is now called. Please proceed to ${roomNumber}.`
+        : `Ticket ${ticketNumber} is now called. Please proceed to the counter.`,
+    references: ({ queueEntryId }) => ({ queueEntryId }),
+  },
 };
 
 function buildPayloadForEvent<Type extends NotificationEventType>(
@@ -136,6 +153,7 @@ export function buildNotificationPayload(
       return buildPayloadForEvent(event, NOTIFICATION_EVENT_RULES[event.type]);
     case NotificationType.QUEUE_STATUS_UPDATE:
     case NotificationType.APPROACHING_TURN:
+    case NotificationType.QUEUE_CALL:
       return buildPayloadForEvent(event, NOTIFICATION_EVENT_RULES[event.type]);
     default: {
       const unreachableEvent: never = event;

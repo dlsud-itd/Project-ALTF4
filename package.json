@@ -7,11 +7,14 @@
     "apps/*"
   ],
   "scripts": {
+    "postinstall": "npm run prisma:generate",
+    "dev": "npm run prisma:generate && concurrently -k -p \"[{name}]\" -n \"API,WEB\" -c \"cyan.bold,magenta.bold\" \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm --workspace=web run start",
     "dev:api": "npm --workspace=api run start:dev",
     "build:web": "npm --workspace=web run build",
     "build:api": "npm --workspace=api run build",
     "build": "npm run prisma:generate && npm run build:api && npm run build:web",
+    "vercel-build": "npm run prisma:generate && npm run build:web",
     "lint": "npm --workspace=api run lint",
     "test": "npm --workspace=api run test",
     "test:e2e": "playwright test",
@@ -23,8 +26,10 @@
   "devDependencies": {
     "@playwright/test": "^1.50.1",
     "@types/jest": "^29.5.14",
+    "concurrently": "^10.0.7",
     "jest": "^29.7.0",
-    "jest-util": "^29.7.0"
+    "jest-util": "^29.7.0",
+    "prisma": "^6.19.3"
   },
   "engines": {
     "node": ">=20.0.0",
