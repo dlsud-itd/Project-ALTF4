@@ -560,8 +560,7 @@ describe('QueueService', () => {
 
     const updateData = (
       tx.queueEntry.updateMany.mock.calls[0]?.[0] as
-        | { data?: { notes: string } }
-        | undefined
+        { data?: { notes: string } } | undefined
     )?.data as {
       notes: string;
     };
@@ -593,8 +592,7 @@ describe('QueueService', () => {
 
     const updateData = (
       tx.queueEntry.updateMany.mock.calls[0]?.[0] as
-        | { data?: Record<string, unknown> }
-        | undefined
+        { data?: Record<string, unknown> } | undefined
     )?.data;
     expect(updateData).not.toHaveProperty('notes');
   });

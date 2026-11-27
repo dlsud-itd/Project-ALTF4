@@ -161,3 +161,13 @@ export function buildNotificationPayload(
     }
   }
 }
+
+export function buildPasswordResetOtpEmail(
+  code: string,
+  expiryMinutes: number,
+): { title: string; message: string } {
+  return {
+    title: 'Password Reset Verification Code',
+    message: `Your ClinicQueue verification code is ${code}. It expires in ${expiryMinutes} minutes. Do not share this code with anyone.`,
+  };
+}

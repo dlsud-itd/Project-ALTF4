@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationType } from '@prisma/client';
 import {
   isValidPhMobile,
+  maskPhoneNumber,
   normalizePhMobile,
 } from '../../common/phone-number.util';
 
@@ -92,7 +93,7 @@ export class SmsChannelService {
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         this.logger.warn(
-          `SMS API PH returned HTTP ${response.status} for ${input.type} (${recipient}): ${errorText.slice(0, 200)}`,
+          `SMS API PH returned HTTP ${response.status} for ${input.type} (${maskPhoneNumber(recipient)}): ${errorText.slice(0, 200)}`,
         );
         return false;
       }
@@ -101,7 +102,7 @@ export class SmsChannelService {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `SMS delivery failed (${input.type}) for ${recipient}: ${reason}`,
+        `SMS delivery failed (${input.type}) for ${maskPhoneNumber(recipient)}: ${reason}`,
       );
       return false;
     }
