@@ -683,3 +683,16 @@
     overflow-x: auto;
   }
 }
+
+// Same spacing as the Admin Overview: close to the sidebar and top bar.
+@media (min-width: 768px) {
+  .admin-audit-page {
+    max-width: none;
+    margin: 0;
+    padding: 0.75rem 1rem 2rem;
+  }
+
+  .admin-audit-page .toolbar-card {
+    margin-bottom: 0.75rem;
+  }
+}

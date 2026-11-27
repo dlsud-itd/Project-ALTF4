@@ -114,6 +114,7 @@ export class StaffDashboardFacade {
     (): boolean => this.appointments().length > 0 || this.pastAppointments().length > 0,
   );
   readonly isQueueActive = signal<boolean>(true);
+  readonly callNextClosedReason = signal<string | null>(null);
 
   readonly isStatsLoading = signal<boolean>(true);
   readonly hasStatsError = signal<boolean>(false);
@@ -133,7 +134,10 @@ export class StaffDashboardFacade {
       .subscribe((): void => this.refreshGracePeriod());
     interval(APPOINTMENT_REFRESH_INTERVAL_MS)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((): void => this.loadAppointments());
+      .subscribe((): void => {
+        this.loadAppointments();
+        this.refreshClinicHours();
+      });
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
     this.destroyRef.onDestroy(() => this.clearNoticeTimer());
 
@@ -179,6 +183,8 @@ export class StaffDashboardFacade {
             .map((appointment): StaffAppointmentRow => ({
               id: appointment.id,
               patientName: appointment.patient.fullName,
+              ticketNumber:
+                appointment.reservedQueueEntry?.ticketNumber ?? null,
               clinicDate: appointment.slot.clinicDate,
               startTime: appointment.slot.startTime,
               endTime: appointment.slot.endTime,
@@ -233,6 +239,7 @@ export class StaffDashboardFacade {
         this.currentTimeMs.set(Date.now() + this.serverClockOffsetMs);
         this.gracePeriodMs.set(response.grace_period_ms ?? 0);
         this.isQueueActive.set(response.is_active);
+        this.callNextClosedReason.set(response.call_next_closed_reason ?? null);
         this.currentTicket.set(currentTicket);
         this.waitingCount.set(response.total_waiting ?? 0);
         this.waitingTickets.set(response.waiting_tickets ?? []);
@@ -264,6 +271,16 @@ export class StaffDashboardFacade {
         }
         this.isStatsLoading.set(false);
       },
+    });
+  }
+
+  // Updates Call Next when the clinic opens or closes, without showing the
+  // loading state. A failed check is left for the server to enforce.
+  private refreshClinicHours(): void {
+    this.queueService.getStaffQueueStatus(this.queueId()).subscribe({
+      next: (response: QueueStatusResponse): void =>
+        this.callNextClosedReason.set(response.call_next_closed_reason ?? null),
+      error: (): void => undefined,
     });
   }
 

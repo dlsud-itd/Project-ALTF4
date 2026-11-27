@@ -65,7 +65,12 @@
     <ul class="appointment-list">
       @for (row of selectedUpcomingAppointments(); track row.id) {
       <li>
-        <span class="appointment-name">{{ row.patientName }}</span>
+        <span class="appointment-name">
+          @if (row.ticketNumber) {
+            <span class="appointment-ticket">{{ row.ticketNumber }}</span>
+          }
+          {{ row.patientName }}
+        </span>
         <div class="appointment-details">
           <span class="appointment-time">
             <i class="pi pi-clock"></i>

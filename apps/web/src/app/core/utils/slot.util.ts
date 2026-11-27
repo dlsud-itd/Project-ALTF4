@@ -92,3 +92,22 @@ export const getHolidayName = (date: string): string | null =>
 // Local-midnight dates, for disabling holidays in date pickers.
 export const getHolidayDates = (): Date[] =>
   Object.keys(HOLIDAYS).map(parseDateParam);
+
+const CLINIC_OPENING_TIME = '08:00';
+
+// True while a booking's queue has not started: on any later day, and on the
+// day itself until the clinic opens (or the slot starts, if that is earlier).
+// A queue position means nothing before then.
+export const isQueueNotStarted = (
+  clinicDate: string,
+  startTime: string,
+  now: Date = new Date(),
+): boolean => {
+  const today: string = toDateParam(now);
+  if (clinicDate !== today) {
+    return clinicDate > today;
+  }
+  const opensAt =
+    startTime < CLINIC_OPENING_TIME ? startTime : CLINIC_OPENING_TIME;
+  return toTimeParam(now) < opensAt;
+};

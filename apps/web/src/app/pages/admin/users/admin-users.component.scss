@@ -781,3 +781,16 @@
   height: 2.75rem;
   padding: 0;
 }
+
+// Same spacing as the Admin Overview: close to the sidebar and top bar.
+@media (min-width: 768px) {
+  .admin-users-page {
+    max-width: none;
+    margin: 0;
+    padding: 0.75rem 1rem 2rem;
+  }
+
+  .admin-users-page .toolbar-card {
+    margin-bottom: 0.75rem;
+  }
+}

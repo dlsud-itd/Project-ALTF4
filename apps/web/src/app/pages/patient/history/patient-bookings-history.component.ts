@@ -24,6 +24,7 @@ import {
   ErrorStateComponent,
   LoadingSkeletonComponent,
 } from '@shared/ui';
+import { isQueueNotStarted } from '@core/utils';
 import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 
 export type HistoryFilterTab = 'ALL' | 'UPCOMING' | 'PAST';
@@ -143,6 +144,26 @@ export class PatientBookingsHistoryComponent implements OnInit {
 
   isUpcoming(appt: PatientAppointment): boolean {
     return appt.status === 'BOOKED' && !appt.slot.isExpired;
+  }
+
+  // Still marked booked after its time passed, with no recorded outcome.
+  isUnresolvedPast(appt: PatientAppointment): boolean {
+    return appt.status === 'BOOKED' && appt.slot.isExpired === true;
+  }
+
+  isAwaitingQueue(appt: PatientAppointment): boolean {
+    return isQueueNotStarted(appt.slot.clinicDate, appt.slot.startTime);
+  }
+
+  // For example "Sat, Nov 28, 08:00 AM".
+  formatReservation(appt: PatientAppointment): string {
+    const [year, month, day] = appt.slot.clinicDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+    return `${date}, ${formatTime12h(appt.slot.startTime)}`;
   }
 
   canArchive(appt: PatientAppointment): boolean {

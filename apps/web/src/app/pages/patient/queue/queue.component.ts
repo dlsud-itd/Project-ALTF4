@@ -41,6 +41,7 @@ import {
   ErrorStateComponent,
   LoadingSkeletonComponent,
 } from '@shared/ui';
+import { isQueueNotStarted } from '@core/utils';
 
 type TagSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
 
@@ -434,6 +435,16 @@ export class PatientQueueComponent implements OnInit {
 
   statusSeverityFor(entry: DisplayQueueEntry): TagSeverity {
     return STATUS_SEVERITIES[entry.status];
+  }
+
+  // A ticket has no meaningful position until its queue starts. Walk-ins
+  // have no slot, so theirs is always live.
+  isReservation(entry: DisplayQueueEntry): boolean {
+    return (
+      !!entry.clinicDate &&
+      !!entry.startTime &&
+      isQueueNotStarted(entry.clinicDate, entry.startTime)
+    );
   }
 
   peopleAheadFor(entry: DisplayQueueEntry): number {

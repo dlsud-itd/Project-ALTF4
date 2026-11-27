@@ -36,7 +36,7 @@ const BOOKINGS_ROUTE = '/patient/bookings';
 const QUEUE_ROUTE = '/patient/queue';
 const DASHBOARD_SUBTITLE =
   'Manage your appointments and queue status at a glance';
-const SCHEDULE_TITLE = 'Schedule Appointment';
+const SCHEDULE_TITLE = 'Book Appointment';
 const SCHEDULE_SUBTITLE =
   'Schedule your clinic visit with our university physician';
 const BOOKING_HISTORY_TITLE = 'Booking History';

@@ -739,3 +739,16 @@
     padding: 1.25rem;
   }
 }
+
+// Same spacing as the Admin Overview: close to the sidebar and top bar.
+@media (min-width: 768px) {
+  .admin-appointments-page {
+    max-width: none;
+    margin: 0;
+    padding: 0.75rem 1rem 2rem;
+  }
+
+  .admin-appointments-page .toolbar-card {
+    margin-bottom: 0.75rem;
+  }
+}

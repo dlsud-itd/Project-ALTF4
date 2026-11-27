@@ -6,6 +6,8 @@ export type AppointmentTagSeverity =
 export type StaffAppointmentRow = {
   id: number;
   patientName: string;
+  // The reserved queue ticket; only sent while the slot is still ahead.
+  ticketNumber?: string | null;
   clinicDate: string;
   startTime: string;
   endTime: string;

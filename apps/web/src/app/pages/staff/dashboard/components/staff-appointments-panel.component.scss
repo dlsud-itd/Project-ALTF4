@@ -246,3 +246,16 @@ $card-radius: 16px;
     justify-self: end;
   }
 }
+
+// Ticket number before the patient name, styled like the queue list.
+.appointment-ticket {
+  display: inline-block;
+  margin-right: 0.6rem;
+  padding: 0.15rem 0.55rem;
+  background: var(--primary-light);
+  border-radius: 6px;
+  color: var(--surface-900);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}

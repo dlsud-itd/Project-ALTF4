@@ -27,7 +27,12 @@ import {
   AppointmentStatus,
   QueueStatusResponse,
 } from '@core/models';
-import { formatTime12h, formatTimeRange, getErrorMessage } from '@core/utils';
+import {
+  formatTime12h,
+  formatTimeRange,
+  getErrorMessage,
+  isQueueNotStarted,
+} from '@core/utils';
 import {
   EmptyStateComponent,
   ErrorStateComponent,
@@ -92,6 +97,13 @@ export class PatientDashboardComponent implements OnInit {
     () =>
       this.activeQueueEntry()?.reservedQueueEntry?.estimatedWaitMinutes ?? 0,
   );
+  // Set until the queue starts, so no position or wait is shown yet.
+  readonly reservedFor = computed((): string | null => {
+    const slot = this.activeQueueEntry()?.slot;
+    return slot && isQueueNotStarted(slot.clinicDate, slot.startTime)
+      ? `${this.formatClinicDate(slot.clinicDate)}, ${this.formatTime(slot.startTime)}`
+      : null;
+  });
   readonly nowServingTicket = signal<string>('None yet');
   readonly nowServingRoom = signal<string>('Counter 1');
 
@@ -213,6 +225,10 @@ export class PatientDashboardComponent implements OnInit {
           });
       },
     });
+  }
+
+  isAwaitingQueue(slot: PatientAppointment['slot']): boolean {
+    return isQueueNotStarted(slot.clinicDate, slot.startTime);
   }
 
   formatClinicDate(dateStr: string): string {
