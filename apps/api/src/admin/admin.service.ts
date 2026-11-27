@@ -21,6 +21,7 @@ export class AdminService {
         id: true,
         fullName: true,
         email: true,
+        phoneNumber: true,
         role: true,
         affiliation: true,
         isActive: true,
@@ -41,6 +42,7 @@ export class AdminService {
         id: u.id,
         fullName: u.fullName,
         email: u.email,
+        phoneNumber: u.phoneNumber,
         role: u.role,
         affiliation: u.affiliation,
         isActive: u.isActive,
@@ -67,6 +69,7 @@ export class AdminService {
       data: {
         fullName: dto.fullName,
         email: dto.email,
+        phoneNumber: dto.phoneNumber,
         passwordHash,
         role: dto.role,
         affiliation: dto.affiliation,
@@ -76,6 +79,7 @@ export class AdminService {
         id: true,
         fullName: true,
         email: true,
+        phoneNumber: true,
         role: true,
         affiliation: true,
         isActive: true,
@@ -138,15 +142,20 @@ export class AdminService {
         where: { email: dto.email },
       });
       if (emailConflict) {
-        throw new ConflictException('Email is already registered to another user');
+        throw new ConflictException(
+          'Email is already registered to another user',
+        );
       }
     }
 
     const dataToUpdate: Record<string, unknown> = {};
     if (dto.fullName !== undefined) dataToUpdate['fullName'] = dto.fullName;
     if (dto.email !== undefined) dataToUpdate['email'] = dto.email;
+    if (dto.phoneNumber !== undefined)
+      dataToUpdate['phoneNumber'] = dto.phoneNumber;
     if (dto.role !== undefined) dataToUpdate['role'] = dto.role;
-    if (dto.affiliation !== undefined) dataToUpdate['affiliation'] = dto.affiliation;
+    if (dto.affiliation !== undefined)
+      dataToUpdate['affiliation'] = dto.affiliation;
     if (dto.isActive !== undefined) dataToUpdate['isActive'] = dto.isActive;
 
     if (dto.password) {
@@ -160,6 +169,7 @@ export class AdminService {
         id: true,
         fullName: true,
         email: true,
+        phoneNumber: true,
         role: true,
         affiliation: true,
         isActive: true,

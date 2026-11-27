@@ -17,7 +17,11 @@ import {
 import { Button } from 'primeng/button';
 import { QueueService, AppConfirmService } from '@core/services';
 import { QueueStatus, WalkInRequest, WalkInResponse } from '@core/models';
-import { requiredTextValidator } from '@core/utils';
+import {
+  normalizePhMobile,
+  phMobileValidator,
+  requiredTextValidator,
+} from '@core/utils';
 
 const NAME_PATTERN = /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u;
 const NAME_MIN_LENGTH = 2;
@@ -68,6 +72,10 @@ export class StaffWalkInComponent implements OnInit {
   readonly walkInError = signal<string | null>(null);
   readonly walkInForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, this.validatePatientName]],
+    phoneNumber: [
+      '',
+      [Validators.required, phMobileValidator, Validators.maxLength(30)],
+    ],
     reasonForVisit: [
       '',
       [requiredTextValidator, Validators.maxLength(REASON_MAX_LENGTH)],
@@ -111,6 +119,7 @@ export class StaffWalkInComponent implements OnInit {
     const formValue = this.walkInForm.getRawValue();
     const payload: WalkInRequest = {
       name: formValue.name.trim().replace(/\s+/g, ' '),
+      phoneNumber: normalizePhMobile(formValue.phoneNumber),
       reasonForVisit: formValue.reasonForVisit.trim(),
     };
 

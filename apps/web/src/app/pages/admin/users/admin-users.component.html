@@ -356,6 +356,20 @@
       </div>
 
       <div class="form-field">
+        <label for="create-phone">Mobile Number *</label>
+        <input
+          id="create-phone"
+          pInputText
+          type="tel"
+          formControlName="phoneNumber"
+          placeholder="e.g. 09171234567"
+        />
+        @if (createForm.get('phoneNumber')?.touched && createForm.get('phoneNumber')?.errors) {
+          <span class="field-error">Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)</span>
+        }
+      </div>
+
+      <div class="form-field">
         <label for="create-password">Initial Password *</label>
         <input
           id="create-password"
@@ -450,6 +464,20 @@
           />
           @if (editForm.get('email')?.touched && editForm.get('email')?.errors) {
             <span class="field-error">A valid email address is required</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="edit-phone">Mobile Number *</label>
+          <input
+            id="edit-phone"
+            pInputText
+            type="tel"
+            formControlName="phoneNumber"
+            placeholder="e.g. 09171234567"
+          />
+          @if (editForm.get('phoneNumber')?.touched && editForm.get('phoneNumber')?.errors) {
+            <span class="field-error">Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)</span>
           }
         </div>
 

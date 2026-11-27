@@ -20,6 +20,7 @@ export type AuthUser = {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber?: string | null;
   role: string;
   affiliation?: string;
   isActive: boolean;
@@ -31,6 +32,7 @@ export type UserProfileResponse = {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber: string | null;
   affiliation: string;
   role: string;
   isActive: boolean;
@@ -54,6 +56,7 @@ export type LoginResponse = {
 export type RegisterRequest = {
   fullName: string;
   email: string;
+  phoneNumber: string;
   password: string;
   affiliation: ClinicAffiliation;
 };

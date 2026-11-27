@@ -11,6 +11,10 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { ClinicAffiliation } from '@prisma/client';
 import { normalizeString } from './normalize-string';
+import {
+  normalizePhMobile,
+  PH_MOBILE_E164_REGEX,
+} from '../../common/phone-number.util';
 
 export class RegisterDto {
   @ApiProperty({
@@ -33,6 +37,20 @@ export class RegisterDto {
   @IsEmail()
   @MaxLength(254)
   email!: string;
+
+  @ApiProperty({
+    example: '+639171234567',
+    description: 'Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  @Transform(({ value }) => normalizePhMobile(value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  @Matches(PH_MOBILE_E164_REGEX, {
+    message:
+      'phoneNumber must be a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  phoneNumber!: string;
 
   @ApiProperty({
     example: 'SecurePassword123!',

@@ -45,6 +45,7 @@ export type QueueTicketSummary = {
 
 export type WalkInRequest = {
   name: string;
+  phoneNumber: string;
   patientId?: number;
   reasonForVisit: string;
 };

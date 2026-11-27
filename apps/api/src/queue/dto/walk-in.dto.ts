@@ -9,6 +9,10 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  normalizePhMobile,
+  PH_MOBILE_E164_REGEX,
+} from '../../common/phone-number.util';
 
 const PATIENT_NAME_REGEX = /^[\p{L}]+(?:[ '-][\p{L}]+)*$/u;
 
@@ -34,6 +38,20 @@ export class WalkInDto {
     message: 'name may contain only letters, spaces, hyphens, and apostrophes',
   })
   name!: string;
+
+  @ApiProperty({
+    example: '+639171234567',
+    description: 'Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  @Transform(({ value }: { value: unknown }) => normalizePhMobile(value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  @Matches(PH_MOBILE_E164_REGEX, {
+    message:
+      'phoneNumber must be a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  phoneNumber!: string;
 
   @ApiProperty({
     example: 'Fever and headache',

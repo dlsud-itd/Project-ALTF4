@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AccessRole, ClinicAffiliation } from '@prisma/client';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -52,10 +56,7 @@ describe('AdminService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AdminService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [AdminService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<AdminService>(AdminService);
@@ -90,12 +91,16 @@ describe('AdminService', () => {
 
   describe('createUser', () => {
     it('should throw ConflictException if email exists', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 1, email: 'dup@example.com' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 1,
+        email: 'dup@example.com',
+      });
 
       await expect(
         service.createUser(99, {
           fullName: 'Dup',
           email: 'dup@example.com',
+          phoneNumber: '+639171234567',
           password: 'Password123!',
           role: AccessRole.PATIENT,
           affiliation: ClinicAffiliation.STUDENT,

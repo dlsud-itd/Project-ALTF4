@@ -65,6 +65,7 @@ model User {
   id           Int               @id @default(autoincrement())
   fullName     String            @map("full_name") @db.VarChar(150)
   email        String            @unique @map("email") @db.VarChar(254)
+  phoneNumber  String?           @map("phone_number") @db.VarChar(30)
   passwordHash String            @map("password_hash") @db.VarChar(255)
   affiliation  ClinicAffiliation @map("affiliation")
   role         AccessRole        @default(PATIENT) @map("role")

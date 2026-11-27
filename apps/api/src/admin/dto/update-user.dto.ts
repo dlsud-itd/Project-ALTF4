@@ -11,6 +11,10 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccessRole, ClinicAffiliation } from '@prisma/client';
+import {
+  normalizePhMobile,
+  PH_MOBILE_E164_REGEX,
+} from '../../common/phone-number.util';
 
 export class AdminUpdateUserDto {
   @ApiPropertyOptional({
@@ -36,6 +40,20 @@ export class AdminUpdateUserDto {
   @IsEmail()
   @MaxLength(254)
   email?: string;
+
+  @ApiPropertyOptional({
+    example: '+639171234567',
+    description: 'Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => normalizePhMobile(value))
+  @IsString()
+  @MaxLength(30)
+  @Matches(PH_MOBILE_E164_REGEX, {
+    message:
+      'phoneNumber must be a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  phoneNumber?: string;
 
   @ApiPropertyOptional({
     example: 'NewSecurePass123!',

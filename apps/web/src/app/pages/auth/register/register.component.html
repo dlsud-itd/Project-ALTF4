@@ -94,6 +94,26 @@
       </div>
 
       <div class="field">
+        <label for="phoneNumber">Mobile number</label>
+        <input
+          id="phoneNumber"
+          type="tel"
+          pInputText
+          formControlName="phoneNumber"
+          placeholder="09171234567"
+          maxlength="30"
+          autocomplete="tel"
+        />
+        @if (showError('phoneNumber')) {
+          @if (form.controls.phoneNumber.hasError('required')) {
+            <small class="field-error">Mobile number is required.</small>
+          } @else if (form.controls.phoneNumber.hasError('phMobile')) {
+            <small class="field-error">Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).</small>
+          }
+        }
+      </div>
+
+      <div class="field">
         <label for="password">Password</label>
         <p-password
           inputId="password"

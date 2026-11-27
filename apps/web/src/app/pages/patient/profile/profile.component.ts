@@ -19,6 +19,9 @@ export class PatientProfileComponent {
   readonly email = computed(
     (): string => this.user()?.email ?? 'patient@dlsud.edu.ph',
   );
+  readonly phoneNumber = computed(
+    (): string => this.user()?.phoneNumber ?? '',
+  );
   readonly affiliation = computed(
     (): string => this.user()?.affiliation ?? 'COLLEGE',
   );

@@ -71,9 +71,10 @@ describe('StaffWalkInComponent', () => {
     expect(element.querySelector('.ticket-card img')).toBeNull();
   });
 
-  it('creates a walk-in ticket using the name and required reason', () => {
+  it('creates a walk-in ticket using the name, phone, and required reason', () => {
     component.walkInForm.setValue({
       name: '  Jane   Doe ',
+      phoneNumber: '0917 123 4567',
       reasonForVisit: '  Headache  ',
     });
 
@@ -82,6 +83,7 @@ describe('StaffWalkInComponent', () => {
 
     expect(queueServiceMock.generateStaffQueueNumber).toHaveBeenCalledWith(1, {
       name: 'Jane Doe',
+      phoneNumber: '+639171234567',
       reasonForVisit: 'Headache',
     });
     expect(component.issuedTicket()).toEqual({
@@ -106,7 +108,11 @@ describe('StaffWalkInComponent', () => {
   });
 
   it('rejects a missing reason and shows a required inline error', () => {
-    component.walkInForm.setValue({ name: 'Jane Doe', reasonForVisit: '' });
+    component.walkInForm.setValue({
+      name: 'Jane Doe',
+      phoneNumber: '09171234567',
+      reasonForVisit: '',
+    });
     component.onGenerateQueueNumber();
     fixture.detectChanges();
 
@@ -126,7 +132,11 @@ describe('StaffWalkInComponent', () => {
   });
 
   it('does not submit an invalid name', () => {
-    component.walkInForm.setValue({ name: 'J', reasonForVisit: '' });
+    component.walkInForm.setValue({
+      name: 'J',
+      phoneNumber: '09171234567',
+      reasonForVisit: '',
+    });
 
     component.onGenerateQueueNumber();
 
@@ -140,6 +150,7 @@ describe('StaffWalkInComponent', () => {
     );
     component.walkInForm.setValue({
       name: 'Jane Doe',
+      phoneNumber: '09171234567',
       reasonForVisit: 'Routine checkup',
     });
 
