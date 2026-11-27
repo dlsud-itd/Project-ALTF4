@@ -44,6 +44,7 @@ export class LoginComponent {
   readonly loading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly justRegistered = this.route.snapshot.queryParamMap.has('registered');
+  readonly passwordResetSuccess = this.route.snapshot.queryParamMap.get('reset') === 'success';
   readonly accountInactive = this.route.snapshot.queryParamMap.get('error') === 'inactive';
   readonly sessionTimedOut = this.route.snapshot.queryParamMap.get('reason') === 'timeout';
   readonly sessionTerminated = this.route.snapshot.queryParamMap.get('reason') === 'session_terminated';

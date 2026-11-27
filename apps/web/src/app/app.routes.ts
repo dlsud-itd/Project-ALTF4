@@ -7,6 +7,7 @@ import {
 import {
   LoginComponent,
   RegisterComponent,
+  ForgotPasswordComponent,
   PatientDashboardComponent,
   BookingsComponent,
   PatientBookingsHistoryComponent,
@@ -42,6 +43,11 @@ export const routes: Routes = [
       {
         path: 'register',
         component: RegisterComponent,
+        canActivate: [guestGuard],
+      },
+      {
+        path: 'forgot-password',
+        component: ForgotPasswordComponent,
         canActivate: [guestGuard],
       },
     ],

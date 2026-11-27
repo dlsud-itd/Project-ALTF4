@@ -43,3 +43,14 @@ export function isValidPhMobile(value: string | null | undefined): boolean {
     normalized !== '+639000000000'
   );
 }
+
+/**
+ * Masks a phone number for safe logging (e.g., +639171234567 -> +63917***4567).
+ */
+export function maskPhoneNumber(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= 7) {
+    return '***';
+  }
+  return `${trimmed.slice(0, 6)}***${trimmed.slice(-4)}`;
+}

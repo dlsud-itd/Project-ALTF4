@@ -1,5 +1,6 @@
 export * from './auth/login/login.component';
 export * from './auth/register/register.component';
+export * from './auth/forgot-password/forgot-password.component';
 export * from './patient/dashboard/patient-dashboard.component';
 export * from './patient/bookings/bookings.component';
 export * from './patient/history/patient-bookings-history.component';

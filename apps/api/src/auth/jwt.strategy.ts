@@ -9,6 +9,7 @@ export interface JwtPayload {
   email: string;
   role: string;
   jti: string;
+  iat?: number;
   exp: number;
 }
 
@@ -64,11 +65,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         affiliation: true,
         role: true,
         isActive: true,
+        passwordChangedAt: true,
       },
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Unauthorized: invalid or expired token');
+    }
+
+    if (user.passwordChangedAt) {
+      const changedAtSeconds = Math.floor(
+        user.passwordChangedAt.getTime() / 1000,
+      );
+      if (typeof payload.iat !== 'number' || payload.iat < changedAtSeconds) {
+        throw new UnauthorizedException(
+          'Unauthorized: invalid or expired token',
+        );
+      }
     }
 
     return {
