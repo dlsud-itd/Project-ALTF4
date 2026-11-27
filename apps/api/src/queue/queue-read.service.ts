@@ -16,13 +16,18 @@ import {
 } from '../common/clinic.constants';
 import {
   estimateQueueWaitMinutes,
+  estimateWaitFromQueue,
   getAverageServiceDurationMinutes,
+  isQueueRunningLate,
 } from '../common/queue-wait.util';
 import { QueueEventsService } from './queue-events.service';
 import { QueueLifecycleService } from './queue-lifecycle.service';
 import { presentServingTicket, presentWaitingTicket } from './queue-presenter';
 
 export const GRACE_PERIOD_MS = 3 * 60 * 1000;
+
+// Sentinel telling the averaging helper not to substitute a guess.
+const NO_FALLBACK = 0;
 
 @Injectable()
 export class QueueReadService {
@@ -187,13 +192,19 @@ export class QueueReadService {
       throw new NotFoundException('Queue entry not found');
     }
 
-    const [ticketsAhead, completedTickets] = await Promise.all([
-      this.prisma.queueEntry.count({
+    const [entriesAhead, completedTickets] = await Promise.all([
+      this.prisma.queueEntry.findMany({
         where: {
           dailyQueueId: queueId,
           status: { in: [...ACTIVE_QUEUE_STATUSES] },
           queueNumber: { lt: entry.queueNumber },
         },
+        select: {
+          status: true,
+          calledAt: true,
+          consultationStartedAt: true,
+        },
+        orderBy: [{ queueNumber: 'asc' }],
       }),
       this.prisma.queueEntry.findMany({
         where: { dailyQueueId: queueId, status: QueueStatus.COMPLETED },
@@ -203,17 +214,23 @@ export class QueueReadService {
         },
       }),
     ]);
+    // No fallback: a day with too few finished consultations reports an
+    // unknown wait and the UI shows "Pending" instead of a guessed figure.
     const serviceDurationMinutes = getAverageServiceDurationMinutes(
       completedTickets,
-      queue.fallbackServiceMinutes ?? DEFAULT_SERVICE_DURATION_MINUTES,
+      NO_FALLBACK,
     );
-    const position = ticketsAhead + 1;
-    const estimatedWaitMinutes = estimateQueueWaitMinutes(
-      ticketsAhead,
+    const position = entriesAhead.length + 1;
+    const estimatedWaitMinutes = estimateWaitFromQueue(
+      entriesAhead,
+      serviceDurationMinutes,
+    );
+    const isRunningLate = isQueueRunningLate(
+      entriesAhead,
       serviceDurationMinutes,
     );
 
-    return { position, estimatedWaitMinutes };
+    return { position, estimatedWaitMinutes, isRunningLate };
   }
 
   async recordStatusHistory(
@@ -324,17 +341,19 @@ export class QueueReadService {
     });
     const serviceDurationMinutes = getAverageServiceDurationMinutes(
       completedTickets,
-      queue.fallbackServiceMinutes ?? DEFAULT_SERVICE_DURATION_MINUTES,
+      NO_FALLBACK,
     );
-    const averageWaitMinutes = waitingEntries.length
-      ? Math.round(
-          waitingEntries.reduce(
-            (sum, _entry, index) =>
-              sum + estimateQueueWaitMinutes(index, serviceDurationMinutes),
-            0,
-          ) / waitingEntries.length,
-        )
-      : 0;
+    // Null while the day is still too thin to average; the UI shows "Pending".
+    const averageWaitMinutes =
+      serviceDurationMinutes === null || waitingEntries.length === 0
+        ? null
+        : Math.round(
+            waitingEntries.reduce(
+              (sum, _entry, index) =>
+                sum + estimateQueueWaitMinutes(index, serviceDurationMinutes),
+              0,
+            ) / waitingEntries.length,
+          );
     const serverTime = new Date().toISOString();
     const servingTicket = presentServingTicket(
       validCurrentServing,
@@ -390,7 +409,7 @@ export class QueueReadService {
     }
 
     const queue = await this.getQueueOrThrow(entry.dailyQueueId);
-    const { position, estimatedWaitMinutes } =
+    const { position, estimatedWaitMinutes, isRunningLate } =
       await this.getQueuePositionAndWait(entry.dailyQueueId, queue, entry.id);
 
     return {
@@ -398,6 +417,7 @@ export class QueueReadService {
       status: entry.status,
       position_in_queue: position,
       estimated_wait_minutes: estimatedWaitMinutes,
+      is_running_late: isRunningLate,
       ...(entry.status === QueueStatus.CALLED && entry.graceExpiresAt
         ? {
             time_remaining_seconds: Math.max(
@@ -501,7 +521,7 @@ export class QueueReadService {
         ? defaultQueue
         : await this.getQueueOrThrow(targetQueueId);
 
-    const { position, estimatedWaitMinutes } =
+    const { position, estimatedWaitMinutes, isRunningLate } =
       await this.getQueuePositionAndWait(targetQueueId, queue, entry.id);
 
     return {
@@ -510,6 +530,7 @@ export class QueueReadService {
       ticket_number: entry.ticketNumber,
       position_in_queue: position,
       estimated_wait_minutes: estimatedWaitMinutes,
+      is_running_late: isRunningLate,
       status: entry.status,
       room_number: entry.roomNumber,
       joined_at: entry.createdAt.toISOString(),

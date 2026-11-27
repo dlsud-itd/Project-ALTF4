@@ -32,6 +32,7 @@ export class StaffQueuePanelComponent {
   readonly isGeneratingQueue = input.required<boolean>();
   readonly isRecalling = input.required<boolean>();
   readonly waitingCount = input.required<number>();
+  readonly averageWaitMinutes = input<number | null>(null);
   readonly waitingTickets = input.required<QueueTicketSummary[]>();
   readonly isStatsLoading = input.required<boolean>();
   readonly hasStatsError = input.required<boolean>();

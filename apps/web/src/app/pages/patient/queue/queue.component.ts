@@ -51,7 +51,8 @@ export type DisplayQueueEntry = {
   ticketNumber: string;
   status: QueueStatus;
   positionInQueue: number;
-  estimatedWaitMinutes: number;
+  estimatedWaitMinutes: number | null;
+  isRunningLate?: boolean;
   roomNumber?: string | null;
   clinicDate?: string;
   startTime?: string;
@@ -305,6 +306,7 @@ export class PatientQueueComponent implements OnInit {
                 res.time_remaining_seconds !== undefined
                   ? Math.ceil(res.time_remaining_seconds / 60)
                   : res.estimated_wait_minutes,
+              isRunningLate: res.is_running_late ?? false,
             });
             this.isTrackingLoading.set(false);
           },

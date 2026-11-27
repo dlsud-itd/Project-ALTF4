@@ -107,7 +107,14 @@
 
       <div class="queue-list-heading">
         <h3 id="queue-list-title">Queue</h3>
-        <span>{{ waitingCount() }} waiting</span>
+        <span class="queue-heading-meta">
+          @if (averageWaitMinutes() === null) {
+            <span class="avg-wait avg-wait--pending">Pending</span>
+          } @else {
+            <span class="avg-wait">~{{ averageWaitMinutes() }} mins</span>
+          }
+          {{ waitingCount() }} waiting
+        </span>
       </div>
       @if (isStatsLoading() && waitingTickets().length === 0) {
         <app-loading-skeleton [lines]="2" />

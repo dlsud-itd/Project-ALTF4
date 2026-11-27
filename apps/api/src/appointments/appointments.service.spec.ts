@@ -465,6 +465,14 @@ describe('AppointmentsService', () => {
           consultationStartedAt: new Date('2026-11-12T08:00:00.000Z'),
           completedAt: new Date('2026-11-12T08:10:00.000Z'),
         },
+        {
+          consultationStartedAt: new Date('2026-11-12T08:10:00.000Z'),
+          completedAt: new Date('2026-11-12T08:20:00.000Z'),
+        },
+        {
+          consultationStartedAt: new Date('2026-11-12T08:20:00.000Z'),
+          completedAt: new Date('2026-11-12T08:30:00.000Z'),
+        },
       ]);
       mockPrismaService.queueEntry.count
         .mockResolvedValueOnce(0)

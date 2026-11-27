@@ -86,11 +86,20 @@
                 </div>
                 <div class="stat">
                   <dt>Estimated Wait</dt>
-                  <dd class="wait-value">
-                    ~{{ ticket.estimatedWaitMinutes }}
-                    <span class="unit">mins</span>
-                  </dd>
-                  <span class="stat-hint">Approximate</span>
+                  @if (ticket.estimatedWaitMinutes === null) {
+                    <dd class="wait-value wait-pending">
+                      Pending
+                    </dd>
+                    <span class="stat-hint">Not enough consultations yet</span>
+                  } @else {
+                    <dd class="wait-value">
+                      ~{{ ticket.estimatedWaitMinutes }}
+                      <span class="unit">mins</span>
+                    </dd>
+                    <span class="stat-hint">
+                      {{ ticket.isRunningLate ? 'Running late' : 'Approximate' }}
+                    </span>
+                  }
                 </div>
               </dl>
 

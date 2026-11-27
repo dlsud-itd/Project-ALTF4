@@ -79,6 +79,7 @@ export class StaffDashboardFacade {
   readonly waitingTickets = signal<QueueTicketSummary[]>([]);
   readonly completedCount = signal<number>(0);
   readonly noShowCount = signal<number>(0);
+  readonly averageWaitMinutes = signal<number | null>(null);
   readonly isGeneratingQueue = signal<boolean>(false);
   readonly isRecalling = signal<boolean>(false);
   readonly isUpdatingStatus = signal<boolean>(false);
@@ -237,6 +238,7 @@ export class StaffDashboardFacade {
         this.waitingTickets.set(response.waiting_tickets ?? []);
         this.completedCount.set(response.total_completed_today ?? 0);
         this.noShowCount.set(response.total_no_shows_today ?? 0);
+        this.averageWaitMinutes.set(response.avg_wait_time_minutes ?? null);
         const newlyNoShowTickets = response.newly_no_show_ticket_numbers ?? [];
         if (newlyNoShowTickets.length > 0) {
           this.showNotice(
