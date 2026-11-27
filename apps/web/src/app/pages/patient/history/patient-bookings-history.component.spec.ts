@@ -1,8 +1,15 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+  discardPeriodicTasks,
+  fakeAsync,
+  tick,
+} from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ConfirmationService } from 'primeng/api';
+import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 import { AppointmentsService } from '@core/services';
 import { PatientBookingsHistoryComponent } from './patient-bookings-history.component';
 
@@ -27,6 +34,8 @@ describe('PatientBookingsHistoryComponent', () => {
     );
     appointmentsServiceSpy.getMyAppointments.and.returnValue(
       of({
+        activeBookingCount: 1,
+        maxActiveBookings: 3,
         appointments: [
           {
             id: 1,
@@ -96,6 +105,23 @@ describe('PatientBookingsHistoryComponent', () => {
     expect(component.upcomingAppointments().length).toBe(1);
     expect(component.pastAppointments().length).toBe(1);
   });
+
+  it('refreshes appointment status while the history page is open', fakeAsync(() => {
+    fixture.destroy();
+    fixture = TestBed.createComponent(PatientBookingsHistoryComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    const initialRequestCount =
+      appointmentsServiceSpy.getMyAppointments.calls.count();
+
+    tick(PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS);
+
+    expect(appointmentsServiceSpy.getMyAppointments).toHaveBeenCalledTimes(
+      initialRequestCount + 1,
+    );
+    fixture.destroy();
+    discardPeriodicTasks();
+  }));
 
   it('should filter appointments by active tab', () => {
     component.setFilter('UPCOMING');

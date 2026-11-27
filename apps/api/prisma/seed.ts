@@ -1,6 +1,13 @@
 import 'dotenv/config';
-import { PrismaClient, AccessRole, ClinicAffiliation, QueueStatus, QueuePriority } from '@prisma/client';
+import {
+  PrismaClient,
+  AccessRole,
+  ClinicAffiliation,
+  QueueStatus,
+  QueuePriority,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
+import { DEFAULT_SERVICE_DURATION_MINUTES } from '../src/common/clinic.constants';
 
 const prisma = new PrismaClient();
 
@@ -66,10 +73,12 @@ async function main() {
       clinicDate: today,
       nextNumber: 1,
       isOpen: true,
-      fallbackServiceMinutes: 15,
+      fallbackServiceMinutes: DEFAULT_SERVICE_DURATION_MINUTES,
     },
   });
-  console.log(`Created/verified daily queue for ${today.toISOString().split('T')[0]}`);
+  console.log(
+    `Created/verified daily queue for ${today.toISOString().split('T')[0]}`,
+  );
 
   console.log('Seeding completed successfully.');
 }

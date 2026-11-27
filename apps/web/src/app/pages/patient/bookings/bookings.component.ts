@@ -10,7 +10,7 @@ import { RouterLink, ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { catchError, map, of, Subject, switchMap } from 'rxjs';
+import { catchError, map, of, Subject, switchMap, timer } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Dialog } from 'primeng/dialog';
 import { Message } from 'primeng/message';
@@ -22,11 +22,13 @@ import {
   AppConfirmService,
   PatientAppointmentsStore,
 } from '@core/services';
-import { getErrorMessage, requiredTextValidator, toDateParam } from '@core/utils';
 import {
-  ErrorStateComponent,
-  LoadingSkeletonComponent,
-} from '@shared/ui';
+  getErrorMessage,
+  requiredTextValidator,
+  toDateParam,
+} from '@core/utils';
+import { ErrorStateComponent, LoadingSkeletonComponent } from '@shared/ui';
+import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 
 export type DisplaySlotItem = {
   id: number;
@@ -48,9 +50,7 @@ export type CalendarDay = {
   fullDate: string;
 };
 
-type SlotLoadResult =
-  | { slots: ClinicSlot[] }
-  | { error: HttpErrorResponse };
+type SlotLoadResult = { slots: ClinicSlot[] } | { error: HttpErrorResponse };
 
 const LOOKAHEAD_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -183,13 +183,47 @@ export class BookingsComponent implements OnInit {
   // Appointment being moved when the page is opened with ?reschedule=<id>.
   readonly rescheduleId = signal<number | null>(null);
   readonly rescheduleSuccess = signal<boolean>(false);
-  readonly isRescheduling = computed((): boolean => this.rescheduleId() !== null);
+  readonly isRescheduling = computed(
+    (): boolean => this.rescheduleId() !== null,
+  );
 
   readonly isConfirmDisabled = computed((): boolean => {
     if (this.isBooking()) return true;
     if (this.isRescheduling()) return false;
+    if (!this.isBookingLimitKnown() || this.isBookingLimitReached())
+      return true;
     this.reasonValue();
     return this.bookingForm.controls.reasonForVisit.invalid;
+  });
+  readonly activeBookingCount = computed(() =>
+    this.appointmentsStore.activeBookingCount(),
+  );
+  readonly maxActiveBookings = computed(() =>
+    this.appointmentsStore.maxActiveBookings(),
+  );
+  readonly isBookingLimitKnown = computed(
+    () =>
+      !this.appointmentsStore.isLoading() &&
+      this.activeBookingCount() !== null &&
+      this.maxActiveBookings() !== null,
+  );
+  readonly isBookingLimitReached = computed(
+    () =>
+      this.isBookingLimitKnown() &&
+      this.activeBookingCount()! >= this.maxActiveBookings()!,
+  );
+  readonly activeBookingLimitMessage = computed(() => {
+    if (!this.isBookingLimitKnown()) {
+      return this.appointmentsStore.error()
+        ? 'Unable to verify your active bookings. Please refresh and try again.'
+        : 'Checking your active bookings...';
+    }
+
+    const activeCount = this.activeBookingCount()!;
+    const maximum = this.maxActiveBookings()!;
+    return this.isBookingLimitReached()
+      ? `You have ${activeCount} active bookings out of ${maximum}. Complete or cancel an appointment before booking another.`
+      : `Active bookings: ${activeCount} of ${maximum}.`;
   });
 
   // Only bookable slots with available capacity are shown to patients
@@ -254,14 +288,19 @@ export class BookingsComponent implements OnInit {
     if (session === 'ALL') {
       return mapped;
     }
-    return mapped.filter((s: DisplaySlotItem): boolean => s.session === session);
+    return mapped.filter(
+      (s: DisplaySlotItem): boolean => s.session === session,
+    );
   });
 
   // Currently selected slot entity for appointment summary preview
   readonly selectedSlot = computed((): DisplaySlotItem | null => {
     const id = this.selectedSlotId();
     if (id === null) return null;
-    return this.filteredSlots().find((s: DisplaySlotItem): boolean => s.id === id) ?? null;
+    return (
+      this.filteredSlots().find((s: DisplaySlotItem): boolean => s.id === id) ??
+      null
+    );
   });
 
   // Counts available slots for current filter
@@ -275,7 +314,18 @@ export class BookingsComponent implements OnInit {
     if (rescheduleParam && Number.isInteger(rescheduleId) && rescheduleId > 0) {
       this.rescheduleId.set(rescheduleId);
     }
+    this.appointmentsStore.load();
+    this.refreshPatientAppointmentsPeriodically();
     this.loadSlots();
+  }
+
+  private refreshPatientAppointmentsPeriodically(): void {
+    timer(
+      PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+      PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.appointmentsStore.refresh());
   }
 
   loadSlots(): void {
@@ -308,8 +358,18 @@ export class BookingsComponent implements OnInit {
   onConfirmBooking(): void {
     const slot = this.selectedSlot();
     if (!slot) return;
+    if (
+      this.isBooking() ||
+      (!this.isRescheduling() &&
+        (!this.isBookingLimitKnown() || this.isBookingLimitReached()))
+    ) {
+      return;
+    }
 
-    if (!this.isRescheduling() && this.bookingForm.controls.reasonForVisit.invalid) {
+    if (
+      !this.isRescheduling() &&
+      this.bookingForm.controls.reasonForVisit.invalid
+    ) {
       this.bookingForm.controls.reasonForVisit.markAsTouched();
       return;
     }
@@ -324,6 +384,12 @@ export class BookingsComponent implements OnInit {
   executeConfirmedBooking(): void {
     const slot = this.selectedSlot();
     if (!slot) return;
+    if (
+      !this.isRescheduling() &&
+      (!this.isBookingLimitKnown() || this.isBookingLimitReached())
+    ) {
+      return;
+    }
 
     this.isReviewModalOpen.set(false);
 
@@ -367,10 +433,16 @@ export class BookingsComponent implements OnInit {
                 'This slot is no longer available or was just filled. Please select another slot.',
               ),
             );
+            if (this.isActiveBookingLimitConflict(err)) {
+              this.appointmentsStore.load();
+            }
             this.loadSlots();
           } else {
             this.bookingGeneralError.set(
-              getErrorMessage(err, 'Failed to book appointment. Please try again.'),
+              getErrorMessage(
+                err,
+                'Failed to book appointment. Please try again.',
+              ),
             );
           }
         },
@@ -387,7 +459,10 @@ export class BookingsComponent implements OnInit {
   }
 
   // Moves the appointment from the query parameter into the chosen slot.
-  private onConfirmReschedule(appointmentId: number, slot: DisplaySlotItem): void {
+  private onConfirmReschedule(
+    appointmentId: number,
+    slot: DisplaySlotItem,
+  ): void {
     this.isBooking.set(true);
     this.clearErrors();
 
@@ -416,7 +491,10 @@ export class BookingsComponent implements OnInit {
             this.loadSlots();
           } else {
             this.bookingGeneralError.set(
-              getErrorMessage(err, 'Failed to reschedule appointment. Please try again.'),
+              getErrorMessage(
+                err,
+                'Failed to reschedule appointment. Please try again.',
+              ),
             );
           }
         },
@@ -426,5 +504,10 @@ export class BookingsComponent implements OnInit {
   private clearErrors(): void {
     this.bookingConflictError.set(null);
     this.bookingGeneralError.set(null);
+  }
+
+  private isActiveBookingLimitConflict(error: HttpErrorResponse): boolean {
+    const body = error.error as { code?: unknown } | null;
+    return body?.code === 'MAX_ACTIVE_BOOKINGS';
   }
 }

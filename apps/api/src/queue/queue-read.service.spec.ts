@@ -62,4 +62,43 @@ describe('QueueReadService patient response', () => {
     expect(response).not.toHaveProperty('total_no_shows_today');
     expect(prisma.queueEntry.count).not.toHaveBeenCalled();
   });
+
+  it('estimates queue position and wait from active tickets and completed durations', async () => {
+    const prisma = {
+      queueEntry: {
+        findUnique: jest.fn().mockResolvedValue({ queueNumber: 8 }),
+        count: jest.fn().mockResolvedValue(2),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            consultationStartedAt: new Date('2026-11-06T09:00:00.000Z'),
+            completedAt: new Date('2026-11-06T09:12:30.000Z'),
+          },
+        ]),
+      },
+    };
+    const service = new QueueReadService(
+      prisma as unknown as PrismaService,
+      new QueueEventsService(),
+      new QueueLifecycleService(prisma as unknown as PrismaService),
+    );
+
+    await expect(
+      service.getQueuePositionAndWait(4, { fallbackServiceMinutes: 15 }, 12),
+    ).resolves.toEqual({ position: 3, estimatedWaitMinutes: 26 });
+    expect(prisma.queueEntry.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          dailyQueueId: 4,
+          status: {
+            in: [
+              QueueStatus.WAITING,
+              QueueStatus.CALLED,
+              QueueStatus.IN_CONSULTATION,
+            ],
+          },
+          queueNumber: { lt: 8 },
+        }),
+      }),
+    );
+  });
 });

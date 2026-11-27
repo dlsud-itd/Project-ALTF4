@@ -108,6 +108,7 @@ export type TrackingStatusResponse = {
   ticket_number: string;
   status: QueueStatus;
   position_in_queue: number;
+  estimated_wait_minutes: number;
   time_remaining_seconds?: number;
 };
 

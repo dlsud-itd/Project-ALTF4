@@ -23,9 +23,11 @@ import {
 } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
+import { PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS } from '@core/config/clinic.constants';
 import {
   PatientAppointmentsStore,
   QueueService,
+  selectActiveQueueEntries,
   SseService,
 } from '@core/services';
 import {
@@ -45,6 +47,7 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info' | 'secondary';
 type TrackerStepState = 'done' | 'current' | 'upcoming';
 
 export type DisplayQueueEntry = {
+  queueEntryId?: number;
   ticketNumber: string;
   status: QueueStatus;
   positionInQueue: number;
@@ -59,6 +62,7 @@ export type DisplayQueueEntry = {
 type QueueSummaryView = {
   isOpen: boolean;
   nowServing: string | null;
+  nowServingQueueEntryId: number | null;
   roomNumber: string | null;
   patientsWaiting: number;
   lastUpdated: string;
@@ -89,14 +93,10 @@ type RefreshResult = {
   error: unknown;
 };
 
-// Polling fallback interval, used only while the SSE stream is offline.
-const POLL_INTERVAL_MS = 15000;
-
 const HTTP_NOT_FOUND = 404;
 const QUEUE_NOT_FOUND_CODE = 'QUEUE_NOT_FOUND';
 const NO_ONE_SERVING_LABEL = 'None yet';
 const LOADING_LINE_COUNT = 4;
-const FIRST_POSITION = 1;
 const NO_PEOPLE_AHEAD = 0;
 
 const STATUS_LABELS: Record<QueueStatus, string> = {
@@ -135,6 +135,7 @@ function toSummaryView(response: QueueStatusResponse): QueueSummaryView {
   return {
     isOpen: response.is_active,
     nowServing: response.currently_serving?.ticket_number ?? null,
+    nowServingQueueEntryId: response.currently_serving?.queue_entry_id ?? null,
     roomNumber: response.currently_serving?.room_number ?? null,
     patientsWaiting: response.total_waiting,
     lastUpdated: response.last_updated,
@@ -190,25 +191,32 @@ export class PatientQueueComponent implements OnInit {
   private readonly trackingError = signal<string | null>(null);
   private readonly isTrackingLoading = signal(false);
 
-  readonly entry = computed((): DisplayQueueEntry | null => {
-    const trackingEntry = this.trackingEntry();
-    if (trackingEntry) {
-      return trackingEntry;
+  readonly entries = computed((): DisplayQueueEntry[] => {
+    if (this.trackingToken()) {
+      const trackingEntry = this.trackingEntry();
+      return trackingEntry ? [trackingEntry] : [];
     }
-    const appointment = this.appointmentsStore.activeQueueEntry();
-    return appointment ? this.toDisplayEntry(appointment) : null;
+
+    return selectActiveQueueEntries(this.appointmentsStore.appointments()).map(
+      ({ appointment, queueEntry }) =>
+        this.toDisplayEntry(appointment, queueEntry),
+    );
   });
-  readonly isEntryLoading = computed(
-    () =>
-      this.trackingToken()
-        ? this.isTrackingLoading()
-        : this.appointmentsStore.isLoading(),
+  readonly entry = computed(
+    (): DisplayQueueEntry | null => this.entries()[0] ?? null,
   );
-  readonly entryError = computed(
-    () =>
-      this.trackingToken()
-        ? this.trackingError()
-        : this.appointmentsStore.error(),
+  readonly hasNextInLineTicket = computed(() =>
+    this.entries().some((entry) => this.isNextInLineFor(entry)),
+  );
+  readonly isEntryLoading = computed(() =>
+    this.trackingToken()
+      ? this.isTrackingLoading()
+      : this.appointmentsStore.isLoading(),
+  );
+  readonly entryError = computed(() =>
+    this.trackingToken()
+      ? this.trackingError()
+      : this.appointmentsStore.error(),
   );
 
   readonly isLoading = computed(
@@ -245,9 +253,7 @@ export class PatientQueueComponent implements OnInit {
 
   readonly peopleAhead = computed(() => {
     const entry = this.entry();
-    return entry
-      ? Math.max(entry.positionInQueue - FIRST_POSITION, 0)
-      : NO_PEOPLE_AHEAD;
+    return entry ? this.peopleAheadFor(entry) : NO_PEOPLE_AHEAD;
   });
 
   readonly isTerminal = computed(() => {
@@ -264,28 +270,15 @@ export class PatientQueueComponent implements OnInit {
   );
 
   readonly trackerSteps = computed(() => {
-    const status = this.entry()?.status;
-    if (!status) {
-      return [];
-    }
-    const activeIndex = TRACKER_STEPS.indexOf(status);
-    const isFinished = status === QueueStatus.COMPLETED;
-
-    return TRACKER_STEPS.map((step, index) => {
-      let state: TrackerStepState = 'upcoming';
-      if (isFinished || index < activeIndex) {
-        state = 'done';
-      } else if (index === activeIndex) {
-        state = 'current';
-      }
-      return { label: STATUS_LABELS[step], state };
-    });
+    const entry = this.entry();
+    return entry ? this.trackerStepsFor(entry) : [];
   });
 
   ngOnInit(): void {
     this.listenForRefreshes();
     this.listenForSseEvents();
     this.pollWhileOffline();
+    this.refreshPatientTicketsPeriodically();
     this.loadEntry();
 
     this.destroyRef.onDestroy(() => this.sseService.disconnect());
@@ -293,7 +286,7 @@ export class PatientQueueComponent implements OnInit {
     this.refresh(REFRESH_KIND.INITIAL);
   }
 
-  loadEntry(): void {
+  loadEntry(backgroundRefresh = false): void {
     const token = this.route.snapshot.queryParamMap.get('token');
     this.trackingToken.set(token);
     if (token) {
@@ -308,9 +301,10 @@ export class PatientQueueComponent implements OnInit {
               ticketNumber: res.ticket_number,
               status: res.status,
               positionInQueue: res.position_in_queue,
-              estimatedWaitMinutes: res.time_remaining_seconds
-                ? Math.ceil(res.time_remaining_seconds / 60)
-                : res.position_in_queue * 15,
+              estimatedWaitMinutes:
+                res.time_remaining_seconds !== undefined
+                  ? Math.ceil(res.time_remaining_seconds / 60)
+                  : res.estimated_wait_minutes,
             });
             this.isTrackingLoading.set(false);
           },
@@ -324,7 +318,11 @@ export class PatientQueueComponent implements OnInit {
     }
 
     this.trackingEntry.set(null);
-    this.appointmentsStore.load();
+    if (backgroundRefresh) {
+      this.appointmentsStore.refresh();
+    } else {
+      this.appointmentsStore.load();
+    }
   }
 
   onRefresh(): void {
@@ -375,11 +373,26 @@ export class PatientQueueComponent implements OnInit {
       .pipe(
         tap((isConnected) => this.isLive.set(isConnected)),
         switchMap((isConnected) =>
-          isConnected ? EMPTY : timer(POLL_INTERVAL_MS, POLL_INTERVAL_MS),
+          isConnected
+            ? EMPTY
+            : timer(
+                PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+                PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+              ),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => this.refresh(REFRESH_KIND.BACKGROUND));
+  }
+
+  private refreshPatientTicketsPeriodically(): void {
+    // The page can show tickets from multiple daily queues; SSE covers today's queue only.
+    timer(
+      PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+      PATIENT_APPOINTMENTS_REFRESH_INTERVAL_MS,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadEntry(true));
   }
 
   private refresh(kind: RefreshKind): void {
@@ -396,20 +409,67 @@ export class PatientQueueComponent implements OnInit {
     return this.isActive() || this.isQueueClosed();
   }
 
-  private toDisplayEntry(appointment: PatientAppointment): DisplayQueueEntry | null {
-    const reserved = appointment.reservedQueueEntry;
-    if (!reserved) {
-      return null;
-    }
+  private toDisplayEntry(
+    appointment: PatientAppointment,
+    reserved: NonNullable<PatientAppointment['reservedQueueEntry']>,
+  ): DisplayQueueEntry {
     return {
+      queueEntryId: reserved.id,
       ticketNumber: reserved.ticketNumber,
       status: reserved.status ?? QueueStatus.WAITING,
       positionInQueue: reserved.positionInQueue,
       estimatedWaitMinutes: reserved.estimatedWaitMinutes,
+      roomNumber: reserved.roomNumber,
       clinicDate: appointment.slot.clinicDate,
       startTime: appointment.slot.startTime,
       endTime: appointment.slot.endTime,
     };
+  }
+
+  statusLabelFor(entry: DisplayQueueEntry): string {
+    return STATUS_LABELS[entry.status];
+  }
+
+  statusSeverityFor(entry: DisplayQueueEntry): TagSeverity {
+    return STATUS_SEVERITIES[entry.status];
+  }
+
+  peopleAheadFor(entry: DisplayQueueEntry): number {
+    return Math.max(entry.positionInQueue - 1, NO_PEOPLE_AHEAD);
+  }
+
+  isTerminalFor(entry: DisplayQueueEntry): boolean {
+    return TERMINAL_STATUSES.includes(entry.status);
+  }
+
+  isNextInLineFor(entry: DisplayQueueEntry): boolean {
+    return (
+      entry.status === QueueStatus.WAITING &&
+      this.peopleAheadFor(entry) === NO_PEOPLE_AHEAD
+    );
+  }
+
+  isCurrentlyServing(entry: DisplayQueueEntry): boolean {
+    return (
+      entry.status === QueueStatus.IN_CONSULTATION ||
+      (entry.queueEntryId !== undefined &&
+        this.summary()?.nowServingQueueEntryId === entry.queueEntryId)
+    );
+  }
+
+  trackerStepsFor(entry: DisplayQueueEntry) {
+    const activeIndex = TRACKER_STEPS.indexOf(entry.status);
+    const isFinished = entry.status === QueueStatus.COMPLETED;
+
+    return TRACKER_STEPS.map((step, index) => {
+      let state: TrackerStepState = 'upcoming';
+      if (isFinished || index < activeIndex) {
+        state = 'done';
+      } else if (index === activeIndex) {
+        state = 'current';
+      }
+      return { label: STATUS_LABELS[step], state };
+    });
   }
 
   private applyResult(result: RefreshResult): void {

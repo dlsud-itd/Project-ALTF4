@@ -1,4 +1,4 @@
-@use '../../../shared/styles/breakpoints' as bp;
+@use "../../../shared/styles/breakpoints" as bp;
 
 $band-radius: 20px;
 $icon-size: 40px;
@@ -85,6 +85,13 @@ $tracker-line: 2px;
 
 .ticket-card {
   box-shadow: var(--card-shadow);
+
+  &.currently-serving {
+    border-color: var(--primary-color);
+    box-shadow:
+      0 0 0 2px var(--primary-light),
+      var(--card-shadow);
+  }
 }
 
 .card-label {
@@ -200,7 +207,7 @@ $tracker-line: 2px;
 
   // Connector line to the previous step.
   &:not(:first-child)::before {
-    content: '';
+    content: "";
     position: absolute;
     top: calc(#{$dot-size} / 2 - #{$tracker-line} / 2);
     right: 50%;
@@ -373,7 +380,21 @@ $touch-target: 44px;
 .ticket-badges {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.serving-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--pill-radius);
+  background: var(--primary-color);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .sample-label {
@@ -628,7 +649,9 @@ $topbar-gap: 0.75rem;
   .page-top {
     position: absolute;
     top: 0;
-    right: calc(#{$topbar-side-padding} + #{$topbar-icons-width} + #{$topbar-gap});
+    right: calc(
+      #{$topbar-side-padding} + #{$topbar-icons-width} + #{$topbar-gap}
+    );
     width: auto;
     max-width: none;
     height: $topbar-height;

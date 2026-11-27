@@ -7,15 +7,12 @@ import {
 } from '@nestjs/common';
 import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ACTIVE_QUEUE_STATUSES } from '../common/clinic.constants';
 import { CallNextDto } from './dto/call-next.dto';
 import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
 import { WalkInDto } from './dto/walk-in.dto';
 import { QueueEventsService } from './queue-events.service';
-import {
-  ACTIVE_QUEUE_STATUSES,
-  GRACE_PERIOD_MS,
-  QueueReadService,
-} from './queue-read.service';
+import { GRACE_PERIOD_MS, QueueReadService } from './queue-read.service';
 import { QueueLifecycleService } from './queue-lifecycle.service';
 
 @Injectable()

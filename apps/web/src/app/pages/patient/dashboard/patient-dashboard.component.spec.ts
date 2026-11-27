@@ -46,7 +46,9 @@ describe('PatientDashboardComponent', () => {
       'getMyAppointments',
       'cancelAppointment',
     ]);
-    spy.getMyAppointments.and.returnValue(of({ appointments: [] }));
+    spy.getMyAppointments.and.returnValue(
+      of({ appointments: [], activeBookingCount: 0, maxActiveBookings: 3 }),
+    );
 
     const queueServiceMock = jasmine.createSpyObj('QueueService', [
       'getTodayQueue',
@@ -160,7 +162,13 @@ describe('PatientDashboardComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.appointments-section app-error-state')).toBeTruthy();
 
-    appointmentsService.getMyAppointments.and.returnValue(of({ appointments: mockAppointments }));
+    appointmentsService.getMyAppointments.and.returnValue(
+      of({
+        appointments: mockAppointments,
+        activeBookingCount: 1,
+        maxActiveBookings: 3,
+      }),
+    );
     component.loadAppointments();
     expect(component.appointmentsError()).toBeNull();
   });

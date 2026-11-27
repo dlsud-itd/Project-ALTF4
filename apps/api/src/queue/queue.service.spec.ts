@@ -113,6 +113,8 @@ describe('QueueService', () => {
     tx.dailyQueue.findUnique.mockResolvedValue(queue);
     prisma.queueStatusHistory.create.mockResolvedValue({ id: 1 });
     prisma.queueEntry.findMany.mockResolvedValue([]);
+    prisma.queueEntry.findUnique.mockResolvedValue({ queueNumber: 1 });
+    prisma.queueEntry.count.mockResolvedValue(0);
     events = new QueueEventsService();
     lifecycle = new QueueLifecycleService(prisma as unknown as PrismaService);
     const queueRead = new QueueReadService(
@@ -764,6 +766,7 @@ describe('QueueService', () => {
       ticket_number: 'A-001',
       status: QueueStatus.WAITING,
       position_in_queue: 1,
+      estimated_wait_minutes: 0,
     });
     expect(result).not.toHaveProperty('firstName');
     expect(result).not.toHaveProperty('lastName');
@@ -787,6 +790,7 @@ describe('QueueService', () => {
 
     expect(result).toHaveProperty('time_remaining_seconds');
     expect(Object.keys(result).sort()).toEqual([
+      'estimated_wait_minutes',
       'position_in_queue',
       'status',
       'ticket_number',
@@ -908,7 +912,7 @@ describe('QueueService', () => {
         STAFF_GENERATED: 1,
       });
       expect(status.total_completed_today).toBe(5);
-      expect(status.avg_wait_time_minutes).toBe(30);
+      expect(status.avg_wait_time_minutes).toBe(15);
       expect(status.is_active).toBe(true);
       expect(status.last_updated).toBeDefined();
       expect(status.waiting_tickets[0]).toHaveProperty('patient_name');
@@ -1041,6 +1045,10 @@ describe('QueueService', () => {
       });
 
       prisma.queueEntry.findFirst.mockResolvedValue(myEntry);
+      prisma.queueEntry.findUnique.mockResolvedValue({
+        queueNumber: myEntry.queueNumber,
+      });
+      prisma.queueEntry.count.mockResolvedValue(1);
       prisma.queueEntry.findMany.mockImplementation((...args: unknown[]) => {
         const query = args[0] as { where: { status: QueueStatus } };
         if (query.where.status === QueueStatus.WAITING) {

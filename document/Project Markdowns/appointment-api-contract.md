@@ -15,12 +15,18 @@ Booking is rejected when the slot does not exist, the slot is not bookable, the 
 reached capacity, the patient already holds an active appointment in that slot, or the
 patient already holds an active appointment on the same clinic date and start time. Slots
 whose end datetime has passed in Asia/Manila are rejected. Active
-means an appointment in `BOOKED` status. Only `BOOKED` appointments count toward capacity
-and duplicate detection, so a cancelled appointment frees both the seat and the patient's
-ability to rebook.
+means an appointment in `BOOKED` status whose slot end datetime has not passed
+in Asia/Manila. Only these unexpired booked appointments count toward the
+patient's active-booking cap. Duplicate detection checks `BOOKED` appointments
+for the same slot/date and time, so a cancelled appointment frees both the seat
+and the patient's ability to rebook.
 
 Each slot holds at most one appointment per patient, and a patient cannot hold two
 appointments at the same clinic date and start time even across different slots.
+Patients may hold at most three active bookings (unexpired `BOOKED`
+appointments). The cap is derived from appointment rows and checked under a
+patient-row lock in the booking transaction, so concurrent submissions cannot
+exceed it. Completed, cancelled, no-show, and expired bookings do not count.
 
 ## Listing
 
@@ -32,6 +38,10 @@ for their own list.
 List responses contain the appointment status and creation date, slot details (including
 whether the slot has expired), the appointment's archived flag, and the patient's ID,
 name, and clinic affiliation only.
+Patient list responses also include `activeBookingCount` and `maxActiveBookings`.
+Each appointment includes every active ticket in `reservedQueueEntries`, with its
+status, position, and estimated wait. The singular `reservedQueueEntry` remains for
+compatibility with existing views.
 
 ## Detail
 
@@ -107,6 +117,10 @@ The public queue status response contains patient-appropriate ticket status, cur
 room, waiting count, and estimated wait. Administrative counts and patient details are only
 included in the authenticated staff response. Administrative queue notes are excluded from
 patient status, tracking, and presenter output.
+
+Ticket wait estimates use the count of active tickets ahead multiplied by the average
+service duration of completed tickets in that queue. When no completed service data is
+available, the queue's configured fallback is used (15 minutes by default).
 
 Rescheduling moves the existing appointment to another slot rather than creating a second
 appointment, because duplicate date-and-time validation would reject a second booking

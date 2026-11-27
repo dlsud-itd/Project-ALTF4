@@ -15,6 +15,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { QueueEventsService } from '../queue/queue-events.service';
 import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
 import { isSlotPast } from '../common/is-slot-past.util';
+import {
+  ACTIVE_APPOINTMENT_STATUSES,
+  ACTIVE_QUEUE_STATUSES,
+  DEFAULT_SERVICE_DURATION_MINUTES,
+  MAX_ACTIVE_BOOKINGS,
+} from '../common/clinic.constants';
+import {
+  estimateQueueWaitMinutes,
+  getAverageServiceDurationMinutes,
+} from '../common/queue-wait.util';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
@@ -22,6 +32,16 @@ const ARCHIVABLE_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
   AppointmentStatus.COMPLETED,
   AppointmentStatus.CANCELLED,
 ];
+
+const isActiveAppointment = (
+  appointment: {
+    status: AppointmentStatus;
+    slot: { clinicDate: Date; endTime: string };
+  },
+  now: Date,
+): boolean =>
+  ACTIVE_APPOINTMENT_STATUSES.includes(appointment.status) &&
+  !isSlotPast(appointment.slot.clinicDate, appointment.slot.endTime, now);
 
 @Injectable()
 export class AppointmentsService {
@@ -89,6 +109,58 @@ export class AppointmentsService {
 
     const { appointment, queueId, queueEntry, reservedQueueEntry } =
       await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "app_user" WHERE "id" = ${patientId} FOR UPDATE`;
+
+        const activeAppointments = await tx.appointment.findMany({
+          where: {
+            patientId,
+            status: { in: [...ACTIVE_APPOINTMENT_STATUSES] },
+          },
+          select: {
+            status: true,
+            slot: { select: { clinicDate: true, endTime: true } },
+          },
+        });
+        const now = new Date();
+        const activeBookingCount = activeAppointments.filter((appointment) =>
+          isActiveAppointment(appointment, now),
+        ).length;
+        if (activeBookingCount >= MAX_ACTIVE_BOOKINGS) {
+          throw new ConflictException({
+            code: 'MAX_ACTIVE_BOOKINGS',
+            message: `You have ${activeBookingCount} active bookings out of a maximum of ${MAX_ACTIVE_BOOKINGS}. Complete or cancel an appointment before booking another.`,
+          });
+        }
+
+        const duplicateSlotBooking = await tx.appointment.findFirst({
+          where: {
+            patientId,
+            slotId: slot.id,
+            status: { in: [...ACTIVE_APPOINTMENT_STATUSES] },
+          },
+        });
+        if (duplicateSlotBooking) {
+          throw new ConflictException(
+            'You already have an active appointment booked for this slot',
+          );
+        }
+
+        const duplicateTimeBooking = await tx.appointment.findFirst({
+          where: {
+            patientId,
+            status: { in: [...ACTIVE_APPOINTMENT_STATUSES] },
+            slot: {
+              clinicDate: slot.clinicDate,
+              startTime: slot.startTime,
+            },
+          },
+        });
+        if (duplicateTimeBooking) {
+          throw new ConflictException(
+            'You already have an appointment booked at this date and time',
+          );
+        }
+
         const appointment = await tx.appointment.create({
           data: {
             patientId,
@@ -113,7 +185,7 @@ export class AppointmentsService {
               clinicDate: slotDateOnly,
               isOpen: true,
               nextNumber: 1,
-              fallbackServiceMinutes: 15,
+              fallbackServiceMinutes: DEFAULT_SERVICE_DURATION_MINUTES,
             },
           });
         }
@@ -142,24 +214,42 @@ export class AppointmentsService {
             status: QueueStatus.WAITING,
           },
         });
-        const waitingAhead = await tx.queueEntry.count({
+        const ticketsAhead = await tx.queueEntry.count({
           where: {
             dailyQueueId: dailyQueue.id,
-            status: QueueStatus.WAITING,
+            status: { in: [...ACTIVE_QUEUE_STATUSES] },
             queueNumber: { lt: nextNumber },
           },
         });
+        const completedTickets = await tx.queueEntry.findMany({
+          where: {
+            dailyQueueId: dailyQueue.id,
+            status: QueueStatus.COMPLETED,
+          },
+          select: {
+            consultationStartedAt: true,
+            completedAt: true,
+          },
+        });
+        const waitMinutes = estimateQueueWaitMinutes(
+          ticketsAhead,
+          getAverageServiceDurationMinutes(
+            completedTickets,
+            dailyQueue.fallbackServiceMinutes ??
+              DEFAULT_SERVICE_DURATION_MINUTES,
+          ),
+        );
         return {
           appointment,
           queueId: dailyQueue.id,
           queueEntry,
           reservedQueueEntry: {
+            id: queueEntry.id,
             ticketNumber,
             queueNumber: nextNumber,
             status: QueueStatus.WAITING,
-            positionInQueue: waitingAhead + 1,
-            estimatedWaitMinutes:
-              waitingAhead * dailyQueue.fallbackServiceMinutes,
+            positionInQueue: ticketsAhead + 1,
+            estimatedWaitMinutes: waitMinutes,
           },
         };
       });
@@ -251,22 +341,16 @@ export class AppointmentsService {
         },
         queueEntries: {
           where: {
-            status: {
-              in: [
-                QueueStatus.WAITING,
-                QueueStatus.CALLED,
-                QueueStatus.IN_CONSULTATION,
-              ],
-            },
+            status: { in: [...ACTIVE_QUEUE_STATUSES] },
           },
-          orderBy: { queueNumber: 'desc' },
-          take: 1,
+          orderBy: [{ queueNumber: 'asc' }, { id: 'asc' }],
           select: {
             id: true,
             ticketNumber: true,
             queueNumber: true,
             status: true,
             dailyQueueId: true,
+            roomNumber: true,
             dailyQueue: {
               select: {
                 fallbackServiceMinutes: true,
@@ -280,39 +364,63 @@ export class AppointmentsService {
         { slot: { startTime: 'desc' } },
       ],
     });
+    const now = new Date();
 
-    // Populate waiting counts for any linked queue entry
+    const activeQueueIds = new Set(
+      appointments.flatMap((appointment) =>
+        appointment.queueEntries.map((entry) => entry.dailyQueueId),
+      ),
+    );
+    const completedTicketsByQueue = new Map<
+      number,
+      { consultationStartedAt: Date | null; completedAt: Date | null }[]
+    >();
+    await Promise.all(
+      [...activeQueueIds].map(async (queueId) => {
+        const completedTickets = await this.prisma.queueEntry.findMany({
+          where: { dailyQueueId: queueId, status: QueueStatus.COMPLETED },
+          select: {
+            consultationStartedAt: true,
+            completedAt: true,
+          },
+        });
+        completedTicketsByQueue.set(queueId, completedTickets);
+      }),
+    );
+
     const formattedAppointments = await Promise.all(
       appointments.map(async (appt) => {
-        const isPast = isSlotPast(appt.slot.clinicDate, appt.slot.endTime);
-        const activeEntry = !isPast ? (appt.queueEntries?.[0] ?? null) : null;
-        let reservedQueueEntry: {
-          ticketNumber: string;
-          queueNumber: number;
-          status: QueueStatus;
-          positionInQueue: number;
-          estimatedWaitMinutes: number;
-        } | null = null;
-
-        if (activeEntry) {
-          const waitingAhead = await this.prisma.queueEntry.count({
-            where: {
-              dailyQueueId: activeEntry.dailyQueueId,
-              status: QueueStatus.WAITING,
-              queueNumber: { lt: activeEntry.queueNumber },
-            },
-          });
-          const positionInQueue = waitingAhead + 1;
-          const fallbackMin =
-            activeEntry.dailyQueue?.fallbackServiceMinutes ?? 15;
-          reservedQueueEntry = {
-            ticketNumber: activeEntry.ticketNumber,
-            queueNumber: activeEntry.queueNumber,
-            status: activeEntry.status,
-            positionInQueue,
-            estimatedWaitMinutes: waitingAhead * fallbackMin,
-          };
-        }
+        const isPast = isSlotPast(appt.slot.clinicDate, appt.slot.endTime, now);
+        const activeEntries = isPast ? [] : appt.queueEntries;
+        const reservedQueueEntries = await Promise.all(
+          activeEntries.map(async (activeEntry) => {
+            const ticketsAhead = await this.prisma.queueEntry.count({
+              where: {
+                dailyQueueId: activeEntry.dailyQueueId,
+                status: { in: [...ACTIVE_QUEUE_STATUSES] },
+                queueNumber: { lt: activeEntry.queueNumber },
+              },
+            });
+            const fallbackMinutes =
+              activeEntry.dailyQueue?.fallbackServiceMinutes ??
+              DEFAULT_SERVICE_DURATION_MINUTES;
+            return {
+              id: activeEntry.id,
+              ticketNumber: activeEntry.ticketNumber,
+              queueNumber: activeEntry.queueNumber,
+              status: activeEntry.status,
+              roomNumber: activeEntry.roomNumber,
+              positionInQueue: ticketsAhead + 1,
+              estimatedWaitMinutes: estimateQueueWaitMinutes(
+                ticketsAhead,
+                getAverageServiceDurationMinutes(
+                  completedTicketsByQueue.get(activeEntry.dailyQueueId) ?? [],
+                  fallbackMinutes,
+                ),
+              ),
+            };
+          }),
+        );
 
         return {
           id: appt.id,
@@ -320,7 +428,8 @@ export class AppointmentsService {
           createdAt: appt.createdAt,
           archived: appt.archived,
           patient: appt.patient,
-          reservedQueueEntry,
+          reservedQueueEntry: reservedQueueEntries[0] ?? null,
+          reservedQueueEntries,
           slot: {
             id: appt.slot.id,
             clinicDate: appt.slot.clinicDate.toISOString().slice(0, 10),
@@ -336,6 +445,14 @@ export class AppointmentsService {
 
     return {
       appointments: formattedAppointments,
+      ...(role === AccessRole.PATIENT
+        ? {
+            activeBookingCount: appointments.filter((appointment) =>
+              isActiveAppointment(appointment, now),
+            ).length,
+            maxActiveBookings: MAX_ACTIVE_BOOKINGS,
+          }
+        : {}),
     };
   }
 
@@ -616,7 +733,7 @@ export class AppointmentsService {
             clinicDate: slotDateOnly,
             isOpen: true,
             nextNumber: 1,
-            fallbackServiceMinutes: 15,
+            fallbackServiceMinutes: DEFAULT_SERVICE_DURATION_MINUTES,
           },
         });
       }

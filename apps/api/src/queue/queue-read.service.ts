@@ -2,17 +2,19 @@ import { createHash } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, PrismaClient, QueueSource, QueueStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  ACTIVE_QUEUE_STATUSES,
+  DEFAULT_SERVICE_DURATION_MINUTES,
+} from '../common/clinic.constants';
+import {
+  estimateQueueWaitMinutes,
+  getAverageServiceDurationMinutes,
+} from '../common/queue-wait.util';
 import { QueueEventsService } from './queue-events.service';
 import { QueueLifecycleService } from './queue-lifecycle.service';
 import { presentServingTicket, presentWaitingTicket } from './queue-presenter';
 
 export const GRACE_PERIOD_MS = 3 * 60 * 1000;
-
-export const ACTIVE_QUEUE_STATUSES = [
-  QueueStatus.WAITING,
-  QueueStatus.CALLED,
-  QueueStatus.IN_CONSULTATION,
-] as const;
 
 @Injectable()
 export class QueueReadService {
@@ -143,12 +145,39 @@ export class QueueReadService {
     queue: { fallbackServiceMinutes: number },
     entryId: number,
   ) {
-    const waitingEntries = await this.getOrderedWaitingEntries(queueId);
-    const rank = waitingEntries.findIndex((entry) => entry.id === entryId);
-    const position = rank >= 0 ? rank + 1 : waitingEntries.length + 1;
-    // Section 6 of Queue Plan: eligible patients ahead × average consultation duration
-    const patientsAhead = Math.max(0, position - 1);
-    const estimatedWaitMinutes = patientsAhead * queue.fallbackServiceMinutes;
+    const entry = await this.prisma.queueEntry.findUnique({
+      where: { id: entryId },
+      select: { queueNumber: true },
+    });
+    if (!entry) {
+      throw new NotFoundException('Queue entry not found');
+    }
+
+    const [ticketsAhead, completedTickets] = await Promise.all([
+      this.prisma.queueEntry.count({
+        where: {
+          dailyQueueId: queueId,
+          status: { in: [...ACTIVE_QUEUE_STATUSES] },
+          queueNumber: { lt: entry.queueNumber },
+        },
+      }),
+      this.prisma.queueEntry.findMany({
+        where: { dailyQueueId: queueId, status: QueueStatus.COMPLETED },
+        select: {
+          consultationStartedAt: true,
+          completedAt: true,
+        },
+      }),
+    ]);
+    const serviceDurationMinutes = getAverageServiceDurationMinutes(
+      completedTickets,
+      queue.fallbackServiceMinutes ?? DEFAULT_SERVICE_DURATION_MINUTES,
+    );
+    const position = ticketsAhead + 1;
+    const estimatedWaitMinutes = estimateQueueWaitMinutes(
+      ticketsAhead,
+      serviceDurationMinutes,
+    );
 
     return { position, estimatedWaitMinutes };
   }
@@ -252,11 +281,22 @@ export class QueueReadService {
       };
     }
 
+    const completedTickets = await this.prisma.queueEntry.findMany({
+      where: { dailyQueueId: queueId, status: QueueStatus.COMPLETED },
+      select: {
+        consultationStartedAt: true,
+        completedAt: true,
+      },
+    });
+    const serviceDurationMinutes = getAverageServiceDurationMinutes(
+      completedTickets,
+      queue.fallbackServiceMinutes ?? DEFAULT_SERVICE_DURATION_MINUTES,
+    );
     const averageWaitMinutes = waitingEntries.length
       ? Math.round(
           waitingEntries.reduce(
-            (sum, entry, index) =>
-              sum + (index + 1) * queue.fallbackServiceMinutes,
+            (sum, _entry, index) =>
+              sum + estimateQueueWaitMinutes(index, serviceDurationMinutes),
             0,
           ) / waitingEntries.length,
         )
@@ -316,16 +356,14 @@ export class QueueReadService {
     }
 
     const queue = await this.getQueueOrThrow(entry.dailyQueueId);
-    const { position } = await this.getQueuePositionAndWait(
-      entry.dailyQueueId,
-      queue,
-      entry.id,
-    );
+    const { position, estimatedWaitMinutes } =
+      await this.getQueuePositionAndWait(entry.dailyQueueId, queue, entry.id);
 
     return {
       ticket_number: entry.ticketNumber,
       status: entry.status,
       position_in_queue: position,
+      estimated_wait_minutes: estimatedWaitMinutes,
       ...(entry.status === QueueStatus.CALLED && entry.graceExpiresAt
         ? {
             time_remaining_seconds: Math.max(
@@ -352,7 +390,7 @@ export class QueueReadService {
           clinicDate: todayDate,
           isOpen: true,
           nextNumber: 1,
-          fallbackServiceMinutes: 15,
+          fallbackServiceMinutes: DEFAULT_SERVICE_DURATION_MINUTES,
         },
       });
     }
