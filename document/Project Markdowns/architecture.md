@@ -99,6 +99,6 @@ sequenceDiagram
 
 ## 5. Security & Isolation Boundaries
 1. **No Shared Secrets in Browser**: `DATABASE_URL`, `DIRECT_URL`, and `JWT_SECRET` reside strictly on Render. Angular only receives the public URL of the Render API.
-2. **Explicit CORS**: The NestJS backend explicitly permits origins specified in `CORS_ORIGINS` (e.g. `http://localhost:4200` locally and `https://clinicqueue.vercel.app` in production).
+2. **Explicit CORS**: The NestJS backend explicitly permits exact origins specified in `CORS_ORIGINS` (e.g. `http://localhost:4200` locally and `https://project-altf4.vercel.app` in production).
 3. **Password Security**: Argon2id hashes with salts are generated during user registration and seed creation.
 4. **Health Check Sanitization**: The `/health` endpoint exposes operational status (`ok`, uptime, database connected/disconnected) without revealing database connection strings, credentials, or hostnames.

@@ -26,10 +26,11 @@ async function bootstrap() {
 
   // CORS Configuration
   const rawOrigins =
-    process.env.CORS_ORIGINS || 'http://localhost:4200,http://127.0.0.1:4200';
+    process.env.CORS_ORIGINS ||
+    'http://localhost:4200,http://127.0.0.1:4200,https://project-altf4.vercel.app';
   const allowedOrigins = rawOrigins
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
   app.enableCors({
@@ -40,9 +41,19 @@ async function bootstrap() {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!requestOrigin) return callback(null, true);
 
+      const normalizedOrigin = requestOrigin.trim().replace(/\/+$/, '');
+
       const isAllowed = allowedOrigins.some((allowed) => {
         if (allowed === '*') return true;
-        return allowed === requestOrigin || requestOrigin.startsWith(allowed);
+        if (allowed === normalizedOrigin) return true;
+        // Support Vercel deployment preview URLs (e.g. project-altf4-*.vercel.app)
+        if (
+          normalizedOrigin.includes('project-altf4') &&
+          normalizedOrigin.endsWith('.vercel.app')
+        ) {
+          return true;
+        }
+        return false;
       });
 
       if (isAllowed) {
