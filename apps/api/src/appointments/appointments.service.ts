@@ -243,7 +243,8 @@ export class AppointmentsService {
             completedTickets,
             dailyQueue.fallbackServiceMinutes ??
               DEFAULT_SERVICE_DURATION_MINUTES,
-          ),
+          ) ?? (dailyQueue.fallbackServiceMinutes ??
+            DEFAULT_SERVICE_DURATION_MINUTES),
         );
         return {
           appointment,
@@ -431,7 +432,7 @@ export class AppointmentsService {
                 getAverageServiceDurationMinutes(
                   completedTicketsByQueue.get(activeEntry.dailyQueueId) ?? [],
                   fallbackMinutes,
-                ),
+                ) ?? fallbackMinutes,
               ),
             };
           }),

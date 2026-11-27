@@ -30,7 +30,7 @@ export type QueueStatusResponse = {
   total_no_shows_today?: number;
   grace_period_ms?: number;
   newly_no_show_ticket_numbers?: string[];
-  avg_wait_time_minutes: number;
+  avg_wait_time_minutes: number | null;
   server_time: string;
   last_updated: string;
 };
@@ -55,7 +55,7 @@ export type WalkInResponse = {
   queue_id: number;
   ticket_number: string;
   position_in_queue: number;
-  estimated_wait_minutes: number;
+  estimated_wait_minutes: number | null;
   status: QueueStatus;
   tracking_token?: string;
   joined_at: string;
@@ -109,7 +109,8 @@ export type TrackingStatusResponse = {
   ticket_number: string;
   status: QueueStatus;
   position_in_queue: number;
-  estimated_wait_minutes: number;
+  estimated_wait_minutes: number | null;
+  is_running_late?: boolean;
   time_remaining_seconds?: number;
 };
 
@@ -118,7 +119,8 @@ export type PatientQueueEntryResponse = {
   queue_id: number;
   ticket_number: string;
   position_in_queue: number;
-  estimated_wait_minutes: number;
+  estimated_wait_minutes: number | null;
+  is_running_late?: boolean;
   status: QueueStatus;
   room_number?: string | null;
   joined_at: string;
