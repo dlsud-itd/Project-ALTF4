@@ -33,5 +33,3 @@ describe('queue wait estimation', () => {
     expect(estimateQueueWaitMinutes(-1, 15)).toBe(0);
   });
 });
-
-

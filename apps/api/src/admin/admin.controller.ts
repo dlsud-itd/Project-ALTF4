@@ -81,14 +81,18 @@ export class AdminController {
   }
 
   @Get('stats')
-  @ApiOperation({ summary: 'Get overall clinic statistics and counts (Admin only)' })
+  @ApiOperation({
+    summary: 'Get overall clinic statistics and counts (Admin only)',
+  })
   @ApiResponse({ status: 200, description: 'System stats retrieved' })
   async getStats() {
     return this.adminService.getStats();
   }
 
   @Get('audit-logs')
-  @ApiOperation({ summary: 'Retrieve system-wide audit trail logs (Admin only)' })
+  @ApiOperation({
+    summary: 'Retrieve system-wide audit trail logs (Admin only)',
+  })
   @ApiResponse({ status: 200, description: 'Audit logs retrieved' })
   async getAuditLogs() {
     return this.adminService.getAuditLogs();
