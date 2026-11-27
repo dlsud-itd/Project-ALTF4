@@ -35,6 +35,28 @@
         </small>
       }
 
+      <label for="walk-in-phone">Mobile number <span>(required)</span></label>
+      <input
+        id="walk-in-phone"
+        type="tel"
+        formControlName="phoneNumber"
+        placeholder="e.g. 09171234567"
+        maxlength="30"
+        autocomplete="off"
+      />
+      @if (
+        walkInForm.controls.phoneNumber.touched &&
+        walkInForm.controls.phoneNumber.invalid
+      ) {
+        <small class="field-error">
+          @if (walkInForm.controls.phoneNumber.hasError('required')) {
+            A mobile number is required.
+          } @else {
+            Enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).
+          }
+        </small>
+      }
+
       <label for="walk-in-reason">Visit reason <span>(required)</span></label>
       <textarea
         id="walk-in-reason"

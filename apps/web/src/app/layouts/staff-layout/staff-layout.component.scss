@@ -911,3 +911,23 @@ $page-bg-light: #f5f3f2;
 .portal-sidebar .sidebar-brand .collapse-toggle {
   border-radius: 50%;
 }
+
+// While a page side panel is open, the sidebar floats: the page keeps the
+// icon rail's space and an expanded sidebar covers the page.
+@include bp.from-tablet {
+  .portal-sidebar.floating {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    height: auto;
+
+    &:not(.collapsed) {
+      box-shadow: 8px 0 28px rgb(0 0 0 / 0.18);
+    }
+
+    ~ .portal-main {
+      margin-left: $sidebar-width-collapsed;
+    }
+  }
+}

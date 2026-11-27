@@ -1,9 +1,15 @@
 <header class="page-header">
   <div>
     <h2>Slot Schedule</h2>
-    <p>Clinic slots for the next two weeks</p>
+    <p>Upcoming clinic slots</p>
   </div>
-  @if (isLoading() || errorMessage() !== null || slots().length === 0) {
+  <!-- Only for an empty list; hidden while loading and on a load error. -->
+  @if (
+    !isLoading() &&
+    errorMessage() === null &&
+    slots().length === 0 &&
+    view() !== 'calendar'
+  ) {
     <p-button label="Add slot" (onClick)="onAddSlot()">
       <ng-template #icon
         ><svg
@@ -35,6 +41,14 @@
   }
 
   <div class="schedule-filters">
+    <label for="slot-view">View</label>
+    <select id="slot-view" class="form-select" (change)="onViewChange($event)">
+      <option value="day" [selected]="view() === 'day'">By day</option>
+      <option value="slot" [selected]="view() === 'slot'">By slot</option>
+      <option value="calendar" [selected]="view() === 'calendar'">
+        Calendar
+      </option>
+    </select>
     <label for="slot-status-filter">Filter by status</label>
     <select
       id="slot-status-filter"
@@ -50,7 +64,7 @@
     </select>
   </div>
 
-  @if (isLoading()) {
+  @if (isLoading() && slots().length === 0) {
     <app-loading-skeleton [lines]="5" />
   } @else if (errorMessage() !== null) {
     <app-error-state
@@ -58,29 +72,27 @@
       [message]="errorMessage() ?? ''"
       (retry)="loadSlots()"
     />
-  } @else if (slots().length === 0) {
+  } @else if (slots().length === 0 && view() !== 'calendar') {
     <app-empty-state
       icon="pi-calendar"
       title="No slots scheduled"
       message="There are no clinic slots in this period."
     />
   } @else {
-    <div class="table-wrapper">
-      <table class="slot-table">
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Time</th>
-            <th scope="col">Capacity</th>
-            <th scope="col">Remaining</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="actions-col">
-              <span class="sr-only">Actions</span>
+    @if (view() === 'calendar') {
+      <div
+        class="calendar-layout"
+        [class.has-day-panel]="selectedDate() !== null"
+      >
+        <section class="calendar" aria-label="Slot calendar">
+          <div class="calendar-title">
+            <h3 aria-live="polite">{{ calendarTitle() }}</h3>
+            <div class="calendar-nav">
               <p-button
+                class="calendar-add"
+                [class.is-active]="pickMode() === 'block'"
                 label="Block day"
-                severity="secondary"
-                [outlined]="true"
-                (onClick)="onOpenBlockDay()"
+                (onClick)="onTogglePickMode('block')"
               >
                 <ng-template #icon
                   ><svg
@@ -96,7 +108,14 @@
                     <path d="M114 398 398 114" /></svg
                 ></ng-template>
               </p-button>
-              <p-button label="Add slot" (onClick)="onAddSlot()">
+              <p-button
+                class="calendar-add"
+                [class.is-active]="pickMode() === 'add'"
+                label="Add day"
+                [loading]="isAddingDay()"
+                [disabled]="isAddingDay()"
+                (onClick)="onTogglePickMode('add')"
+              >
                 <ng-template #icon
                   ><svg
                     class="add-ico"
@@ -112,76 +131,327 @@
                     <path d="M175 256H337M256 175V337" /></svg
                 ></ng-template>
               </p-button>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (slot of filteredSlots(); track slot.id) {
-            <tr>
-              <td>{{ formatDisplayDate(slot.clinicDate) }}</td>
-              <td>{{ formatTimeRange(slot.startTime, slot.endTime) }}</td>
-              <td>{{ slot.capacity }}</td>
-              <td>{{ slot.remainingCapacity }}</td>
-              <td>
-                <p-tag
-                  [value]="statusLabel(slot)"
-                  [severity]="statusSeverity(slot)"
-                />
-              </td>
-              <td>
-                @if (slot.isExpired) {
-                  <span aria-label="Expired slots cannot be changed">—</span>
-                } @else {
+              <button
+                type="button"
+                class="calendar-arrow"
+                title="Previous month"
+                aria-label="Previous month"
+                [disabled]="!canViewPreviousMonth()"
+                (click)="onChangeMonth(-1)"
+              >
+                <i class="pi pi-chevron-left" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="calendar-arrow"
+                title="Next month"
+                aria-label="Next month"
+                [disabled]="!canViewNextMonth()"
+                (click)="onChangeMonth(1)"
+              >
+                <i class="pi pi-chevron-right" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+          @if (pickMode(); as mode) {
+            <div class="calendar-pick" role="status">
+              <span>
+                {{
+                  mode === 'block'
+                    ? 'Select a day to block or reopen.'
+                    : 'Select a day to add its slots.'
+                }}
+              </span>
+              <button type="button" (click)="onCancelPick()">Cancel</button>
+            </div>
+          }
+          <div class="calendar-grid calendar-weekdays" aria-hidden="true">
+            @for (
+              weekday of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+              track weekday
+            ) {
+              <span>{{ weekday }}</span>
+            }
+          </div>
+          <div class="calendar-grid" [class.is-picking]="pickMode() !== null">
+            @for (day of calendarDays(); track day.date) {
+              <button
+                type="button"
+                class="calendar-day"
+                [class.is-today]="day.isToday"
+                [class.is-outside]="!day.isInMonth || day.isPast || day.isBeyondLimit"
+                [class.is-selected]="day.date === selectedDate()"
+                [disabled]="!day.isInMonth || day.isPast || day.isBeyondLimit"
+                [class.is-holiday]="day.isInMonth && day.holiday"
+                [attr.aria-label]="
+                  formatDisplayDate(day.date) +
+                  (day.holiday ? ', holiday: ' + day.holiday : '') +
+                  (day.isPast
+                    ? ', past date'
+                    : day.isBeyondLimit
+                      ? ', more than 3 months ahead'
+                      : day.label
+                      ? ', ' + day.label
+                      : ', no slots')
+                "
+                (click)="onCalendarDayClick(day.date)"
+              >
+                <span class="calendar-number">
+                  {{ day.dayNumber }}
+                </span>
+                @if (day.isInMonth && day.holiday) {
+                  <span class="calendar-holiday">{{ day.holiday }}</span>
+                }
+                @if (
+                  day.isInMonth &&
+                  !day.isPast &&
+                  !day.isBeyondLimit &&
+                  day.slotCount > 0
+                ) {
+                  <span class="calendar-label" [attr.data-tone]="day.tone">
+                    {{ day.label }}
+                  </span>
+                }
+              </button>
+            }
+          </div>
+        </section>
+        @if (selectedDate(); as date) {
+          <aside class="day-panel" aria-label="Slots on the selected date">
+            <header class="day-panel-header">
+              <div>
+                <h3>{{ formatDisplayDate(date) }}</h3>
+                <p>
+                  {{ selectedDaySlots().length }}
+                  {{ selectedDaySlots().length === 1 ? 'slot' : 'slots' }}
+                </p>
+              </div>
+              <div class="day-panel-header-actions">
+                @if (!holidayName(date)) {
                   <p-button
-                    [icon]="isSlotOpen(slot) ? 'pi pi-lock' : 'pi pi-lock-open'"
-                    [severity]="isSlotOpen(slot) ? 'secondary' : 'success'"
-                    [text]="true"
+                    class="day-panel-add"
+                    label="Add slot"
+                    icon="pi pi-plus"
                     size="small"
-                    [loading]="blockingSlotId() === slot.id"
-                    [ariaLabel]="
-                      (isSlotOpen(slot)
-                        ? 'Block slot on '
-                        : 'Reopen slot on ') + slot.clinicDate
-                    "
-                    (onClick)="onRequestSlotBlock(slot)"
-                  />
-                  <p-button
-                    icon="pi pi-pencil"
-                    severity="secondary"
-                    [text]="true"
-                    size="small"
-                    [ariaLabel]="'Edit slot on ' + slot.clinicDate"
-                    (onClick)="onEditSlot(slot)"
-                  />
-                  <p-button
-                    icon="pi pi-trash"
-                    severity="danger"
-                    [text]="true"
-                    size="small"
-                    [ariaLabel]="'Delete slot on ' + slot.clinicDate"
-                    (onClick)="onDeleteSlot(slot)"
+                    (onClick)="onAddSlotOnDate(date)"
                   />
                 }
-              </td>
-            </tr>
-          }
-          @if (filteredSlots().length === 0) {
+                <p-button
+                  title="Close"
+                  icon="pi pi-times"
+                  severity="secondary"
+                  [text]="true"
+                  size="small"
+                  ariaLabel="Close day panel"
+                  (onClick)="onDayPanelClose()"
+                />
+              </div>
+            </header>
+            @if (holidayName(date); as holiday) {
+              <p class="day-panel-holiday">Holiday: {{ holiday }}</p>
+            }
+            <ul class="day-panel-slots">
+              @for (slot of selectedDaySlots(); track slot.id) {
+                <li class="day-panel-slot">
+                  <div class="day-panel-slot-top">
+                    <strong>
+                      {{ formatTimeRange(slot.startTime, slot.endTime) }}
+                    </strong>
+                    <p-tag
+                      [value]="statusLabel(slot)"
+                      [severity]="statusSeverity(slot)"
+                    />
+                  </div>
+                  <div class="day-panel-slot-bottom">
+                      <span class="day-panel-seats">
+                        <i class="pi pi-users" aria-hidden="true"></i>
+                        {{ slot.remainingCapacity }} of {{ slot.capacity }} left
+                      </span>
+                    <div class="day-panel-actions">
+                      <ng-container
+                        [ngTemplateOutlet]="slotActions"
+                        [ngTemplateOutletContext]="{ $implicit: slot }"
+                      />
+                    </div>
+                  </div>
+                </li>
+              } @empty {
+                <li class="day-panel-empty">
+                  {{
+                    statusFilter() === 'ALL'
+                      ? 'No slots on this date.'
+                      : 'No slots match this status filter.'
+                  }}
+                </li>
+              }
+            </ul>
+          </aside>
+        }
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="slot-table" [class.slot-table--by-day]="view() === 'day'">
+          <thead>
             <tr>
-              <td colspan="6" class="no-filter-results">
-                No slots match this status filter.
-              </td>
+              <th scope="col">Date</th>
+              <th scope="col">Time</th>
+              <th scope="col">Capacity</th>
+              <th scope="col">Remaining</th>
+              <th scope="col">
+                <span [class.sr-only]="!hasVisibleSlotRows()">Status</span>
+              </th>
+              <th scope="col" class="actions-col">
+                <span class="sr-only">Actions</span>
+                <p-button
+                  label="Block day"
+                  severity="secondary"
+                  [outlined]="true"
+                  (onClick)="onOpenBlockDay()"
+                >
+                  <ng-template #icon
+                    ><svg
+                      class="add-ico"
+                      viewBox="0 0 512 512"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="40"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="256" cy="256" r="190" />
+                      <path d="M114 398 398 114" /></svg
+                  ></ng-template>
+                </p-button>
+                <p-button label="Add slot" (onClick)="onAddSlot()">
+                  <ng-template #icon
+                    ><svg
+                      class="add-ico"
+                      viewBox="0 0 512 512"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="36"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="256" cy="256" r="190" />
+                      <path d="M175 256H337M256 175V337" /></svg
+                  ></ng-template>
+                </p-button>
+              </th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (group of slotGroups(); track group.date) {
+              @if (group.date; as date) {
+                <!-- Clicks anywhere on the row, including the button, toggle it. -->
+                <tr
+                  class="day-row"
+                  (click)="onToggleDay(date, group.isExpanded)"
+                >
+                  <td>
+                    <button
+                      type="button"
+                      class="day-toggle"
+                      [attr.aria-expanded]="group.isExpanded"
+                    >
+                      <i
+                        class="pi"
+                        [class.pi-chevron-down]="group.isExpanded"
+                        [class.pi-chevron-right]="!group.isExpanded"
+                        aria-hidden="true"
+                      ></i>
+                      <span class="day-name">{{ formatDisplayDate(date) }}</span>
+                    </button>
+                  </td>
+                  <td class="day-time">{{ group.timeRange }}</td>
+                  <td class="day-total">{{ group.slots.length }}</td>
+                  <td class="day-open" colspan="3">{{ group.openCount }}</td>
+                </tr>
+              }
+              @if (group.isExpanded) {
+              @for (slot of group.slots; track slot.id) {
+                <tr>
+                    <td class="cell-date">
+                    {{ formatDisplayDate(slot.clinicDate) }}
+                  </td>
+                  <td class="cell-time">{{ formatTimeRange(slot.startTime, slot.endTime) }}</td>
+                  <td class="cell-capacity" data-label="Capacity">{{ slot.capacity }}</td>
+                  <td class="cell-remaining" data-label="Remaining">{{ slot.remainingCapacity }}</td>
+                  <td class="cell-status">
+                    <p-tag
+                      [value]="statusLabel(slot)"
+                      [severity]="statusSeverity(slot)"
+                    />
+                  </td>
+                  <td class="cell-actions">
+                    <ng-container
+                      [ngTemplateOutlet]="slotActions"
+                      [ngTemplateOutletContext]="{ $implicit: slot }"
+                    />
+                  </td>
+                </tr>
+              }
+              }
+            }
+            @if (filteredSlots().length === 0) {
+              <tr>
+                <td colspan="6" class="no-filter-results">
+                  No slots match this status filter.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   }
+
+  <ng-template #slotActions let-slot>
+      @if (slot.isExpired) {
+        <span aria-label="Expired slots cannot be changed">—</span>
+      } @else {
+        <p-button
+          [title]="isSlotOpen(slot) ? 'Block slot' : 'Reopen slot'"
+          [icon]="isSlotOpen(slot) ? 'pi pi-ban' : 'pi pi-check-circle'"
+          [severity]="isSlotOpen(slot) ? 'secondary' : 'success'"
+          [text]="true"
+          size="small"
+          [loading]="blockingSlotId() === slot.id"
+          [ariaLabel]="
+            (isSlotOpen(slot)
+              ? 'Block slot on '
+              : 'Reopen slot on ') + slot.clinicDate
+          "
+          (onClick)="onRequestSlotBlock(slot)"
+        />
+        <p-button
+          title="Edit slot"
+          icon="pi pi-pencil"
+          severity="secondary"
+          [text]="true"
+          size="small"
+          [ariaLabel]="'Edit slot on ' + slot.clinicDate"
+          (onClick)="onEditSlot(slot)"
+        />
+        <p-button
+          title="Delete slot"
+          icon="pi pi-trash"
+          severity="danger"
+          [text]="true"
+          size="small"
+          [ariaLabel]="'Delete slot on ' + slot.clinicDate"
+          (onClick)="onDeleteSlot(slot)"
+        />
+      }
+  </ng-template>
 
   <p-confirmdialog />
 
   <app-slot-form
     [isVisible]="isFormOpen()"
     [slot]="editingSlot()"
+    [defaultDate]="newSlotDate()"
     [isSaving]="isSaving()"
     [errorMessage]="saveError()"
     (save)="onFormSave($event)"
@@ -190,7 +460,7 @@
 
   <app-block-day-form
     [isVisible]="isDayFormOpen()"
-    [slots]="slots()"
+    [slots]="view() === 'calendar' ? calendarSlots() : slots()"
     [isSaving]="isDaySaving()"
     [errorMessage]="dayError()"
     (save)="onDayFormSave($event)"

@@ -115,7 +115,9 @@ export class SlotsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Block or reopen a single clinic slot (Staff/Admin)' })
+  @ApiOperation({
+    summary: 'Block or reopen a single clinic slot (Staff/Admin)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Slot blocked or reopened; affected patients notified',
@@ -132,7 +134,9 @@ export class SlotsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(AccessRole.STAFF, AccessRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Block or reopen every slot on a clinic date (Staff/Admin)' })
+  @ApiOperation({
+    summary: 'Block or reopen every slot on a clinic date (Staff/Admin)',
+  })
   @ApiResponse({
     status: 200,
     description: 'All slots for the date blocked or reopened',

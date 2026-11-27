@@ -1,13 +1,18 @@
 import { NotFoundException } from '@nestjs/common';
 import {
+  AccessRole,
   Notification,
   NotificationType,
   Prisma,
   QueueStatus,
 } from '@prisma/client';
+import { firstValueFrom, take } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailChannelService } from './channels/email-channel.service';
+import { SmsChannelService } from './channels/sms-channel.service';
 import {
   buildNotificationPayload,
+  NotificationEvent,
   NotificationRecipientRole,
 } from './notification-events';
 import { NotificationsService } from './notifications.service';
@@ -15,7 +20,18 @@ import { NotificationsService } from './notifications.service';
 describe('NotificationsService', () => {
   const mockPrisma = {
     user: {
-      findMany: jest.fn<Promise<{ id: number }[]>, [Prisma.UserFindManyArgs]>(),
+      findMany: jest.fn<
+        Promise<
+          {
+            id: number;
+            email?: string;
+            fullName?: string;
+            phoneNumber?: string | null;
+            role?: AccessRole;
+          }[]
+        >,
+        [Prisma.UserFindManyArgs]
+      >(),
     },
     notification: {
       createMany: jest.fn<
@@ -63,22 +79,29 @@ describe('NotificationsService', () => {
     mockPrisma.notification.updateMany.mockResolvedValue({ count: 0 });
   });
 
-  it.each([
+  const roleEventCases: {
+    event: NotificationEvent;
+    recipientRoles: NotificationRecipientRole[];
+  }[] = [
     {
-      type: NotificationType.BOOKING_CONFIRMATION,
-      context: {
-        appointmentId: 31,
-        appointmentDate: '2026-11-21',
-        appointmentTime: '09:30',
+      event: {
+        type: NotificationType.BOOKING_CONFIRMATION,
+        context: {
+          appointmentId: 31,
+          appointmentDate: '2026-11-21',
+          appointmentTime: '09:30',
+        },
       },
       recipientRoles: [NotificationRecipientRole.PATIENT],
     },
     {
-      type: NotificationType.BOOKING_CANCELLATION,
-      context: {
-        appointmentId: 31,
-        appointmentDate: '2026-11-21',
-        appointmentTime: '09:30',
+      event: {
+        type: NotificationType.BOOKING_CANCELLATION,
+        context: {
+          appointmentId: 31,
+          appointmentDate: '2026-11-21',
+          appointmentTime: '09:30',
+        },
       },
       recipientRoles: [
         NotificationRecipientRole.PATIENT,
@@ -86,11 +109,13 @@ describe('NotificationsService', () => {
       ],
     },
     {
-      type: NotificationType.BOOKING_RESCHEDULE,
-      context: {
-        appointmentId: 31,
-        appointmentDate: '2026-11-22',
-        appointmentTime: '10:00',
+      event: {
+        type: NotificationType.BOOKING_RESCHEDULE,
+        context: {
+          appointmentId: 31,
+          appointmentDate: '2026-11-22',
+          appointmentTime: '10:00',
+        },
       },
       recipientRoles: [
         NotificationRecipientRole.PATIENT,
@@ -98,62 +123,84 @@ describe('NotificationsService', () => {
       ],
     },
     {
-      type: NotificationType.QUEUE_STATUS_UPDATE,
-      context: {
-        queueEntryId: 41,
-        ticketNumber: 'A-041',
-        status: QueueStatus.CALLED,
+      event: {
+        type: NotificationType.QUEUE_STATUS_UPDATE,
+        context: {
+          queueEntryId: 41,
+          ticketNumber: 'A-041',
+          status: QueueStatus.CALLED,
+        },
       },
       recipientRoles: [NotificationRecipientRole.PATIENT],
     },
     {
-      type: NotificationType.APPROACHING_TURN,
-      context: { queueEntryId: 41, ticketNumber: 'A-041' },
+      event: {
+        type: NotificationType.APPROACHING_TURN,
+        context: { queueEntryId: 41, ticketNumber: 'A-041' },
+      },
       recipientRoles: [NotificationRecipientRole.PATIENT],
     },
-  ])('creates for only the allowed roles for $type', async (eventCase) => {
-    const isPatientAllowed = eventCase.recipientRoles.includes(
-      NotificationRecipientRole.PATIENT,
-    );
-    const isStaffAllowed = eventCase.recipientRoles.includes(
-      NotificationRecipientRole.STAFF,
-    );
-    const allowedUsers = [
-      ...(isPatientAllowed ? [{ id: 7 }] : []),
-      ...(isStaffAllowed ? [{ id: 8 }] : []),
-    ];
-    mockPrisma.user.findMany.mockResolvedValue(allowedUsers);
-    mockPrisma.notification.createMany.mockResolvedValue({
-      count: allowedUsers.length,
-    });
+    {
+      event: {
+        type: NotificationType.QUEUE_CALL,
+        context: {
+          queueEntryId: 41,
+          ticketNumber: 'A-041',
+          roomNumber: 'Room 1',
+        },
+      },
+      recipientRoles: [NotificationRecipientRole.PATIENT],
+    },
+  ];
 
-    const count = await service.createForRecipients(
-      { type: eventCase.type, context: eventCase.context },
-      {
+  it.each(roleEventCases)(
+    'creates for only the allowed roles for $event.type',
+    async (eventCase) => {
+      const isPatientAllowed = eventCase.recipientRoles.includes(
+        NotificationRecipientRole.PATIENT,
+      );
+      const isStaffAllowed = eventCase.recipientRoles.includes(
+        NotificationRecipientRole.STAFF,
+      );
+      const allowedUsers = [
+        ...(isPatientAllowed ? [{ id: 7 }] : []),
+        ...(isStaffAllowed ? [{ id: 8 }] : []),
+      ];
+      mockPrisma.user.findMany.mockResolvedValue(allowedUsers);
+      mockPrisma.notification.createMany.mockResolvedValue({
+        count: allowedUsers.length,
+      });
+
+      const count = await service.createForRecipients(eventCase.event, {
         [NotificationRecipientRole.PATIENT]: [7],
         [NotificationRecipientRole.STAFF]: [8],
-      },
-    );
+      });
 
-    expect(count).toBe(allowedUsers.length);
-    expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
-      where: {
-        id: {
-          in: [
-            ...(isPatientAllowed ? [7] : []),
-            ...(isStaffAllowed ? [8] : []),
-          ],
+      expect(count).toBe(allowedUsers.length);
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
+        where: {
+          id: {
+            in: [
+              ...(isPatientAllowed ? [7] : []),
+              ...(isStaffAllowed ? [8] : []),
+            ],
+          },
+          role: { in: eventCase.recipientRoles },
         },
-        role: { in: eventCase.recipientRoles },
-      },
-      select: { id: true },
-    });
-    const event = { type: eventCase.type, context: eventCase.context };
-    const payload = buildNotificationPayload(event);
-    expect(mockPrisma.notification.createMany).toHaveBeenCalledWith({
-      data: allowedUsers.map(({ id }) => ({ ...payload, userId: id })),
-    });
-  });
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          phoneNumber: true,
+          role: true,
+        },
+      });
+      const payload = buildNotificationPayload(eventCase.event);
+      expect(mockPrisma.notification.createMany).toHaveBeenCalledWith({
+        data: allowedUsers.map(({ id }) => ({ ...payload, userId: id })),
+      });
+    },
+  );
 
   it('does not query or create when there are no eligible recipient IDs', async () => {
     const count = await service.createForRecipients(
@@ -301,5 +348,71 @@ describe('NotificationsService', () => {
       where: { userId: 7, isRead: false },
       data: updateData,
     });
+  });
+
+  it('dispatches email, patient SMS, and SSE stream events when channels are enabled', async () => {
+    const emailChannel = {
+      isEnabled: jest.fn().mockReturnValue(true),
+      send: jest.fn().mockResolvedValue(true),
+    };
+    const smsChannel = {
+      isEnabled: jest.fn().mockReturnValue(true),
+      send: jest.fn().mockResolvedValue(true),
+    };
+    const channelService = new NotificationsService(
+      mockPrisma as unknown as PrismaService,
+      emailChannel as unknown as EmailChannelService,
+      smsChannel as unknown as SmsChannelService,
+    );
+
+    mockPrisma.user.findMany.mockResolvedValue([
+      {
+        id: 7,
+        email: 'patient@dlsud.edu.ph',
+        fullName: 'Juan Dela Cruz',
+        phoneNumber: '+639171234567',
+        role: AccessRole.PATIENT,
+      },
+      {
+        id: 8,
+        email: 'staff@dlsud.edu.ph',
+        fullName: 'Nurse Jane',
+        phoneNumber: '+639179999999',
+        role: AccessRole.STAFF,
+      },
+    ]);
+    mockPrisma.notification.createMany.mockResolvedValue({ count: 2 });
+
+    const streamPromise = firstValueFrom(
+      channelService.getUserNotificationStream(7).pipe(take(1)),
+    );
+
+    await channelService.createForRecipients(
+      {
+        type: NotificationType.BOOKING_CANCELLATION,
+        context: {
+          appointmentId: 31,
+          appointmentDate: '2026-11-28',
+          appointmentTime: '09:30',
+        },
+      },
+      {
+        [NotificationRecipientRole.PATIENT]: [7],
+        [NotificationRecipientRole.STAFF]: [8],
+      },
+    );
+
+    const streamEvent = await streamPromise;
+    expect(streamEvent.type).toBe('notification:created');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(emailChannel.send).toHaveBeenCalledTimes(2);
+    expect(smsChannel.send).toHaveBeenCalledTimes(1);
+    expect(smsChannel.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: '+639171234567',
+        type: NotificationType.BOOKING_CANCELLATION,
+      }),
+    );
   });
 });

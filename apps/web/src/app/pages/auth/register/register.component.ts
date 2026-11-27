@@ -11,7 +11,7 @@ import { Message } from 'primeng/message';
 import { Password } from 'primeng/password';
 import { ClinicAffiliation, RegisterResponse } from '@core/models';
 import { AuthService } from '@core/services';
-import { getErrorMessage } from '@core/utils';
+import { getErrorMessage, normalizePhMobile, phMobileValidator } from '@core/utils';
 import {
   AffiliationSelectorComponent,
   AuthBrandComponent,
@@ -92,6 +92,16 @@ export class RegisterComponent {
           ],
         },
       ],
+      phoneNumber: [
+        '',
+        {
+          validators: [
+            Validators.required,
+            phMobileValidator,
+            Validators.maxLength(30),
+          ],
+        },
+      ],
       password: [
         '',
         {
@@ -122,6 +132,7 @@ export class RegisterComponent {
       | 'middleName'
       | 'lastName'
       | 'email'
+      | 'phoneNumber'
       | 'password'
       | 'confirmPassword',
   ): boolean {
@@ -139,7 +150,15 @@ export class RegisterComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const { firstName, middleName, lastName, email, password, affiliation } = this.form.getRawValue();
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phoneNumber,
+      password,
+      affiliation,
+    } = this.form.getRawValue();
     const fullName = [firstName.trim(), middleName.trim(), lastName.trim()]
       .filter(Boolean)
       .join(' ');
@@ -147,7 +166,15 @@ export class RegisterComponent {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.authService.register({ fullName, email, password, affiliation }).subscribe({
+    this.authService
+      .register({
+        fullName,
+        email,
+        phoneNumber: normalizePhMobile(phoneNumber),
+        password,
+        affiliation,
+      })
+      .subscribe({
       next: (_response: RegisterResponse): void => {
         this.loading.set(false);
         void this.router.navigate(['/login'], { queryParams: { registered: '1' } });

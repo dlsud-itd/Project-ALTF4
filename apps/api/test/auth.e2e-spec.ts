@@ -16,6 +16,7 @@ type TestUser = {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber: string;
   passwordHash: string;
   affiliation: ClinicAffiliation;
   role: AccessRole;
@@ -136,6 +137,7 @@ describe('Authentication and profile API (e2e)', () => {
       id: 101,
       fullName: 'Test Patient',
       email: 'patient@example.com',
+      phoneNumber: '+639171112222',
       passwordHash: await argon2.hash('Password123'),
       affiliation: ClinicAffiliation.STUDENT,
       role: AccessRole.PATIENT,
@@ -194,6 +196,7 @@ describe('Authentication and profile API (e2e)', () => {
   const validRegistration = {
     fullName: '  Example Patient  ',
     email: '  NEW.PATIENT@EXAMPLE.COM ',
+    phoneNumber: '0917 123 4567',
     password: 'Password123',
     affiliation: 'student',
   };
@@ -211,6 +214,7 @@ describe('Authentication and profile API (e2e)', () => {
     const createdUser = users.get(102);
     expect(createdUser?.fullName).toBe('Example Patient');
     expect(createdUser?.email).toBe('new.patient@example.com');
+    expect(createdUser?.phoneNumber).toBe('+639171234567');
     expect(createdUser?.affiliation).toBe(ClinicAffiliation.STUDENT);
     expect(createdUser?.passwordHash).not.toBe(validRegistration.password);
     await expect(
@@ -232,15 +236,31 @@ describe('Authentication and profile API (e2e)', () => {
     ['non-string fullName', { ...validRegistration, fullName: 123 }],
     [
       'missing email',
-      { fullName: 'Person', password: 'Password123', affiliation: 'student' },
+      {
+        fullName: 'Person',
+        phoneNumber: '09171234567',
+        password: 'Password123',
+        affiliation: 'student',
+      },
     ],
     ['malformed email', { ...validRegistration, email: 'not-an-email' }],
     ['non-string email', { ...validRegistration, email: 123 }],
+    [
+      'missing phoneNumber',
+      {
+        fullName: 'Person',
+        email: 'person@example.com',
+        password: 'Password123',
+        affiliation: 'student',
+      },
+    ],
+    ['invalid phoneNumber', { ...validRegistration, phoneNumber: '12345' }],
     [
       'missing password',
       {
         fullName: 'Person',
         email: 'person@example.com',
+        phoneNumber: '09171234567',
         affiliation: 'student',
       },
     ],
@@ -350,6 +370,7 @@ describe('Authentication and profile API (e2e)', () => {
       id: seedUser.id,
       fullName: seedUser.fullName,
       email: seedUser.email,
+      phoneNumber: seedUser.phoneNumber,
       affiliation: 'student',
       role: 'patient',
       isActive: true,

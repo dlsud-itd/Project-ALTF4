@@ -17,7 +17,11 @@ import {
   ViewToggleComponent,
   DataViewMode,
 } from '@shared/ui';
-import { getErrorMessage } from '@core/utils';
+import {
+  getErrorMessage,
+  normalizePhMobile,
+  phMobileValidator,
+} from '@core/utils';
 
 type RoleFilter = 'ALL' | 'PATIENT' | 'STAFF' | 'ADMIN';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -80,6 +84,7 @@ export class AdminUsersComponent implements OnInit {
   readonly createForm = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(150)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+    phoneNumber: ['', [Validators.required, phMobileValidator, Validators.maxLength(30)]],
     password: ['', [Validators.required, Validators.minLength(6)]],
     role: [AccessRole.PATIENT, [Validators.required]],
     affiliation: [ClinicAffiliation.STUDENT, [Validators.required]],
@@ -89,6 +94,7 @@ export class AdminUsersComponent implements OnInit {
   readonly editForm = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(150)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+    phoneNumber: ['', [Validators.required, phMobileValidator, Validators.maxLength(30)]],
     password: ['', [Validators.minLength(6)]],
     role: [AccessRole.PATIENT, [Validators.required]],
     affiliation: [ClinicAffiliation.STUDENT, [Validators.required]],
@@ -181,6 +187,7 @@ export class AdminUsersComponent implements OnInit {
     this.createForm.reset({
       fullName: '',
       email: '',
+      phoneNumber: '',
       password: '',
       role: AccessRole.PATIENT,
       affiliation: ClinicAffiliation.STUDENT,
@@ -206,6 +213,7 @@ export class AdminUsersComponent implements OnInit {
       .createUser({
         fullName: val.fullName!,
         email: val.email!,
+        phoneNumber: normalizePhMobile(val.phoneNumber!),
         password: val.password!,
         role: val.role as AccessRole,
         affiliation: val.affiliation as ClinicAffiliation,
@@ -233,6 +241,7 @@ export class AdminUsersComponent implements OnInit {
     this.editForm.reset({
       fullName: user.fullName,
       email: user.email,
+      phoneNumber: user.phoneNumber ?? '',
       password: '',
       role: user.role as AccessRole,
       affiliation: user.affiliation as ClinicAffiliation,
@@ -260,6 +269,7 @@ export class AdminUsersComponent implements OnInit {
     const dto: Record<string, unknown> = {
       fullName: val.fullName!,
       email: val.email!,
+      phoneNumber: normalizePhMobile(val.phoneNumber!),
       role: val.role as AccessRole,
       affiliation: val.affiliation as ClinicAffiliation,
       isActive: val.isActive!,

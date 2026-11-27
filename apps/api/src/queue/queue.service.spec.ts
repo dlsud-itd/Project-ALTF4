@@ -1,7 +1,14 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { jest } from '@jest/globals';
-import { Prisma, QueueSource, QueueStatus } from '@prisma/client';
+import {
+  NotificationType,
+  Prisma,
+  QueueSource,
+  QueueStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationRecipientRole } from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
 import { QueueEventsService } from './queue-events.service';
 import { QueueLifecycleService } from './queue-lifecycle.service';
 import { QueueReadService } from './queue-read.service';
@@ -139,7 +146,11 @@ describe('QueueService', () => {
     tx.queueEntry.create.mockResolvedValue(created);
     prisma.queueEntry.findMany.mockResolvedValue([created]);
 
-    const result = await service.joinWalkIn(1, { name: 'Jane Doe' });
+    const result = await service.joinWalkIn(1, {
+      name: 'Jane Doe',
+      phoneNumber: '+639171234567',
+      reasonForVisit: 'General checkup',
+    });
 
     const createArgs = tx.queueEntry.create.mock.calls[0]?.[0] as {
       data: Record<string, unknown>;
@@ -168,7 +179,11 @@ describe('QueueService', () => {
     tx.queueEntry.create.mockResolvedValue(created);
     prisma.queueEntry.findMany.mockResolvedValue([created]);
 
-    const result = await service.joinWalkIn(1, { name: 'Jane Doe' });
+    const result = await service.joinWalkIn(1, {
+      name: 'Jane Doe',
+      phoneNumber: '+639171234567',
+      reasonForVisit: 'General checkup',
+    });
 
     const createArgs = tx.queueEntry.create.mock.calls[0]?.[0] as {
       data: Record<string, unknown>;
@@ -543,7 +558,10 @@ describe('QueueService', () => {
       notes: '<b>Follow-up</b> <i>needed</i>',
     });
 
-    const updateData = tx.queueEntry.updateMany.mock.calls[0]?.[0]?.data as {
+    const updateData = (
+      tx.queueEntry.updateMany.mock.calls[0]?.[0] as
+        { data?: { notes: string } } | undefined
+    )?.data as {
       notes: string;
     };
     expect(updateData.notes).toMatch(
@@ -572,8 +590,10 @@ describe('QueueService', () => {
       notes: '<p> </p>',
     });
 
-    const updateData = tx.queueEntry.updateMany.mock.calls[0]?.[0]?.data as
-      Record<string, unknown> | undefined;
+    const updateData = (
+      tx.queueEntry.updateMany.mock.calls[0]?.[0] as
+        { data?: Record<string, unknown> } | undefined
+    )?.data;
     expect(updateData).not.toHaveProperty('notes');
   });
 
@@ -803,7 +823,11 @@ describe('QueueService', () => {
       prisma.dailyQueue.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.joinWalkIn(999, { name: 'Jane Doe' }),
+        service.joinWalkIn(999, {
+          name: 'Jane Doe',
+          phoneNumber: '+639171234567',
+          reasonForVisit: 'General checkup',
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -813,9 +837,13 @@ describe('QueueService', () => {
         isOpen: false,
       });
 
-      await expect(service.joinWalkIn(1, { name: 'Jane Doe' })).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.joinWalkIn(1, {
+          name: 'Jane Doe',
+          phoneNumber: '+639171234567',
+          reasonForVisit: 'General checkup',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('rejects queue entry creation when patient already has an active WAITING ticket', async () => {
@@ -824,7 +852,12 @@ describe('QueueService', () => {
       );
 
       await expect(
-        service.joinOnline(1, { name: 'Jane Doe', patientId: 42 }),
+        service.joinOnline(1, {
+          name: 'Jane Doe',
+          phoneNumber: '+639171234567',
+          reasonForVisit: 'General checkup',
+          patientId: 42,
+        }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -834,7 +867,12 @@ describe('QueueService', () => {
       );
 
       await expect(
-        service.joinOnline(1, { name: 'Jane Doe', patientId: 42 }),
+        service.joinOnline(1, {
+          name: 'Jane Doe',
+          phoneNumber: '+639171234567',
+          reasonForVisit: 'General checkup',
+          patientId: 42,
+        }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -853,6 +891,8 @@ describe('QueueService', () => {
 
       const result = await service.joinOnline(1, {
         name: 'Jane Doe',
+        phoneNumber: '+639171234567',
+        reasonForVisit: 'General checkup',
         patientId: 42,
       });
 
@@ -870,7 +910,12 @@ describe('QueueService', () => {
       );
 
       await expect(
-        service.joinWalkIn(1, { name: 'Jane Doe', patientId: 42 }),
+        service.joinWalkIn(1, {
+          name: 'Jane Doe',
+          phoneNumber: '+639171234567',
+          reasonForVisit: 'General checkup',
+          patientId: 42,
+        }),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -903,7 +948,15 @@ describe('QueueService', () => {
       prisma.queueEntry.findFirst.mockResolvedValue(null);
       prisma.queueEntry.count.mockResolvedValue(5);
 
-      const status = await service.getStaffQueueStatus(1);
+      const status = (await service.getStaffQueueStatus(1)) as {
+        total_waiting: number;
+        waiting_breakdown: Record<string, number>;
+        total_completed_today: number;
+        avg_wait_time_minutes: number;
+        is_active: boolean;
+        last_updated: string;
+        waiting_tickets: unknown[];
+      };
 
       expect(status.total_waiting).toBe(3);
       expect(status.waiting_breakdown).toEqual({
@@ -946,7 +999,10 @@ describe('QueueService', () => {
       prisma.queueEntry.findFirst.mockResolvedValue(inService);
       prisma.queueEntry.count.mockResolvedValue(0);
 
-      const status = await service.getStaffQueueStatus(1);
+      const status = (await service.getStaffQueueStatus(1)) as {
+        currently_serving: Record<string, unknown> | null;
+        waiting_tickets: unknown[];
+      };
 
       expect(status.currently_serving).toMatchObject({
         patient_name: 'Ada Lovelace',
@@ -979,7 +1035,10 @@ describe('QueueService', () => {
       });
       prisma.queueEntry.findFirst.mockResolvedValue(called);
 
-      const status = await service.getStaffQueueStatus(1);
+      const status = (await service.getStaffQueueStatus(1)) as {
+        currently_serving: Record<string, unknown> | null;
+        grace_period_ms: number;
+      };
 
       expect(status.currently_serving).toMatchObject({
         ticket_number: called.ticketNumber,
@@ -1086,6 +1145,81 @@ describe('QueueService', () => {
 
       await expect(service.getMyQueueEntry(999, 88)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('Notification triggers', () => {
+    it('notifies called registered patient, approaching waiting patients, and walk-in SMS on callNext and status update', async () => {
+      const notificationsMock = {
+        createForRecipients: jest
+          .fn<(...args: unknown[]) => Promise<number>>()
+          .mockResolvedValue(1),
+        notifyWalkInSms: jest
+          .fn<(...args: unknown[]) => Promise<void>>()
+          .mockResolvedValue(undefined),
+      };
+      const queueRead = new QueueReadService(
+        prisma as unknown as PrismaService,
+        events,
+        lifecycle,
+        notificationsMock as unknown as NotificationsService,
+      );
+      const notifiedService = new QueueService(
+        prisma as unknown as PrismaService,
+        events,
+        queueRead,
+        lifecycle,
+        notificationsMock as unknown as NotificationsService,
+      );
+
+      prisma.queueEntry.findMany.mockResolvedValueOnce([]);
+      prisma.queueEntry.findFirst.mockResolvedValueOnce({ id: 20 });
+      tx.queueEntry.updateMany.mockResolvedValueOnce({ count: 1 });
+      tx.queueEntry.findFirst.mockResolvedValueOnce(null);
+      tx.queueEntry.findUnique.mockResolvedValueOnce(
+        makeEntry({
+          id: 20,
+          patientId: 77,
+          phoneNumber: '+639171234567',
+          ticketNumber: 'A-002',
+          status: QueueStatus.CALLED,
+        }),
+      );
+      prisma.queueEntry.findMany.mockResolvedValueOnce([
+        {
+          id: 21,
+          ticketNumber: 'A-003',
+          patientId: null,
+          phoneNumber: '+639179998888',
+        },
+      ]);
+
+      await notifiedService.callNext(1, {
+        room: 'Room 1',
+        provider: 'Dr. Santos',
+      });
+
+      expect(notificationsMock.createForRecipients).toHaveBeenCalledWith(
+        {
+          type: NotificationType.QUEUE_CALL,
+          context: {
+            queueEntryId: 20,
+            ticketNumber: 'A-002',
+            roomNumber: 'Room 1',
+          },
+        },
+        { [NotificationRecipientRole.PATIENT]: [77] },
+      );
+      expect(notificationsMock.notifyWalkInSms).toHaveBeenCalledWith(
+        '+639179998888',
+        {
+          type: NotificationType.APPROACHING_TURN,
+          context: {
+            queueEntryId: 21,
+            ticketNumber: 'A-003',
+          },
+        },
       );
     });
   });

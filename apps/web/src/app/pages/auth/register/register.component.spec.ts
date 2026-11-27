@@ -19,6 +19,7 @@ describe('RegisterComponent', () => {
     middleName: 'Protacio',
     lastName: 'Dela Cruz',
     email: 'juan@dlsud.edu.ph',
+    phoneNumber: '09171234567',
     password: 'Password123!',
     confirmPassword: 'Password123!',
     affiliation: ClinicAffiliation.STUDENT,
@@ -155,6 +156,7 @@ describe('RegisterComponent', () => {
       expect(registerSpy).toHaveBeenCalledWith({
         fullName: 'Juan Protacio Dela Cruz',
         email: 'juan@dlsud.edu.ph',
+        phoneNumber: '+639171234567',
         password: 'Password123!',
         affiliation: ClinicAffiliation.STUDENT,
       });

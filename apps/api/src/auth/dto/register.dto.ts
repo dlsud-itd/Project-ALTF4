@@ -11,6 +11,15 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { ClinicAffiliation } from '@prisma/client';
 import { normalizeString } from './normalize-string';
+import {
+  normalizePhMobile,
+  PH_MOBILE_E164_REGEX,
+} from '../../common/phone-number.util';
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_NON_WHITESPACE_REGEX,
+} from '../../common/clinic.constants';
 
 export class RegisterDto {
   @ApiProperty({
@@ -35,13 +44,29 @@ export class RegisterDto {
   email!: string;
 
   @ApiProperty({
+    example: '+639171234567',
+    description: 'Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  @Transform(({ value }) => normalizePhMobile(value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  @Matches(PH_MOBILE_E164_REGEX, {
+    message:
+      'phoneNumber must be a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX)',
+  })
+  phoneNumber!: string;
+
+  @ApiProperty({
     example: 'SecurePassword123!',
     description: "User's password",
-    minLength: 6,
+    minLength: PASSWORD_MIN_LENGTH,
+    maxLength: PASSWORD_MAX_LENGTH,
   })
   @IsString()
-  @MinLength(6)
-  @Matches(/\S/, {
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  @Matches(PASSWORD_NON_WHITESPACE_REGEX, {
     message: 'password must contain a non-whitespace character',
   })
   password!: string;

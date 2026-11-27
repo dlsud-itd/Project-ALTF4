@@ -14,7 +14,7 @@ import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { BlockDayValue, ClinicSlot } from '@core/models';
-import { toDateParam } from '@core/utils';
+import { latestScheduleDate, toDateParam } from '@core/utils';
 
 // Start of the current day in local time.
 const startOfToday = (): Date => {
@@ -53,6 +53,7 @@ export class BlockDayFormComponent {
 
   // Must stay a stable object or the calendar re-renders mid-click.
   readonly minDate: Date = startOfToday();
+  readonly maxDate: Date = latestScheduleDate();
 
   readonly form = this.fb.nonNullable.group({
     clinicDate: this.fb.nonNullable.control<Date | null>(null, [

@@ -9,7 +9,13 @@ import {
   LoginResponse,
   RegisterRequest,
   RegisterResponse,
+  RequestPasswordResetRequest,
+  RequestPasswordResetResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   UserProfileResponse,
+  VerifyPasswordResetOtpRequest,
+  VerifyPasswordResetOtpResponse,
 } from '../models/auth.models';
 
 // Service managing user authentication, JWT session persistence, profile hydration, and secure logout.
@@ -41,6 +47,7 @@ export class AuthService {
                 id: profile.id,
                 fullName: profile.fullName,
                 email: profile.email,
+                phoneNumber: profile.phoneNumber,
                 role: profile.role,
                 affiliation: profile.affiliation,
                 isActive: profile.isActive,
@@ -57,6 +64,34 @@ export class AuthService {
   register(data: RegisterRequest): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(
       `${this.apiConfig.apiUrl}/auth/register`,
+      data,
+    );
+  }
+
+  // Requests an SMS OTP for password reset using a registered Philippine mobile number.
+  requestPasswordReset(
+    data: RequestPasswordResetRequest,
+  ): Observable<RequestPasswordResetResponse> {
+    return this.http.post<RequestPasswordResetResponse>(
+      `${this.apiConfig.apiUrl}/auth/forgot-password/request`,
+      data,
+    );
+  }
+
+  // Verifies the 6-digit SMS OTP and returns a short-lived single-use reset token.
+  verifyPasswordResetOtp(
+    data: VerifyPasswordResetOtpRequest,
+  ): Observable<VerifyPasswordResetOtpResponse> {
+    return this.http.post<VerifyPasswordResetOtpResponse>(
+      `${this.apiConfig.apiUrl}/auth/forgot-password/verify`,
+      data,
+    );
+  }
+
+  // Submits the new password using the verified single-use reset token.
+  resetPassword(data: ResetPasswordRequest): Observable<ResetPasswordResponse> {
+    return this.http.post<ResetPasswordResponse>(
+      `${this.apiConfig.apiUrl}/auth/forgot-password/reset`,
       data,
     );
   }
@@ -89,6 +124,7 @@ export class AuthService {
           id: profile.id,
           fullName: profile.fullName,
           email: profile.email,
+          phoneNumber: profile.phoneNumber,
           role: profile.role,
           affiliation: profile.affiliation,
           isActive: profile.isActive,

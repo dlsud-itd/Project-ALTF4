@@ -13,6 +13,9 @@
     <div class="profile-info">
       <h3>{{ fullName() }}</h3>
       <p class="email">{{ email() }}</p>
+      @if (phoneNumber()) {
+        <p class="email">{{ phoneNumber() }}</p>
+      }
       <span class="badge">{{ affiliation() }}</span>
     </div>
 

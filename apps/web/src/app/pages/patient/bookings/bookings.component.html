@@ -491,13 +491,6 @@
         <!-- Action Buttons -->
         <div class="modal-actions">
           <p-button
-            label="Review Details"
-            severity="secondary"
-            [outlined]="true"
-            [disabled]="isBooking()"
-            (onClick)="isReviewModalOpen.set(false)"
-          />
-          <p-button
             [label]="isRescheduling() ? 'Confirm Reschedule' : 'Confirm & Book'"
             icon="pi pi-check"
             severity="primary"

@@ -1,13 +1,16 @@
 import {
   Controller,
   Get,
+  MessageEvent,
   Param,
   ParseIntPipe,
   Patch,
   Query,
   Request,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -49,6 +52,16 @@ export class NotificationsController {
     @Request() request: { user: AuthenticatedUser },
   ): Promise<UnreadCountResponseDto> {
     return this.notificationsService.getUnreadCount(request.user.id);
+  }
+
+  @Sse('stream')
+  @ApiOperation({
+    summary: 'Stream real-time notifications for the authenticated user',
+  })
+  stream(
+    @Request() request: { user: AuthenticatedUser },
+  ): Observable<MessageEvent> {
+    return this.notificationsService.getUserNotificationStream(request.user.id);
   }
 
   @Patch('read-all')

@@ -8,6 +8,9 @@
     @if (justRegistered) {
       <p-message severity="success" text="Account created. You can sign in now." />
     }
+    @if (passwordResetSuccess) {
+      <p-message severity="success" text="Password reset successfully. Sign in with your new password." />
+    }
     @if (accountInactive) {
       <p-message severity="warn" text="Your account is currently inactive. Please contact clinic administration." />
     }

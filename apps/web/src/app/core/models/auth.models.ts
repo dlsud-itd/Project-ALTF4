@@ -20,6 +20,7 @@ export type AuthUser = {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber?: string | null;
   role: string;
   affiliation?: string;
   isActive: boolean;
@@ -31,6 +32,7 @@ export type UserProfileResponse = {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber: string | null;
   affiliation: string;
   role: string;
   isActive: boolean;
@@ -54,6 +56,7 @@ export type LoginResponse = {
 export type RegisterRequest = {
   fullName: string;
   email: string;
+  phoneNumber: string;
   password: string;
   affiliation: ClinicAffiliation;
 };
@@ -62,4 +65,39 @@ export type RegisterRequest = {
 export type RegisterResponse = {
   message: string;
   userId: number;
+};
+
+// Request payload to initiate email OTP password reset.
+export type RequestPasswordResetRequest = {
+  email: string;
+};
+
+// Response payload returned after requesting a password reset OTP.
+export type RequestPasswordResetResponse = {
+  message: string;
+  cooldownSeconds: number;
+};
+
+// Request payload to verify an email OTP for password reset.
+export type VerifyPasswordResetOtpRequest = {
+  email: string;
+  otp: string;
+};
+
+// Response payload containing the single-use reset proof token.
+export type VerifyPasswordResetOtpResponse = {
+  message: string;
+  resetToken: string;
+};
+
+// Request payload to finalize password reset.
+export type ResetPasswordRequest = {
+  resetToken: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+// Response payload returned upon successful password reset.
+export type ResetPasswordResponse = {
+  message: string;
 };

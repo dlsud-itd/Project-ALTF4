@@ -3,3 +3,4 @@ export * from './role-route.util';
 export * from './return-url.util';
 export * from './slot.util';
 export * from './required-text.validator';
+export * from './phone.util';

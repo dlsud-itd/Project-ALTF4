@@ -13,8 +13,10 @@ import {
   jest,
 } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppointmentStatus } from '@prisma/client';
+import { AppointmentStatus, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationRecipientRole } from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MAX_ACTIVE_BOOKINGS } from '../common/clinic.constants';
 import { QueueEventsService } from '../queue/queue-events.service';
 import { QueueLifecycleService } from '../queue/queue-lifecycle.service';
@@ -463,6 +465,14 @@ describe('AppointmentsService', () => {
           consultationStartedAt: new Date('2026-11-12T08:00:00.000Z'),
           completedAt: new Date('2026-11-12T08:10:00.000Z'),
         },
+        {
+          consultationStartedAt: new Date('2026-11-12T08:10:00.000Z'),
+          completedAt: new Date('2026-11-12T08:20:00.000Z'),
+        },
+        {
+          consultationStartedAt: new Date('2026-11-12T08:20:00.000Z'),
+          completedAt: new Date('2026-11-12T08:30:00.000Z'),
+        },
       ]);
       mockPrismaService.queueEntry.count
         .mockResolvedValueOnce(0)
@@ -888,6 +898,86 @@ describe('AppointmentsService', () => {
       await expect(
         service.rescheduleAppointment(101, 1, { slotId: 20 }),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('notification triggers', () => {
+    it('dispatches BOOKING_CONFIRMATION when a patient books an appointment', async () => {
+      const notificationsMock = {
+        createForRecipients: jest
+          .fn<(...args: unknown[]) => Promise<number>>()
+          .mockResolvedValue(1),
+      };
+      const notifiedService = new AppointmentsService(
+        mockPrismaService as unknown as PrismaService,
+        mockQueueEvents as unknown as QueueEventsService,
+        mockQueueLifecycle as unknown as QueueLifecycleService,
+        notificationsMock as unknown as NotificationsService,
+      );
+
+      const futureDate = new Date('2026-12-01T00:00:00.000Z');
+      mockPrismaService.clinicSlot.findUnique.mockResolvedValue({
+        id: 10,
+        clinicDate: futureDate,
+        startTime: '09:00',
+        endTime: '09:30',
+        capacity: 3,
+        isBookable: true,
+        appointments: [],
+      });
+      mockPrismaService.appointment.findFirst.mockResolvedValue(null);
+      mockPrismaService.appointment.create.mockResolvedValue({
+        id: 55,
+        patientId: 101,
+        slotId: 10,
+        status: AppointmentStatus.BOOKED,
+        createdAt: new Date('2026-11-01T00:00:00.000Z'),
+        slot: {
+          id: 10,
+          clinicDate: futureDate,
+          startTime: '09:00',
+          endTime: '09:30',
+          capacity: 3,
+          isBookable: true,
+        },
+      });
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        fullName: 'Juan Dela Cruz',
+        phoneNumber: '+639171234567',
+      });
+      mockPrismaService.dailyQueue.findUnique.mockResolvedValue({
+        id: 5,
+        clinicDate: futureDate,
+        nextNumber: 1,
+        isOpen: true,
+        fallbackServiceMinutes: 15,
+      });
+      mockPrismaService.dailyQueue.update.mockResolvedValue({
+        id: 5,
+        nextNumber: 2,
+      });
+      mockPrismaService.queueEntry.create.mockResolvedValue({
+        id: 99,
+        ticketNumber: 'A-001',
+        createdAt: new Date('2026-11-01T00:00:00.000Z'),
+      });
+
+      await notifiedService.bookAppointment(101, {
+        slotId: 10,
+        reasonForVisit: 'Routine checkup',
+      });
+
+      expect(notificationsMock.createForRecipients).toHaveBeenCalledWith(
+        {
+          type: NotificationType.BOOKING_CONFIRMATION,
+          context: {
+            appointmentId: 55,
+            appointmentDate: '2026-12-01',
+            appointmentTime: '09:00',
+          },
+        },
+        { [NotificationRecipientRole.PATIENT]: [101] },
+      );
     });
   });
 });

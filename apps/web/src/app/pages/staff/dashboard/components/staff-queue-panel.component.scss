@@ -177,6 +177,22 @@ $transition-speed: 180ms;
   }
 }
 
+.queue-heading-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avg-wait {
+  color: var(--primary-hover);
+  font-weight: 600;
+
+  &--pending {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+}
+
 .waiting-list {
   display: grid;
   gap: 0.5rem;
