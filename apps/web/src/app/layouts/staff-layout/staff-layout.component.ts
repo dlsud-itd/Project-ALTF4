@@ -23,7 +23,7 @@ const WALK_IN_TITLE = 'Walk-in';
 const WALK_IN_SUBTITLE = 'Create a ticket for a patient who is on site';
 const SCHEDULE_ROUTE = '/staff/schedule';
 const SCHEDULE_TITLE = 'Slot Schedule';
-const SCHEDULE_SUBTITLE = 'Clinic slots for the next two weeks';
+const SCHEDULE_SUBTITLE = 'Upcoming clinic slots';
 const PAST_APPOINTMENTS_ROUTE = '/staff/past-appointments';
 const PAST_APPOINTMENTS_TITLE = 'Bookings history';
 const PAST_APPOINTMENTS_SUBTITLE =
@@ -154,6 +154,10 @@ export class StaffLayoutComponent {
   });
   readonly isMobileMenuOpen = signal<boolean>(false);
   readonly isCollapsed = signal<boolean>(false);
+  // True while a page shows a side panel: the sidebar then floats over the
+  // page when expanded instead of pushing it aside.
+  readonly isSidePanelOpen = signal<boolean>(false);
+  private wasCollapsedBeforePanel = false;
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen.update((open: boolean): boolean => !open);
@@ -166,6 +170,20 @@ export class StaffLayoutComponent {
   // Switches the desktop sidebar between the full menu and the icon rail.
   toggleCollapsed(): void {
     this.isCollapsed.update((collapsed: boolean): boolean => !collapsed);
+  }
+
+  // Collapses the sidebar while a side panel is open, then restores it.
+  setSidePanelOpen(isOpen: boolean): void {
+    if (isOpen === this.isSidePanelOpen()) {
+      return;
+    }
+    this.isSidePanelOpen.set(isOpen);
+    if (isOpen) {
+      this.wasCollapsedBeforePanel = this.isCollapsed();
+      this.isCollapsed.set(true);
+    } else {
+      this.isCollapsed.set(this.wasCollapsedBeforePanel);
+    }
   }
 
   toggleProfileMenu(): void {
@@ -182,6 +200,12 @@ export class StaffLayoutComponent {
     const menu = this.host.nativeElement.querySelector('.profile-menu');
     if (menu && !menu.contains(event.target as Node)) {
       this.closeProfileMenu();
+    }
+
+    // With a side panel open, a click outside the sidebar collapses it again.
+    const sidebar = this.host.nativeElement.querySelector('.portal-sidebar');
+    if (this.isSidePanelOpen() && !sidebar?.contains(event.target as Node)) {
+      this.isCollapsed.set(true);
     }
   }
 

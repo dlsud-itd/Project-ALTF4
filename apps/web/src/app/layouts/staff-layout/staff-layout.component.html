@@ -19,7 +19,7 @@
 
   <!-- Sidebar Navigation -->
   <aside class="portal-sidebar" [class.open]="isMobileMenuOpen()" [class.collapsed]="isCollapsed()"
-    aria-label="Staff portal navigation">
+    [class.floating]="isSidePanelOpen()" aria-label="Staff portal navigation">
     <!-- Brand Header -->
     <div class="sidebar-brand">
       <button type="button" class="brand-icon-wrapper" (click)="isCollapsed() && toggleCollapsed()"

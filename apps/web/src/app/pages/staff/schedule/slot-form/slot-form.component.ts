@@ -15,6 +15,9 @@ import { Message } from 'primeng/message';
 import { ToggleSwitch } from 'primeng/toggleswitch';
 import { ClinicSlot, SlotFormValue } from '@core/models';
 import {
+  getHolidayDates,
+  getHolidayName,
+  latestScheduleDate,
   parseDateParam,
   toDateParam,
   toTimeParam,
@@ -72,6 +75,8 @@ export class SlotFormComponent {
   readonly isVisible = input<boolean>(false);
   // Null means a new slot; a slot means edit mode.
   readonly slot = input<ClinicSlot | null>(null);
+  // Pre-fills the date of a new slot, as YYYY-MM-DD.
+  readonly defaultDate = input<string | null>(null);
   readonly isSaving = input<boolean>(false);
   // Validation or conflict message returned by the API on save.
   readonly errorMessage = input<string | null>(null);
@@ -82,6 +87,8 @@ export class SlotFormComponent {
   // Earliest date the date picker allows. Must stay a stable object: a new
   // Date on every change detection makes the calendar re-render mid-click.
   readonly minDate: Date = startOfToday();
+  readonly maxDate: Date = latestScheduleDate();
+  readonly holidayDates: Date[] = getHolidayDates();
 
   readonly isEditing = computed((): boolean => this.slot() !== null);
   readonly bookedCount = computed((): number => {
@@ -94,6 +101,21 @@ export class SlotFormComponent {
   readonly minCapacity = computed((): number =>
     Math.max(MIN_CAPACITY, this.bookedCount()),
   );
+
+  // Stops adding or moving a slot onto a holiday. A slot already on one can
+  // still be edited, as long as its date stays the same.
+  private readonly notHoliday: ValidatorFn = (
+    group: AbstractControl,
+  ): ValidationErrors | null => {
+    const date: Date | null = group.get('clinicDate')?.value ?? null;
+    if (!date) {
+      return null;
+    }
+    const picked: string = toDateParam(date);
+    return picked !== this.slot()?.clinicDate && getHolidayName(picked)
+      ? { holiday: true }
+      : null;
+  };
 
   // A new slot cannot start earlier today; existing slots are not re-checked.
   private readonly startNotPassed: ValidatorFn = (
@@ -119,7 +141,7 @@ export class SlotFormComponent {
       capacity: [DEFAULT_CAPACITY, [Validators.required]],
       isBookable: [true],
     },
-    { validators: [endAfterStart, this.startNotPassed] },
+    { validators: [endAfterStart, this.startNotPassed, this.notHoliday] },
   );
 
   constructor() {
@@ -129,8 +151,9 @@ export class SlotFormComponent {
         return;
       }
       const slot: ClinicSlot | null = this.slot();
+      const date: string | null = slot?.clinicDate ?? this.defaultDate();
       this.form.reset({
-        clinicDate: slot ? parseDateParam(slot.clinicDate) : null,
+        clinicDate: date ? parseDateParam(date) : null,
         startTime: slot?.startTime ?? '',
         endTime: slot?.endTime ?? '',
         capacity: slot?.capacity ?? DEFAULT_CAPACITY,

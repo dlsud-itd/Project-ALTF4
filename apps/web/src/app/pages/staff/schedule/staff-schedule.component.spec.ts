@@ -58,10 +58,12 @@ describe('StaffScheduleComponent', () => {
   });
 
   it('renders a row with capacity, remaining and status per slot', () => {
+    // Slot rows are listed directly in By slot; By day starts collapsed.
+    component.setView('slot');
     flushSlots([
       buildSlot(),
       buildSlot({ id: 2, remainingCapacity: 0, isBookable: false }),
-      buildSlot({ id: 3, isBookable: false }),
+      buildSlot({ id: 3, isBookable: false, isOpen: false }),
     ]);
     const element = fixture.nativeElement as HTMLElement;
     const rows = element.querySelectorAll('tbody tr');
@@ -74,6 +76,7 @@ describe('StaffScheduleComponent', () => {
   });
 
   it('sorts slots by date and filters expired rows without allowing actions', () => {
+    component.setView('slot');
     flushSlots([
       buildSlot({ id: 2, clinicDate: '2026-11-22', startTime: '09:00' }),
       buildSlot({

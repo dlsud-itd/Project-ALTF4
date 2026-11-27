@@ -59,7 +59,7 @@
 
   .form-select {
     width: auto;
-    min-width: 12rem;
+    min-width: 8.5rem;
   }
 }
 
@@ -538,4 +538,927 @@ $schedule-gap-top: 1rem;
 .table-wrapper .slot-table thead th {
   font-size: 1rem;
   letter-spacing: 0.02em;
+}
+
+// ---- Mobile: each slot row becomes a card ----
+@include bp.below-tablet {
+  // The cards sit on the page itself, which scrolls normally.
+  .schedule-page .table-wrapper {
+    overflow: visible;
+    max-height: none;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .schedule-page .table-wrapper .slot-table {
+    display: block;
+
+    thead,
+    tbody {
+      display: block;
+    }
+
+    // Only Block day and Add slot remain from the header row.
+    thead tr {
+      display: block;
+    }
+
+    thead th {
+      display: none;
+    }
+
+    thead th.actions-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      position: static;
+      padding: 0 0 0.75rem;
+      background: transparent;
+      border: 0;
+    }
+
+    tbody tr {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        'date status'
+        'time time'
+        'capacity remaining'
+        'actions actions';
+      gap: 0.35rem 0.75rem;
+      margin-bottom: 0.75rem;
+      padding: 1rem;
+      background: var(--surface-0);
+      border: var(--card-border);
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+    }
+
+    tbody td {
+      padding: 0;
+      background: transparent;
+      border: 0;
+      white-space: normal;
+    }
+
+    .cell-date {
+      grid-area: date;
+      align-self: center;
+      font-weight: 700;
+    }
+
+    .cell-status {
+      grid-area: status;
+      justify-self: end;
+    }
+
+    .cell-time {
+      grid-area: time;
+    }
+
+    .cell-capacity {
+      grid-area: capacity;
+    }
+
+    .cell-remaining {
+      grid-area: remaining;
+      justify-self: end;
+    }
+
+    td[data-label]::before {
+      content: attr(data-label) ': ';
+      font-weight: 600;
+    }
+
+    .cell-actions {
+      grid-area: actions;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.35rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--surface-200);
+    }
+
+    .no-filter-results {
+      grid-column: 1 / -1;
+    }
+  }
+
+  :host ::ng-deep .slot-table {
+    th.actions-col p-button + p-button {
+      margin-left: 0;
+    }
+
+    th.actions-col .p-button {
+      width: 100%;
+      min-height: 44px;
+      border-color: var(--primary-color);
+    }
+
+    // Comfortable tap targets for the row actions.
+    td.cell-actions .p-button {
+      width: 44px;
+      height: 44px;
+    }
+  }
+}
+
+// ---- By day view: collapsible day headings ----
+.table-wrapper .slot-table tbody .day-row {
+  cursor: pointer;
+
+  td {
+    padding: 0 1rem;
+    background: var(--surface-0);
+    font-size: 0.875rem;
+  }
+
+  td:first-child {
+    padding: 0;
+  }
+
+  // Overrides the centering used for the row action cells.
+  td:last-child {
+    text-align: left;
+  }
+}
+
+.table-wrapper .slot-table tbody .day-row:hover td,
+.table-wrapper
+  .slot-table
+  tbody
+  .day-row:has([aria-expanded='true'])
+  td {
+  background: var(--primary-light);
+}
+
+.day-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.6rem 1.5rem;
+  background: transparent;
+  border: 0;
+  color: var(--surface-900);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--surface-900);
+    outline-offset: -2px;
+  }
+
+  .pi {
+    width: 0.75rem;
+    font-size: 0.7rem;
+  }
+
+  // Long dates stay beside the arrow; the column widens to fit them.
+  .day-name {
+    white-space: nowrap;
+    font-size: 0.925rem;
+    font-weight: 600;
+  }
+}
+
+@include bp.below-tablet {
+  .schedule-page .table-wrapper .slot-table {
+    // Date on top, then the hours, then the counts.
+    tbody tr.day-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-areas:
+        'toggle toggle'
+        'hours hours'
+        'total open';
+      gap: 0.15rem 0.75rem;
+      padding: 0 0 0.75rem;
+      overflow: hidden;
+      background: var(--surface-0);
+    }
+
+    tbody tr.day-row td {
+      display: block;
+      padding: 0 0 0 2.5rem;
+      text-align: left;
+      background: transparent;
+    }
+
+    tbody tr.day-row td:first-child {
+      grid-area: toggle;
+      padding: 0;
+    }
+
+    tbody tr.day-row .day-time {
+      grid-area: hours;
+    }
+
+    tbody tr.day-row .day-total {
+      grid-area: total;
+    }
+
+    tbody tr.day-row .day-open {
+      grid-area: open;
+      padding-left: 0;
+    }
+
+    .day-toggle {
+      padding: 0.75rem 1rem;
+    }
+  }
+
+  // The day heading already shows the date, so the time leads each card.
+  .schedule-page .table-wrapper .slot-table.slot-table--by-day {
+    tbody tr:not(.day-row) {
+      grid-template-areas:
+        'time status'
+        'capacity remaining'
+        'actions actions';
+    }
+
+    .cell-date {
+      display: none;
+    }
+
+    .cell-time {
+      align-self: center;
+      font-weight: 700;
+    }
+  }
+}
+
+// Fixed column widths keep the header identical in both views, whether
+// days are open or closed.
+@include bp.from-tablet {
+  .table-wrapper .slot-table thead th {
+    &:nth-child(1) {
+      width: 18%;
+    }
+
+    &:nth-child(2) {
+      width: 21%;
+    }
+
+    &:nth-child(3) {
+      width: 12%;
+    }
+
+    &:nth-child(4) {
+      width: 13%;
+    }
+
+    &:nth-child(5) {
+      width: 11%;
+    }
+
+    &:nth-child(6) {
+      width: 25%;
+    }
+  }
+}
+
+// By day: indent slot rows so they read as part of the day above. Only the
+// first cell moves, so the other columns stay under their headings.
+@include bp.from-tablet {
+  .schedule-page
+    .table-wrapper
+    .slot-table.slot-table--by-day
+    tbody
+    tr:not(.day-row)
+    td:first-child {
+    padding-left: 3.75rem;
+  }
+}
+
+// Slightly smaller slot row text in both views.
+@include bp.from-tablet {
+  .table-wrapper .slot-table tbody tr:not(.day-row) td {
+    font-size: 0.875rem;
+  }
+
+  :host ::ng-deep .slot-table tbody .p-tag {
+    font-size: 0.78rem;
+  }
+}
+
+// Compact View and Filter boxes; phones keep the full-width ones.
+@media (min-width: 601px) {
+  .schedule-filters .form-select {
+    width: 8.75rem;
+    min-width: 0;
+  }
+}
+
+// ---- Calendar view ----
+.calendar {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--surface-0);
+  border: var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.calendar-weekdays {
+  margin-bottom: 0.4rem;
+  color: var(--surface-900);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-height: 68px;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: 10px;
+  color: var(--surface-900);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-light);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--surface-900);
+    outline-offset: 2px;
+  }
+
+  &.is-selected {
+    background: var(--primary-light);
+    border-color: var(--surface-900);
+    box-shadow: inset 0 0 0 1px var(--surface-900);
+  }
+
+  &.is-today .calendar-number {
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  // Dates outside the loaded range.
+  &.is-outside {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.calendar-number {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.calendar-label {
+  max-width: 100%;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--pill-radius);
+  background: #e4f2ee;
+  font-size: 0.72rem;
+  font-weight: 600;
+
+  &[data-tone='full'] {
+    background: #fdf0d5;
+    color: #7a4b00;
+  }
+
+  &[data-tone='closed'],
+  &[data-tone='expired'] {
+    background: #ecebeb;
+    color: #4b5555;
+  }
+}
+
+// Compact grid on phones.
+@include bp.below-tablet {
+  .calendar {
+    padding: 0.5rem;
+  }
+
+  .calendar-grid {
+    gap: 0.2rem;
+  }
+
+  .calendar-day {
+    align-items: center;
+    min-height: 56px;
+    padding: 0.3rem 0.1rem;
+    text-align: center;
+  }
+
+  .calendar-number {
+    font-size: 0.75rem;
+  }
+
+  .calendar-label {
+    padding: 0.05rem 0.2rem;
+    font-size: 0.6rem;
+    line-height: 1.3;
+  }
+}
+
+// The slot error floats over the top of the content, centered and full width,
+// without pushing anything down.
+.schedule-page {
+  position: relative;
+}
+
+.schedule-page .delete-error {
+  position: absolute;
+  top: 0.5rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  z-index: 1100;
+  margin: 0;
+  background: var(--surface-0);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.18);
+}
+
+:host ::ng-deep .delete-error .p-message-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+// Phones scroll the whole page, so keep the message on screen.
+@include bp.below-tablet {
+  .schedule-page .delete-error {
+    position: fixed;
+    top: 4.75rem;
+    left: 1rem;
+    right: 1rem;
+  }
+}
+
+.calendar-title {
+  margin: 0 0 0.75rem;
+  color: var(--surface-900);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+// ---- Panel for the clicked calendar date, beside the calendar ----
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  .calendar {
+    margin-bottom: 0;
+  }
+}
+
+.day-panel {
+  padding: 0.75rem 1rem;
+  background: var(--surface-0);
+  border: var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+.day-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h3 {
+    margin: 0;
+    color: var(--surface-900);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+}
+
+.day-panel-slots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.day-panel-slot {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--surface-200);
+  color: var(--surface-900);
+  font-size: 0.85rem;
+}
+
+.day-panel-slot-top,
+.day-panel-slot-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+
+.day-panel-actions {
+  display: flex;
+  margin-left: auto;
+}
+
+.day-panel-empty {
+  padding: 0.75rem 0;
+  color: var(--surface-900);
+  font-size: 0.875rem;
+}
+
+// Wide screens put the panel on the right; narrower ones stack it below.
+@media (min-width: 1100px) {
+  .calendar-layout.has-day-panel {
+    grid-template-columns: minmax(0, 1fr) 28rem;
+  }
+
+  // A long day scrolls inside the panel.
+  .day-panel {
+    max-height: min(75vh, 720px);
+    overflow-y: auto;
+  }
+
+  // Use the full page width while both are shown.
+  .schedule-page:has(.has-day-panel) {
+    max-width: none;
+  }
+}
+
+// Green header bars on the month and the selected date, matching the table.
+.calendar .calendar-title {
+  margin: -1rem -1rem 0.75rem;
+  padding: 0.9rem 1.25rem;
+  background: #0b7777;
+  border-radius: 16px 16px 0 0;
+  color: #ffffff;
+}
+
+// Stays in view while a long day scrolls.
+.day-panel {
+  padding-top: 0;
+}
+
+.day-panel .day-panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -1rem;
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  background: #0b7777;
+
+  h3 {
+    color: #ffffff;
+  }
+}
+
+.day-panel .day-panel-slots .day-panel-slot:first-child {
+  border-top: 0;
+}
+
+:host ::ng-deep .day-panel-header .p-button.p-button-text {
+  color: #ffffff;
+
+  &:hover {
+    background: rgb(255 255 255 / 0.18);
+    color: #ffffff;
+  }
+}
+
+@include bp.below-tablet {
+  .calendar .calendar-title {
+    margin: -0.5rem -0.5rem 0.6rem;
+  }
+}
+
+// Month name on the left, previous and next buttons on the right.
+.calendar .calendar-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  h3 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+  }
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .calendar-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid rgb(255 255 255 / 0.5);
+    border-radius: 50%;
+    color: #ffffff;
+    cursor: pointer;
+
+    &:hover {
+      background: rgb(255 255 255 / 0.18);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+
+    .pi {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+// White Add slot pill on the green calendar header.
+:host ::ng-deep .calendar-add .p-button {
+  min-height: 36px;
+  margin-right: 0.4rem;
+  padding: 0 0.875rem;
+  gap: 0.4rem;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: var(--pill-radius);
+  color: var(--primary-hover);
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  &:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+    color: var(--primary-hover);
+  }
+}
+
+// Narrower date boxes while the day panel is open.
+.calendar-layout.has-day-panel {
+  .calendar-grid {
+    gap: 0.25rem;
+  }
+
+  .calendar-day {
+    padding: 0.4rem 0.25rem;
+  }
+
+  .calendar-label {
+    padding: 0.1rem 0.3rem;
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+}
+
+@include bp.below-tablet {
+  .calendar .calendar-title {
+    flex-wrap: wrap;
+  }
+}
+
+.calendar-nav .calendar-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+
+  &:hover {
+    background: transparent;
+  }
+}
+
+// ---- Day panel: each slot is a small card ----
+.day-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(11 119 119 / 0.35) transparent;
+}
+
+.day-panel .day-panel-header {
+  padding: 0.8rem 0.75rem 0.8rem 1.25rem;
+
+  h3 {
+    font-size: 1.05rem;
+  }
+
+  p {
+    margin: 0.1rem 0 0;
+    color: rgb(255 255 255 / 0.85);
+    font-size: 0.78rem;
+  }
+}
+
+.day-panel .day-panel-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+}
+
+.day-panel .day-panel-slots .day-panel-slot {
+  padding: 0.65rem 0.6rem 0.5rem 0.85rem;
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  border-radius: 12px;
+
+  strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+}
+
+.day-panel-slot-bottom {
+  margin-top: 0.15rem;
+}
+
+.day-panel-seats {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #4a7576;
+  font-size: 0.8rem;
+
+  .pi {
+    font-size: 0.75rem;
+  }
+}
+
+.day-panel-actions {
+  gap: 0.15rem;
+}
+
+:host ::ng-deep .day-panel-slot {
+  .p-tag {
+    padding: 0.15rem 0.6rem;
+    border-radius: var(--pill-radius);
+    font-size: 0.72rem;
+  }
+
+  .p-button.p-button-text {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    color: #0b7777;
+
+    &:hover {
+      background: var(--primary-light);
+      color: #075a5b;
+    }
+
+    &.p-button-danger {
+      color: var(--danger-color);
+
+      &:hover {
+        background: rgb(239 68 68 / 0.1);
+        color: var(--danger-color);
+      }
+    }
+  }
+}
+
+// Block day and Add slot move below the month when space is tight.
+.calendar .calendar-title {
+  flex-wrap: wrap;
+}
+
+.calendar-nav {
+  flex-wrap: wrap;
+}
+
+// ---- Picking a day for Block day or Add slot ----
+.calendar-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--primary-light);
+  border-radius: 10px;
+  color: var(--surface-900);
+  font-size: 0.875rem;
+  font-weight: 600;
+
+  button {
+    padding: 0.25rem 0.75rem;
+    background: var(--surface-0);
+    border: 1px solid var(--surface-900);
+    border-radius: var(--pill-radius);
+    color: var(--surface-900);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+}
+
+.calendar-grid.is-picking .calendar-day:not(:disabled) {
+  border: 1px dashed var(--surface-900);
+
+  &:hover {
+    border-style: solid;
+    box-shadow: 0 4px 12px rgb(7 90 91 / 0.18);
+  }
+}
+
+// The button whose action is waiting for a day.
+:host ::ng-deep .calendar-add.is-active .p-button {
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.55);
+  background: var(--primary-light);
+}
+
+// Smaller View and Filter controls; phones keep the larger tap targets.
+@media (min-width: 601px) {
+  .schedule-filters {
+    gap: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .schedule-filters .form-select {
+    width: 7.5rem;
+    min-height: 34px;
+    padding: 0.25rem 1.9rem 0.25rem 0.65rem;
+    background-position: right 0.6rem center;
+    background-size: 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+  }
+}
+
+// Add slot sits beside the close button in the day panel header.
+.day-panel-header-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.35rem;
+}
+
+:host ::ng-deep .day-panel-header .day-panel-add .p-button {
+  min-height: 34px;
+  padding: 0 0.8rem;
+  gap: 0.35rem;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: var(--pill-radius);
+  color: var(--primary-hover);
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  &:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+    color: var(--primary-hover);
+  }
+}
+
+// ---- Holidays ----
+.calendar-day.is-holiday {
+  background: #fdf1f1;
+  border-color: #f0c9c9;
+}
+
+.calendar-holiday {
+  max-width: 100%;
+  color: #a12626;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.day-panel-holiday {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #fdf1f1;
+  border-radius: 8px;
+  color: #a12626;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+@include bp.below-tablet {
+  .calendar-holiday {
+    font-size: 0.55rem;
+  }
 }

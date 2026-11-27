@@ -28,9 +28,16 @@
         dateFormat="yy-mm-dd"
         placeholder="YYYY-MM-DD"
         [minDate]="minDate"
+        [maxDate]="maxDate"
+        [disabledDates]="isEditing() ? [] : holidayDates"
         [showIcon]="true"
         [fluid]="true"
       />
+      @if (form.hasError('holiday')) {
+        <small role="alert" class="holiday-error">
+          The clinic is closed on this holiday.
+        </small>
+      }
       @if (hasPastDateError()) {
         <small class="field-error">Date cannot be in the past.</small>
       } @else if (showError('clinicDate')) {
