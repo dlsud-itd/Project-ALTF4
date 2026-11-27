@@ -75,7 +75,7 @@ export class StaffDashboardQueueActions {
     });
   }
 
-  // Opens the call next dialog with the room and practitioner prefilled.
+  // Calls the next waiting patient directly without prompting for room/practitioner.
   onCallNext(): void {
     this.dashboard.clearNotice();
     if (this.dashboard.currentTicket()) {
@@ -93,13 +93,55 @@ export class StaffDashboardQueueActions {
       return;
     }
 
-    this.dashboard.callNextForm.reset({
-      room: `${ROOM_PREFIX} ${this.dashboard.counterNumber()}`,
-      provider:
-        this.authService.currentUser()?.fullName ?? DEFAULT_PRACTITIONER_NAME,
-    });
+    const room = `${ROOM_PREFIX} ${this.dashboard.counterNumber()}`;
+    const provider =
+      this.authService.currentUser()?.fullName ?? DEFAULT_PRACTITIONER_NAME;
+
+    this.dashboard.isGeneratingQueue.set(true);
     this.dashboard.callNextError.set(null);
-    this.dashboard.isCallNextDialogOpen.set(true);
+
+    this.queueService
+      .callNext(this.dashboard.queueId(), {
+        room: room.trim(),
+        provider: provider.trim(),
+      })
+      .subscribe({
+        next: (response): void => {
+          const calledTicket: ServingTicket = {
+            queue_entry_id: response.queue_entry_id,
+            ticket_number: response.ticket_number,
+            status: response.status,
+            patient_name: response.patient_name,
+            reason_for_visit: response.reason_for_visit,
+            called_at: response.called_at,
+            grace_expires_at: response.grace_expires_at,
+            room_number: response.room_number,
+            provider: response.provider,
+          };
+          this.dashboard.gracePeriodMs.set(response.grace_period_ms);
+          this.dashboard.currentTicket.set(calledTicket);
+          this.dashboard.waitingCount.update((count: number): number =>
+            Math.max(0, count - 1),
+          );
+          this.dashboard.clearNotice();
+          this.dashboard.isCallNextDialogOpen.set(false);
+          this.dashboard.loadQueueStatus();
+        },
+        error: (error: HttpErrorResponse): void => {
+          this.logActionError(CALL_NEXT_ERROR, error);
+          this.dashboard.showNotice(
+            this.friendlyQueueError(error, ACTION_FAILED_MESSAGE),
+            NoticeVariant.ERROR,
+          );
+          this.dashboard.isGeneratingQueue.set(false);
+          if (error.status === HTTP_CONFLICT) {
+            this.dashboard.loadQueueStatus();
+          }
+        },
+        complete: (): void => {
+          this.dashboard.isGeneratingQueue.set(false);
+        },
+      });
   }
 
   onCancelCallNext(): void {

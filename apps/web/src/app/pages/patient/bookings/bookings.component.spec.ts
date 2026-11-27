@@ -30,6 +30,7 @@ describe('BookingsComponent', () => {
   let appointmentsStoreSpy: {
     load: jasmine.Spy;
     refresh: jasmine.Spy;
+    appointments: WritableSignal<PatientAppointment[]>;
     activeBookingCount: WritableSignal<number | null>;
     maxActiveBookings: WritableSignal<number | null>;
     isLoading: WritableSignal<boolean>;
@@ -88,6 +89,7 @@ describe('BookingsComponent', () => {
     appointmentsStoreSpy = {
       load: jasmine.createSpy('load'),
       refresh: jasmine.createSpy('refresh'),
+      appointments: signal<PatientAppointment[]>([]),
       activeBookingCount: signal<number | null>(0),
       maxActiveBookings: signal<number | null>(3),
       isLoading: signal(false),
@@ -278,5 +280,21 @@ describe('BookingsComponent', () => {
     expect(component.bookingConflictError()).toContain('fully booked');
     // Verifies that loadSlots was called to refresh slots after conflict
     expect(slotsServiceSpy.getSlots).toHaveBeenCalledTimes(2);
+  });
+
+  it('should exclude slots the patient has already booked from availableSlots', () => {
+    expect(component.availableSlots().map((s) => s.id)).toEqual([1, 2]);
+
+    appointmentsStoreSpy.appointments.set([
+      {
+        id: 10,
+        status: 'BOOKED',
+        createdAt: '2026-11-10T08:00:00.000Z',
+        slot: mockSlots[0],
+      },
+    ]);
+    fixture.detectChanges();
+
+    expect(component.availableSlots().map((s) => s.id)).toEqual([2]);
   });
 });
