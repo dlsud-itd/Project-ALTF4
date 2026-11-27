@@ -21,62 +21,20 @@ describe('StaffDashboardComponent call and recall actions', () => {
     ({ component, fixture } = await setupStaffDashboard());
   });
 
-  it('opens the call next dialog with the room and staff prefilled', () => {
+  it('calls next directly with default counter room and staff name without opening a dialog', () => {
     component.dashboard.currentTicket.set(null);
     component.dashboard.onCallNext();
     fixture.detectChanges();
 
-    expect(component.dashboard.isCallNextDialogOpen()).toBeTrue();
-    expect(component.dashboard.callNextForm.getRawValue()).toEqual({
+    expect(component.dashboard.isCallNextDialogOpen()).toBeFalse();
+    expect(spyOnCallNext()).toHaveBeenCalledWith(1, {
       room: 'Counter 1',
       provider: 'Staff Nurse',
     });
-    expect(
-      queryDashboardDocument('#call-room')?.hasAttribute('autofocus'),
-    ).toBeTrue();
-    expect(spyOnCallNext()).not.toHaveBeenCalled();
-  });
-
-  it('does not call next when a field is blank', () => {
-    component.dashboard.currentTicket.set(null);
-    component.dashboard.onCallNext();
-    component.dashboard.callNextForm.patchValue({ room: '   ' });
-
-    component.dashboard.onConfirmCallNext();
-
-    expect(spyOnCallNext()).not.toHaveBeenCalled();
-    expect(component.dashboard.callNextForm.controls.room.touched).toBeTrue();
-    expect(component.dashboard.isCallNextDialogOpen()).toBeTrue();
-  });
-
-  it('calls next with the entered room and practitioner', () => {
-    component.dashboard.currentTicket.set(null);
-    component.dashboard.onCallNext();
-    component.dashboard.callNextForm.setValue({
-      room: ' Room 2 ',
-      provider: ' Dr. Test ',
-    });
-
-    component.dashboard.onConfirmCallNext();
-
-    expect(spyOnCallNext()).toHaveBeenCalledWith(1, {
-      room: 'Room 2',
-      provider: 'Dr. Test',
-    });
     expect(component.dashboard.currentTicket()?.ticket_number).toBe('A-105');
-    expect(component.dashboard.isCallNextDialogOpen()).toBeFalse();
   });
 
-  it('closes the call next dialog on cancel without a request', () => {
-    component.dashboard.currentTicket.set(null);
-    component.dashboard.onCallNext();
-    component.dashboard.onCancelCallNext();
-
-    expect(component.dashboard.isCallNextDialogOpen()).toBeFalse();
-    expect(spyOnCallNext()).not.toHaveBeenCalled();
-  });
-
-  it('shows a 409 call next error inside the open dialog', () => {
+  it('shows a 409 call next error as a dashboard notice', () => {
     spyOnCallNext().and.returnValue(
       throwError(() =>
         conflictError('STATION_BUSY', 'A patient is being called.'),
@@ -84,13 +42,10 @@ describe('StaffDashboardComponent call and recall actions', () => {
     );
     component.dashboard.currentTicket.set(null);
     component.dashboard.onCallNext();
-
-    component.dashboard.onConfirmCallNext();
     fixture.detectChanges();
 
-    const alert = queryDashboardDocument('.dialog-form [role="alert"]');
-    expect(component.dashboard.isCallNextDialogOpen()).toBeTrue();
-    expect(alert?.textContent).toContain(
+    expect(component.dashboard.isCallNextDialogOpen()).toBeFalse();
+    expect(component.dashboard.notice()?.message).toBe(
       'A patient is already called or in consultation.',
     );
     expect(component.dashboard.hasStatsError()).toBeFalse();
@@ -113,14 +68,12 @@ describe('StaffDashboardComponent call and recall actions', () => {
     );
     component.dashboard.currentTicket.set(null);
     component.dashboard.onCallNext();
-
-    component.dashboard.onConfirmCallNext();
     fixture.detectChanges();
 
-    expect(component.dashboard.callNextError()).toBe(
+    expect(component.dashboard.notice()?.message).toBe(
       'Something went wrong. Please try again.',
     );
-    expect(component.dashboard.isCallNextDialogOpen()).toBeTrue();
+    expect(component.dashboard.isCallNextDialogOpen()).toBeFalse();
     expect(component.dashboard.hasStatsError()).toBeFalse();
   });
 

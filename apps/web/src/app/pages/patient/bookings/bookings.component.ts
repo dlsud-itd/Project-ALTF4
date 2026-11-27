@@ -226,12 +226,24 @@ export class BookingsComponent implements OnInit {
       : `Active bookings: ${activeCount} of ${maximum}.`;
   });
 
-  // Only bookable slots with available capacity are shown to patients
+  // Only bookable slots with available capacity that the patient has not already booked are shown
   readonly availableSlots = computed((): ClinicSlot[] => {
-    return this.rawSlots().filter(
-      (slot: ClinicSlot): boolean =>
-        slot.isBookable && slot.remainingCapacity > 0 && !slot.isExpired,
-    );
+    const activeBooked = this.appointmentsStore
+      .appointments()
+      .filter((appt) => appt.status === 'BOOKED');
+
+    return this.rawSlots().filter((slot: ClinicSlot): boolean => {
+      if (!slot.isBookable || slot.remainingCapacity <= 0 || slot.isExpired) {
+        return false;
+      }
+
+      return !activeBooked.some(
+        (appt) =>
+          appt.slot.id === slot.id ||
+          (appt.slot.clinicDate === slot.clinicDate &&
+            appt.slot.startTime === slot.startTime),
+      );
+    });
   });
 
   // Calendar dates derived dynamically from available slots

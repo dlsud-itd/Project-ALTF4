@@ -24,10 +24,6 @@
               <span class="patient-reason">{{
                 ticket.reason_for_visit || "No reason provided"
               }}</span>
-              <span class="patient-location">
-                {{ ticket.room_number }} ·
-                {{ ticket.provider || "Practitioner" }}
-              </span>
             </div>
             @if (isCalled()) {
               <div class="ticket-actions">
@@ -102,7 +98,7 @@
               {{
                 waitingCount() > 0
                   ? "Click Call Next Patient to start."
-                  : "The queue is empty. New walk-ins will appear here."
+                  : "The queue is empty. Reserved patients and new walk-ins will appear here."
               }}
             </p>
           </div>

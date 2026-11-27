@@ -50,7 +50,7 @@ describe('StaffDashboardComponent notices and guards', () => {
     component.dashboard.onCallNext();
 
     expect(component.dashboard.notice()).toBeNull();
-    expect(component.dashboard.isCallNextDialogOpen()).toBeTrue();
+    expect(component.dashboard.isCallNextDialogOpen()).toBeFalse();
   });
 
   it('allows the notice to be dismissed manually', () => {
