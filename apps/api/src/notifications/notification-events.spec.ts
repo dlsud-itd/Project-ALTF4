@@ -30,6 +30,14 @@ describe('notification event rules', () => {
     diagnosis: 'FORBIDDEN_DIAGNOSIS',
     patientName: 'FORBIDDEN_NAME',
   };
+  const queueCallContext = {
+    queueEntryId: 41,
+    ticketNumber: 'A-041',
+    roomNumber: 'Room 1',
+    reasonForVisit: 'FORBIDDEN_REASON',
+    diagnosis: 'FORBIDDEN_DIAGNOSIS',
+    patientName: 'FORBIDDEN_NAME',
+  };
   const events: NotificationEvent[] = [
     {
       type: NotificationType.BOOKING_CONFIRMATION,
@@ -50,6 +58,10 @@ describe('notification event rules', () => {
     {
       type: NotificationType.APPROACHING_TURN,
       context: approachingTurnContext,
+    },
+    {
+      type: NotificationType.QUEUE_CALL,
+      context: queueCallContext,
     },
   ];
 

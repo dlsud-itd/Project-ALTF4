@@ -149,6 +149,7 @@ export class PatientLayoutComponent implements OnInit {
 
   ngOnInit(): void {
     this.notificationsStore.load();
+    this.notificationsStore.connectLiveUpdates();
   }
 
   toggleMobileMenu(): void {

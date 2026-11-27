@@ -1,10 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  MessageEvent,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { AccessRole, Notification, Prisma } from '@prisma/client';
+import { Observable, Subject, filter, map } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailChannelService } from './channels/email-channel.service';
+import { SmsChannelService } from './channels/sms-channel.service';
 import {
   buildNotificationPayload,
   NOTIFICATION_EVENT_RULES,
   NotificationEvent,
+  NotificationPayload,
   NotificationRecipientRole,
 } from './notification-events';
 import { ListNotificationsQueryDto } from './dto/list-notifications-query.dto';
@@ -18,9 +28,47 @@ export interface NotificationRecipientIds {
   [NotificationRecipientRole.STAFF]?: readonly number[];
 }
 
+interface NotificationRecipientRecord {
+  id: number;
+  email?: string;
+  fullName?: string;
+  phoneNumber?: string | null;
+  role?: AccessRole;
+}
+
+interface UserNotificationStreamItem {
+  userId: number;
+  payload: NotificationPayload;
+}
+
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationsService.name);
+  private readonly userNotificationEvents$ =
+    new Subject<UserNotificationStreamItem>();
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly emailChannel?: EmailChannelService,
+    @Optional() private readonly smsChannel?: SmsChannelService,
+  ) {}
+
+  getUserNotificationStream(userId: number): Observable<MessageEvent> {
+    return this.userNotificationEvents$.pipe(
+      filter((item) => item.userId === userId),
+      map((item) => ({
+        type: 'notification:created',
+        data: {
+          type: item.payload.type,
+          title: item.payload.title,
+          message: item.payload.message,
+          appointmentId: item.payload.appointmentId ?? null,
+          queueEntryId: item.payload.queueEntryId ?? null,
+          timestamp: new Date().toISOString(),
+        },
+      })),
+    );
+  }
 
   async createForRecipients(
     event: NotificationEvent,
@@ -38,7 +86,7 @@ export class NotificationsService {
       return 0;
     }
 
-    const recipients = await this.prisma.user.findMany({
+    const recipients = (await this.prisma.user.findMany({
       where: {
         id: { in: requestedIds },
         role: {
@@ -49,8 +97,14 @@ export class NotificationsService {
           ),
         },
       },
-      select: { id: true },
-    });
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        role: true,
+      },
+    })) as NotificationRecipientRecord[];
 
     if (recipients.length === 0) {
       return 0;
@@ -60,7 +114,77 @@ export class NotificationsService {
     const result = await this.prisma.notification.createMany({
       data: recipients.map(({ id }) => ({ ...payload, userId: id })),
     });
+
+    for (const recipient of recipients) {
+      this.userNotificationEvents$.next({
+        userId: recipient.id,
+        payload,
+      });
+    }
+
+    void this.dispatchExternalChannels(recipients, payload).catch((error) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`External notification dispatch error: ${reason}`);
+    });
+
     return result.count;
+  }
+
+  async notifyWalkInSms(
+    phoneNumber: string | null | undefined,
+    event: NotificationEvent,
+  ): Promise<void> {
+    if (!phoneNumber || !this.smsChannel?.isEnabled()) {
+      return;
+    }
+    const payload = buildNotificationPayload(event);
+    await this.smsChannel.send({
+      to: phoneNumber,
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
+    });
+  }
+
+  private async dispatchExternalChannels(
+    recipients: readonly NotificationRecipientRecord[],
+    payload: NotificationPayload,
+  ): Promise<void> {
+    const tasks: Promise<unknown>[] = [];
+
+    for (const recipient of recipients) {
+      if (recipient.email && this.emailChannel?.isEnabled()) {
+        tasks.push(
+          this.emailChannel.send({
+            to: recipient.email,
+            recipientName: recipient.fullName || 'ClinicQueue User',
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+          }),
+        );
+      }
+
+      // Send SMS only to patient recipients to conserve the 6 SMS/min gateway limit.
+      if (
+        recipient.phoneNumber &&
+        recipient.role === AccessRole.PATIENT &&
+        this.smsChannel?.isEnabled()
+      ) {
+        tasks.push(
+          this.smsChannel.send({
+            to: recipient.phoneNumber,
+            type: payload.type,
+            title: payload.title,
+            message: payload.message,
+          }),
+        );
+      }
+    }
+
+    if (tasks.length > 0) {
+      await Promise.allSettled(tasks);
+    }
   }
 
   async listForUser(

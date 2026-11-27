@@ -1,7 +1,15 @@
 import { createHash } from 'crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaClient, QueueSource, QueueStatus } from '@prisma/client';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  NotificationType,
+  Prisma,
+  PrismaClient,
+  QueueSource,
+  QueueStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRecipientRole } from '../notifications/notification-events';
 import {
   ACTIVE_QUEUE_STATUSES,
   DEFAULT_SERVICE_DURATION_MINUTES,
@@ -22,6 +30,7 @@ export class QueueReadService {
     private readonly prisma: PrismaService,
     private readonly events: QueueEventsService,
     private readonly lifecycle: QueueLifecycleService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   async getQueueOrThrow(queueId: number) {
@@ -135,6 +144,31 @@ export class QueueReadService {
         timestamp: now.toISOString(),
         noShowAt: updated.noShowAt?.toISOString() ?? null,
       });
+
+      if (this.notifications) {
+        try {
+          const event = {
+            type: NotificationType.QUEUE_STATUS_UPDATE,
+            context: {
+              queueEntryId: updated.id,
+              ticketNumber: updated.ticketNumber,
+              status: QueueStatus.NO_SHOW,
+            },
+          };
+          if (updated.patientId) {
+            await this.notifications.createForRecipients(event, {
+              [NotificationRecipientRole.PATIENT]: [updated.patientId],
+            });
+          } else if (updated.phoneNumber) {
+            await this.notifications.notifyWalkInSms(
+              updated.phoneNumber,
+              event,
+            );
+          }
+        } catch {
+          // Notifications are non-blocking
+        }
+      }
     }
 
     return newlyNoShowTickets;

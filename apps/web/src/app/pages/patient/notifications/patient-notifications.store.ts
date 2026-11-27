@@ -1,12 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EMPTY, Observable, catchError, expand, map, of, reduce } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  Subscription,
+  catchError,
+  expand,
+  map,
+  of,
+  reduce,
+} from 'rxjs';
 import {
   NotificationType,
   PatientNotification,
 } from '@core/models/notification.models';
-import { NotificationsService } from '@core/services';
+import { AuthService, NotificationsService } from '@core/services';
 import { getErrorMessage } from '@core/utils';
 
 export type NotificationTagSeverity = 'info' | 'warn' | 'secondary';
@@ -64,8 +73,10 @@ export const notificationLinkLabel = (type: NotificationType): string =>
 @Injectable({ providedIn: 'root' })
 export class PatientNotificationsStore {
   private readonly notificationsService = inject(NotificationsService);
+  private readonly authService = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
   private hasLoaded = false;
+  private streamSubscription: Subscription | null = null;
 
   readonly notifications = signal<PatientNotification[]>([]);
   readonly isLoading = signal(false);
@@ -112,6 +123,25 @@ export class PatientNotificationsStore {
         this.hasLoaded = true;
         this.loadError.set(null);
         this.notifications.set(result.notifications);
+      });
+  }
+
+  connectLiveUpdates(): void {
+    const token = this.authService.getToken();
+    if (!token || this.streamSubscription) {
+      return;
+    }
+
+    this.streamSubscription = this.notificationsService
+      .streamNotifications(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (): void => {
+          this.load(true);
+        },
+        complete: (): void => {
+          this.streamSubscription = null;
+        },
       });
   }
 
