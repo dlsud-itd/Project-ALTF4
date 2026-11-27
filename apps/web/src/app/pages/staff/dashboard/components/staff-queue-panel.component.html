@@ -96,9 +96,10 @@
             <h3>No patient is being called</h3>
             <p>
               {{
-                waitingCount() > 0
-                  ? "Click Call Next Patient to start."
-                  : "The queue is empty. Reserved patients and new walk-ins will appear here."
+                callNextClosedReason() ??
+                  (waitingCount() > 0
+                    ? "Click Call Next Patient to start."
+                    : "The queue is empty. Reserved patients and new walk-ins will appear here.")
               }}
             </p>
           </div>

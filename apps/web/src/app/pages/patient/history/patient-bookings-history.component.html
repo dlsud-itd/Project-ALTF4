@@ -48,7 +48,7 @@
     </div>
 
     <a class="schedule-link" routerLink="/patient/schedule">
-      <p-button label="Schedule Appointment" icon="pi pi-calendar-plus" />
+      <p-button label="Book Appointment" icon="pi pi-calendar-plus" />
     </a>
   </div>
 
@@ -116,13 +116,18 @@
                     Ticket <strong>{{ appt.reservedQueueEntry.ticketNumber }}</strong>
                   </span>
                   <span class="ticket-wait-info">
-                    <i class="pi pi-users"></i>
-                    @if (appt.reservedQueueEntry.positionInQueue <= 1) {
-                      Next in line
+                    @if (isAwaitingQueue(appt)) {
+                      <i class="pi pi-calendar"></i>
+                      Reserved for {{ formatReservation(appt) }}
                     } @else {
-                      {{ appt.reservedQueueEntry.positionInQueue - 1 }} ahead
+                      <i class="pi pi-users"></i>
+                      @if (appt.reservedQueueEntry.positionInQueue <= 1) {
+                        Next in line
+                      } @else {
+                        {{ appt.reservedQueueEntry.positionInQueue - 1 }} ahead
+                      }
+                      &bull; ~{{ appt.reservedQueueEntry.estimatedWaitMinutes }} min wait
                     }
-                    &bull; ~{{ appt.reservedQueueEntry.estimatedWaitMinutes }} min wait
                   </span>
                 </div>
               }
@@ -131,8 +136,8 @@
             <!-- Right: Status Tag and Actions -->
             <div class="card-actions-side">
               <p-tag
-                [value]="statusLabel(appt.status)"
-                [severity]="statusSeverity(appt.status)"
+                [value]="isUnresolvedPast(appt) ? 'Past' : statusLabel(appt.status)"
+                [severity]="isUnresolvedPast(appt) ? 'secondary' : statusSeverity(appt.status)"
               />
 
               @if (isUpcoming(appt)) {

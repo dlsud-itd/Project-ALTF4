@@ -1,440 +1,625 @@
+@use "../../../shared/styles/breakpoints" as bp;
+
+// Chart series, from the existing brand palette.
+$series-one: #0b7777;
+$series-two: #72b9b2;
+
 .admin-dashboard-page {
-  padding: 1.5rem 2rem 3.5rem;
   max-width: 1300px;
   margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
 }
 
-/* STATS GRID */
-// Five cards share one row on desktop; on narrower screens they fall into a
-// balanced 3 + 2 layout, then a single column on phones.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+/* PAGE ACTIONS */
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.range-control,
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border-radius: var(--pill-radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.range-control {
+  background: var(--surface-0);
+  border: 1px solid var(--surface-200);
+  color: var(--text-main);
+
+  select {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  &:focus-within {
+    border-color: var(--primary-color);
+  }
+}
+
+.export-button {
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  color: #ffffff;
+  font-weight: 700;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+// Same top bar placement as the staff schedule's Add slot button.
+@include bp.from-tablet {
+  .admin-actions {
+    position: absolute;
+    top: 0;
+    right: calc(2rem + 44px + 0.75rem);
+    height: 88px;
+    margin: 0;
+    flex-wrap: nowrap;
+  }
+}
+
+/* STAT CARDS */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
-  margin-bottom: 2.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card,
+.chart-card {
+  background: var(--surface-0);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .stat-card {
-  background: var(--surface-0, #ffffff);
-  border: var(--card-border);
-  border-radius: var(--card-radius);
-  padding: 1.35rem 1.4rem;
-  box-shadow: var(--card-shadow);
   position: relative;
-  overflow: hidden;
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: transparent;
-    transition: background-color 180ms ease;
-  }
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--card-shadow-hover);
-    border-color: rgba(11, 119, 119, 0.35);
-  }
-
-  &.primary-card:hover::before {
-    background: var(--primary-color, #0b7777);
-  }
-  &.info-card:hover::before {
-    background: #0284c7;
-  }
-  &.success-card:hover::before {
-    background: #16a34a;
-  }
-  &.warning-card:hover::before {
-    background: #f59e0b;
-  }
-  &.purple-card:hover::before {
-    background: #7e22ce;
-  }
-
-  // Icon on top, then label, number and caption, so long labels wrap instead of
-  // being cut off.
-  .stat-card-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.85rem;
-  }
-
-  .stat-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    font-size: 1.35rem;
-    flex-shrink: 0;
-
-    &.primary {
-      background: #eef7f5;
-      color: #0b7777;
-    }
-
-    &.info {
-      background: #e0f2fe;
-      color: #0284c7;
-    }
-
-    &.success {
-      background: #dcfce7;
-      color: #15803d;
-    }
-
-    &.warning {
-      background: #fef3c7;
-      color: #d97706;
-    }
-
-    &.purple {
-      background: #f3e8ff;
-      color: #7e22ce;
-    }
-  }
-
-  .stat-body {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-
-    .stat-label {
-      font-size: 0.84rem;
-      font-weight: 600;
-      color: var(--text-muted, #64748b);
-      letter-spacing: -0.01em;
-      line-height: 1.3;
-    }
-
-    .stat-number {
-      font-size: 2rem;
-      font-weight: 800;
-      color: #075a5b;
-      line-height: 1.15;
-      margin: 0.2rem 0 0.35rem;
-
-      &.primary {
-        color: #0b7777;
-      }
-      &.success {
-        color: #15803d;
-      }
-      &.warning {
-        color: #d97706;
-      }
-      &.info {
-        color: #0284c7;
-      }
-      &.purple {
-        color: #7e22ce;
-      }
-    }
-
-    .stat-sub-pill {
-      display: inline-flex;
-      align-items: flex-start;
-      gap: 0.4rem;
-      font-size: 0.78rem;
-      line-height: 1.35;
-      color: #64748b;
-      font-weight: 500;
-
-      .dot {
-        width: 6px;
-        height: 6px;
-        margin-top: 0.4em;
-        border-radius: 50%;
-        flex-shrink: 0;
-
-        &.primary-dot {
-          background: #0b7777;
-        }
-        &.info-dot {
-          background: #0284c7;
-        }
-        &.success-dot {
-          background: #16a34a;
-        }
-        &.warning-dot {
-          background: #f59e0b;
-        }
-        &.purple-dot {
-          background: #7e22ce;
-        }
-      }
-    }
-  }
-}
-
-/* QUICK TOOLS CARDS */
-.quick-nav-section {
-  .section-heading {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-main, #075a5b);
-    margin: 0 0 1.25rem;
-  }
-}
-
-.nav-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.35rem;
-}
-
-.nav-card {
   display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 230px;
+  padding: 1.35rem 1.35rem 1.15rem;
+  overflow: hidden;
+}
+
+.stat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stat-label {
+  padding-top: 0.75rem;
+  color: var(--text-main);
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+// Round icon badge in the top right corner.
+.stat-icon {
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 1.25rem;
-  background: var(--surface-0, #ffffff);
-  border: var(--card-border);
-  border-radius: var(--card-radius);
-  padding: 1.6rem;
-  text-decoration: none;
-  box-shadow: var(--card-shadow);
-  transition: all 180ms ease;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: -0.25rem -0.25rem 0 0;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary-color);
 
-  &:hover {
-    border-color: var(--primary-color, #0b7777);
-    transform: translateY(-3px);
-    box-shadow: var(--card-shadow-hover);
-
-    .nav-card-arrow {
-      transform: translateX(5px);
-      color: var(--primary-color, #0b7777);
-    }
-  }
-
-  .nav-card-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    background: #eef7f5;
-    color: var(--primary-color, #0b7777);
-    font-size: 1.45rem;
-    flex-shrink: 0;
-  }
-
-  .nav-card-content {
-    flex: 1;
-
-    h4 {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text-main, #075a5b);
-      margin: 0 0 0.35rem;
-    }
-
-    p {
-      font-size: 0.85rem;
-      color: var(--text-muted, #64748b);
-      margin: 0;
-      line-height: 1.45;
-    }
-  }
-
-  .nav-card-arrow {
-    font-size: 1.1rem;
-    color: var(--text-muted, #94a3b8);
-    transition: transform 180ms ease, color 180ms ease;
+  svg {
+    width: 28px;
+    height: 28px;
   }
 }
 
-@media (max-width: 1100px) {
-  .stats-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+.stat-number {
+  margin-top: -0.15rem;
+  color: var(--text-main);
+  font-size: 3.4rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
 
-    .stat-card {
-      grid-column: span 2;
+.stat-note {
+  color: var(--text-muted);
+  font-size: 0.875rem;
 
-      &:nth-child(n + 4) {
-        grid-column: span 3;
-      }
-    }
+  strong {
+    color: var(--text-main);
   }
 }
 
-@media (max-width: 860px) {
-  .admin-dashboard-page {
-    padding: 1rem;
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: var(--primary-light);
+  border-radius: 10px;
+  color: var(--primary-hover);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+
+  i {
+    font-size: 0.75rem;
   }
 }
 
-@media (max-width: 560px) {
-  .stats-grid {
-    grid-template-columns: minmax(0, 1fr);
-
-    .stat-card,
-    .stat-card:nth-child(n + 4) {
-      grid-column: auto;
-    }
-  }
-
-  .nav-card {
-    padding: 1.15rem;
-  }
+.stat-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--surface-200);
 }
 
-// ---- Enhanced overview ----
-// Stat cards: the dark teal card from the staff dashboard, with every label,
-// number and caption on the same baseline across the row.
-.stats-grid {
-  align-items: stretch;
-}
+// Total users: filled teal card with soft waves.
+.users-card {
+  background: linear-gradient(150deg, var(--primary-hover), var(--primary-color));
 
-.stats-grid .stat-card {
-  background: var(--primary-color, #0b7777);
-  color: #ffffff;
-
-  &:hover {
-    border-color: transparent;
-  }
-
-  &::before {
-    display: none;
-  }
-
-  .stat-card-inner {
-    height: 100%;
-    gap: 0.75rem;
-  }
-
-  .stat-icon {
-    width: 44px;
-    height: 44px;
-    font-size: 1.15rem;
-  }
-
-  .stat-body {
-    flex: 1;
+  .waves {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
     width: 100%;
-
-    .stat-label {
-      min-height: 2.6em;
-      color: rgb(255 255 255 / 0.85);
-    }
-
-    .stat-number,
-    .stat-number.primary,
-    .stat-number.info,
-    .stat-number.success,
-    .stat-number.warning,
-    .stat-number.purple {
-      color: #ffffff;
-      margin: 0.1rem 0 0.5rem;
-    }
-
-    .stat-sub-pill {
-      min-height: 2.7em;
-      color: rgb(255 255 255 / 0.8);
-
-      .dot {
-        background: rgb(255 255 255 / 0.85);
-      }
-    }
-  }
-}
-
-// Quick tool cards: icon, title and arrow on one line, description underneath.
-.nav-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    'icon title arrow'
-    'desc desc desc';
-  align-items: center;
-  gap: 0.75rem 1rem;
-  padding: 1.25rem 1.4rem;
-
-  .nav-card-icon {
-    grid-area: icon;
-    width: 44px;
-    height: 44px;
-    font-size: 1.2rem;
+    height: 48%;
+    fill: rgb(255 255 255 / 0.09);
+    pointer-events: none;
   }
 
-  // The wrapper no longer lays out its children, so the title and description
-  // can sit in separate grid areas.
-  .nav-card-content {
-    display: contents;
-
-    h4 {
-      grid-area: title;
-      margin: 0;
-    }
-
-    p {
-      grid-area: desc;
-    }
+  .stat-head,
+  .stat-number,
+  .stat-note {
+    position: relative;
   }
 
-  .nav-card-arrow {
-    grid-area: arrow;
-  }
-}
-
-// Stat card layout: icon and big number share the top row; the label and the
-// caption sit underneath, so the numbers always line up whatever the label wraps to.
-.stats-grid .stat-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr;
-  align-content: start;
-  gap: 0.75rem 0.75rem;
-
-  .stat-card-inner,
-  .stat-body {
-    display: contents;
-  }
-
-  .stat-icon {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .stat-body .stat-number {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-    align-self: center;
-    margin: 0;
-    font-size: 2.4rem;
-    line-height: 1;
-  }
-
-  .stat-body .stat-label {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    min-height: 0;
-    font-size: 0.9rem;
-    font-weight: 700;
+  .stat-label,
+  .stat-number,
+  .stat-note {
     color: #ffffff;
   }
 
-  .stat-body .stat-sub-pill {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    align-self: start;
-    min-height: 0;
-    margin-top: -0.35rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid rgb(255 255 255 / 0.2);
-    color: rgb(255 255 255 / 0.85);
+  .stat-note {
+    margin-top: 0.6rem;
+    font-weight: 600;
+  }
+}
 
-    .dot {
-      display: none;
+.sparkline {
+  width: 100%;
+  height: auto;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  overflow: visible;
+}
+
+.spark-area {
+  fill: rgb(21 155 154 / 0.12);
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--success-color);
+  stroke-width: 2;
+}
+
+.spark-dot {
+  fill: var(--success-color);
+}
+
+// Queue: the existing warning amber, with dark brown for readable text.
+.queue-card {
+  .stat-icon,
+  .stat-pill {
+    background: #fdf0d5;
+    color: #7a4b00;
+  }
+}
+
+.queue-bar {
+  height: 18px;
+  margin-top: auto;
+  margin-bottom: 0.6rem;
+  background: var(--surface-100);
+  border-radius: var(--pill-radius);
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--warning-color);
+    border-radius: var(--pill-radius);
+  }
+}
+
+.audit-card .stat-icon {
+  background: var(--surface-100);
+  color: var(--primary-hover);
+}
+
+.audit-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px;
+  height: 58px;
+  margin-top: auto;
+  border-bottom: 1px solid var(--surface-200);
+
+  span {
+    flex: 1;
+    max-width: 14px;
+    background: var(--surface-300);
+    border-radius: 4px 4px 0 0;
+
+    &.is-busy {
+      background: #72b9b2;
     }
+  }
+}
+
+.audit-note {
+  margin-top: 0.5rem;
+}
+
+.audit-card:not(:has(.audit-bars)) .audit-note {
+  margin-top: auto;
+}
+
+/* CHARTS */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.chart-card {
+  min-width: 0;
+  padding: var(--card-padding);
+
+  h3 {
+    color: var(--text-main);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+}
+
+.chart-subtitle {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.9rem 0 0.5rem;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  list-style: none;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+
+  &.series-one {
+    background: $series-one;
+  }
+
+  &.series-two {
+    background: $series-two;
+  }
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.grid-line {
+  stroke: var(--surface-200);
+  stroke-dasharray: 3 3;
+}
+
+.axis-text {
+  fill: var(--text-muted);
+  font-size: 12px;
+}
+
+.area {
+  stroke: none;
+  fill-opacity: 0.22;
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.area.series-one,
+.bar.series-one,
+.dot.series-one {
+  fill: $series-one;
+}
+
+.area.series-two,
+.bar.series-two,
+.dot.series-two {
+  fill: $series-two;
+}
+
+.line.series-one {
+  stroke: $series-one;
+}
+
+.line.series-two {
+  stroke: $series-two;
+}
+
+.hit-area {
+  fill: transparent;
+}
+
+.dot {
+  stroke: var(--surface-0);
+  stroke-width: 2;
+  opacity: 0;
+}
+
+.hover-column:hover {
+  .hit-area {
+    fill: rgb(11 119 119 / 0.07);
+  }
+
+  .dot {
+    opacity: 1;
+  }
+}
+
+/* RESPONSIVE */
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .charts-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@include bp.below-tablet {
+  .admin-dashboard-page {
+    padding: 1rem 1rem 2rem;
+  }
+
+}
+
+@media (max-width: 520px) {
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// Content sits close to the sidebar and top bar, using the full width.
+@include bp.from-tablet {
+  .admin-dashboard-page {
+    max-width: none;
+    margin: 0;
+    padding: 0.75rem 1rem 2rem;
+  }
+}
+
+// Even, tighter spacing between the summary cards and the charts.
+.stats-grid,
+.charts-grid {
+  gap: 0.75rem;
+}
+
+.stats-grid {
+  margin-bottom: 0.75rem;
+}
+
+// ---- Compact sizing for the summary cards and charts ----
+.stat-card {
+  min-height: 160px;
+  padding: 0.9rem 1rem 0.8rem;
+}
+
+.stat-label {
+  padding-top: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.stat-icon {
+  width: 38px;
+  height: 38px;
+  margin: 0;
+
+  svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+.stat-number {
+  margin-top: -0.35rem;
+  font-size: 2rem;
+}
+
+.stat-note {
+  font-size: 0.75rem;
+}
+
+.users-card .stat-note {
+  margin-top: 0.35rem;
+}
+
+.stat-row {
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.stat-pill {
+  padding: 0.15rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+
+  i {
+    font-size: 0.65rem;
+  }
+}
+
+.stat-divider {
+  height: 14px;
+}
+
+.sparkline {
+  padding-top: 0.35rem;
+}
+
+.queue-bar {
+  height: 10px;
+  margin-bottom: 0.35rem;
+}
+
+.audit-bars {
+  height: 38px;
+}
+
+.audit-note {
+  margin-top: 0.3rem;
+}
+
+.chart-card {
+  padding: 1rem 1.15rem;
+
+  h3 {
+    font-size: 1.05rem;
+  }
+}
+
+.chart-subtitle {
+  font-size: 0.78rem;
+}
+
+.chart-legend {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.75rem;
+}
+
+// Graph | Table switch in the top right corner of each chart card.
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.view-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  background: var(--surface-100);
+  border-radius: var(--pill-radius);
+
+  button {
+    min-height: 28px;
+    padding: 0 0.8rem;
+    background: transparent;
+    border: 0;
+    border-radius: var(--pill-radius);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    &:hover:not(.active) {
+      color: var(--text-main);
+    }
+
+    &.active {
+      background: var(--surface-0);
+      color: var(--text-main);
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 1px;
+    }
+  }
+}
+
+.chart-table {
+  margin-top: 0.6rem;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  overflow-x: auto;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--surface-200);
+    text-align: left;
   }
 }

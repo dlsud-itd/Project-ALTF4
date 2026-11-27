@@ -491,8 +491,10 @@ export class StaffDashboardQueueActions {
     error: HttpErrorResponse,
     fallbackMessage: string,
   ): string {
-    const body = error.error as { code?: unknown } | null;
+    const body = error.error as { code?: unknown; message?: unknown } | null;
     switch (body?.code) {
+      case 'CLINIC_CLOSED':
+        return typeof body.message === 'string' ? body.message : fallbackMessage;
       case 'QUEUE_EMPTY':
         return QUEUE_EMPTY_MESSAGE;
       case 'STATION_BUSY':

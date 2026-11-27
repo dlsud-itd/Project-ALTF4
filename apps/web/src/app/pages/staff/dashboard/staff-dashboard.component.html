@@ -13,16 +13,18 @@
       ariaLabel="Call next patient"
       [loading]="dashboard.isGeneratingQueue()"
       [disabled]="
+        dashboard.callNextClosedReason() !== null ||
         dashboard.currentTicket() !== null ||
         dashboard.waitingCount() === 0 ||
         dashboard.isGeneratingQueue()
       "
       [title]="
-        dashboard.currentTicket()
+        dashboard.callNextClosedReason() ??
+        (dashboard.currentTicket()
           ? 'A patient is already being called'
           : dashboard.waitingCount() === 0
             ? 'The queue is empty'
-            : ''
+            : '')
       "
       (onClick)="dashboard.onCallNext()"
     />
@@ -70,6 +72,7 @@
     [isRecalling]="dashboard.isRecalling()"
     [waitingCount]="dashboard.waitingCount()"
     [averageWaitMinutes]="dashboard.averageWaitMinutes()"
+    [callNextClosedReason]="dashboard.callNextClosedReason()"
     [waitingTickets]="dashboard.waitingTickets()"
     [isStatsLoading]="dashboard.isStatsLoading()"
     [hasStatsError]="dashboard.hasStatsError()"

@@ -9,134 +9,345 @@
     />
   } @else {
     @if (stats(); as s) {
-      <!-- Main stats grid -->
-      <section class="stats-overview" aria-label="System statistics">
-        <div class="stats-grid">
-          <!-- Total Users -->
-          <div class="stat-card primary-card">
-            <div class="stat-card-inner">
-              <span class="stat-icon primary" aria-hidden="true">
-                <i class="pi pi-users"></i>
-              </span>
-              <div class="stat-body">
-                <span class="stat-label">Total Registered Users</span>
-                <span class="stat-number primary">{{ s.totalUsers }}</span>
-                <div class="stat-sub-pill">
-                  <span class="dot primary-dot"></span>
-                  <span>{{ s.totalPatients }} Patients &bull; {{ s.totalStaff }} Staff</span>
-                </div>
-              </div>
-            </div>
-          </div>
+      <!-- Page actions; on desktop they sit in the top bar beside the avatar -->
+      <div class="admin-actions">
+        <label class="range-control">
+          <i class="pi pi-calendar" aria-hidden="true"></i>
+          <span class="sr-only">Date range for patient trends</span>
+          <select (change)="onRangeChange($event)">
+            @for (months of monthRanges; track months) {
+              <option [value]="months" [selected]="months === monthRange()">
+                Last {{ months }} months
+              </option>
+            }
+          </select>
+        </label>
+        <button
+          type="button"
+          class="export-button"
+          [disabled]="isChartLoading() || chartError() !== null"
+          (click)="onExportReport()"
+        >
+          <i class="pi pi-download" aria-hidden="true"></i>
+          Export Report
+        </button>
+      </div>
 
-          <!-- System Admins -->
-          <div class="stat-card info-card">
-            <div class="stat-card-inner">
-              <span class="stat-icon info" aria-hidden="true">
-                <i class="pi pi-key"></i>
-              </span>
-              <div class="stat-body">
-                <span class="stat-label">System Administrators</span>
-                <span class="stat-number info">{{ s.totalAdmins }}</span>
-                <div class="stat-sub-pill">
-                  <span class="dot info-dot"></span>
-                  <span>Root administrative access</span>
-                </div>
-              </div>
-            </div>
+      <section class="stats-grid" aria-label="System statistics">
+        <!-- Total registered users -->
+        <div class="stat-card users-card">
+          <svg class="waves" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 78 C60 58 110 108 190 86 C260 68 300 18 400 34 V120 H0 Z" />
+            <path d="M0 104 C70 78 140 122 230 100 C300 82 345 66 400 76 V120 H0 Z" />
+          </svg>
+          <div class="stat-head">
+            <span class="stat-label">Total Registered Users</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </span>
           </div>
+          <span class="stat-number">{{ s.totalUsers }}</span>
+          <span class="stat-note">
+            {{ s.totalPatients }} Patients &bull; {{ s.totalStaff }} Staff &bull;
+            {{ s.totalAdmins }} {{ s.totalAdmins === 1 ? 'Admin' : 'Admins' }}
+          </span>
+        </div>
 
-          <!-- Today's Appointments -->
-          <div class="stat-card success-card">
-            <div class="stat-card-inner">
-              <span class="stat-icon success" aria-hidden="true">
-                <i class="pi pi-calendar"></i>
-              </span>
-              <div class="stat-body">
-                <span class="stat-label">Appointments Today</span>
-                <span class="stat-number success">{{ s.todayAppointments }}</span>
-                <div class="stat-sub-pill">
-                  <span class="dot success-dot"></span>
-                  <span>{{ s.totalAppointments }} lifetime booked</span>
-                </div>
-              </div>
-            </div>
+        <!-- Appointments today -->
+        <div class="stat-card">
+          <div class="stat-head">
+            <span class="stat-label">Appointments Today</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="3" />
+                <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+              </svg>
+            </span>
           </div>
+          <span class="stat-number">{{ s.todayAppointments }}</span>
+          <div class="stat-row">
+            <span class="stat-pill">
+              {{ s.totalAppointments }} all-time bookings
+            </span>
+          </div>
+          @if (!isChartLoading() && !chartError()) {
+            @if (sparkline(); as trend) {
+              <svg
+                class="sparkline"
+                [attr.viewBox]="'0 0 ' + spark.width + ' ' + spark.height"
+                role="img"
+                [attr.aria-label]="'Appointments in the last 6 months. ' + trend.summary"
+              >
+                <path class="spark-area" [attr.d]="trend.area" />
+                <path class="spark-line" [attr.d]="trend.line" />
+                @for (point of trend.points; track point.label) {
+                  <circle class="spark-dot" r="3.5" [attr.cx]="point.x" [attr.cy]="point.y">
+                    <title>{{ point.label }}: {{ point.value }} appointments</title>
+                  </circle>
+                }
+              </svg>
+            }
+          }
+        </div>
 
-          <!-- Real-time Queue -->
-          <div class="stat-card warning-card">
-            <div class="stat-card-inner">
-              <span class="stat-icon warning" aria-hidden="true">
-                <i class="pi pi-bell"></i>
-              </span>
-              <div class="stat-body">
-                <span class="stat-label">Queue in Progress</span>
-                <span class="stat-number warning">{{ s.waitingQueueCount }}</span>
-                <div class="stat-sub-pill">
-                  <span class="dot warning-dot"></span>
-                  <span>{{ s.inConsultationCount }} currently with doctor</span>
-                </div>
-              </div>
-            </div>
+        <!-- Queue in progress -->
+        <div class="stat-card queue-card">
+          <div class="stat-head">
+            <span class="stat-label">Queue in Progress</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+            </span>
           </div>
+          <span class="stat-number">{{ s.waitingQueueCount }}</span>
+          <div class="stat-row">
+            <span class="stat-pill">
+              <i class="pi pi-users" aria-hidden="true"></i>
+              Waiting
+            </span>
+            <span class="stat-divider" aria-hidden="true"></span>
+            <span class="stat-note">
+              <strong>{{ s.inConsultationCount }}</strong> currently with doctor
+            </span>
+          </div>
+          <div
+            class="queue-bar"
+            role="img"
+            [attr.aria-label]="waitingShare() + '% of the active queue is waiting'"
+            [title]="waitingShare() + '% of the active queue is waiting'"
+          >
+            <span [style.width.%]="waitingShare()"></span>
+          </div>
+        </div>
 
-          <!-- Security / Audit Logs -->
-          <div class="stat-card purple-card">
-            <div class="stat-card-inner">
-              <span class="stat-icon purple" aria-hidden="true">
-                <i class="pi pi-shield"></i>
-              </span>
-              <div class="stat-body">
-                <span class="stat-label">Audit Trail Events</span>
-                <span class="stat-number purple">{{ s.totalAuditLogs }}</span>
-                <div class="stat-sub-pill">
-                  <span class="dot purple-dot"></span>
-                  <span>Immutable security logs</span>
-                </div>
-              </div>
-            </div>
+        <!-- Audit trail events -->
+        <div class="stat-card audit-card">
+          <div class="stat-head">
+            <span class="stat-label">Audit Trail Events</span>
+            <span class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            </span>
           </div>
+          <span class="stat-number">{{ s.totalAuditLogs }}</span>
+          @if (auditBars(); as bars) {
+            <div class="audit-bars" role="img" aria-label="Audit events per day for the last 12 days">
+              @for (bar of bars; track bar.label) {
+                <span
+                  [class.is-busy]="bar.isBusy"
+                  [style.height.%]="bar.height"
+                  [title]="bar.label + ': ' + bar.count + ' events'"
+                ></span>
+              }
+            </div>
+          }
+          <span class="stat-note audit-note">Immutable security logs</span>
         </div>
       </section>
 
-      <!-- Quick Navigation Hub -->
-      <section class="quick-nav-section" aria-label="Administrative navigation">
-        <h3 class="section-heading">Quick Administration Tools</h3>
-        <div class="nav-cards-grid">
-          <a routerLink="/admin/users" class="nav-card">
-            <div class="nav-card-icon">
-              <i class="pi pi-user-edit"></i>
-            </div>
-            <div class="nav-card-content">
-              <h4>User Management</h4>
-              <p>Create accounts, assign roles, deactivate credentials, and manage affiliations.</p>
-            </div>
-            <i class="pi pi-arrow-right nav-card-arrow"></i>
-          </a>
+      @if (isChartLoading()) {
+        <app-loading-skeleton [lines]="5" />
+      } @else if (chartError()) {
+        <app-error-state
+          title="Could not load the charts"
+          [message]="chartError()!"
+          (retry)="loadCharts()"
+        />
+      } @else {
+        <div class="charts-grid">
+          @if (trendChart(); as trend) {
+            <section class="chart-card" aria-labelledby="trend-title">
+              <div class="chart-head">
+                <div>
+                  <h3 id="trend-title">Monthly Patient Trends</h3>
+                  <p class="chart-subtitle">New patients and appointments over time</p>
+                </div>
+                <div class="view-switch" role="group" aria-label="Monthly patient trends view">
+                  <button
+                    type="button"
+                    [class.active]="trendView() === 'graph'"
+                    [attr.aria-pressed]="trendView() === 'graph'"
+                    (click)="trendView.set('graph')"
+                  >
+                    Graph
+                  </button>
+                  <button
+                    type="button"
+                    [class.active]="trendView() === 'table'"
+                    [attr.aria-pressed]="trendView() === 'table'"
+                    (click)="trendView.set('table')"
+                  >
+                    Table
+                  </button>
+                </div>
+              </div>
+              @if (trendView() === 'graph') {
+                <ul class="chart-legend">
+                  <li><span class="swatch series-one"></span>Appointments</li>
+                  <li><span class="swatch series-two"></span>New patients</li>
+                </ul>
+                <svg
+                  class="chart"
+                  [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height"
+                  role="img"
+                  aria-label="Area chart of appointments and new patients by month"
+                >
+                  @for (tick of trend.ticks; track tick.value) {
+                    <line
+                      class="grid-line"
+                      [attr.x1]="chart.left"
+                      [attr.x2]="chart.width - chart.right"
+                      [attr.y1]="tick.y"
+                      [attr.y2]="tick.y"
+                    />
+                    <text
+                      class="axis-text"
+                      text-anchor="end"
+                      [attr.x]="chart.left - 8"
+                      [attr.y]="tick.y + 4"
+                    >{{ tick.value }}</text>
+                  }
+                  <path class="area series-one" [attr.d]="trend.visitsArea" />
+                  <path class="area series-two" [attr.d]="trend.newPatientsArea" />
+                  <path class="line series-one" [attr.d]="trend.visitsLine" />
+                  <path class="line series-two" [attr.d]="trend.newPatientsLine" />
+                  @for (point of trend.points; track point.fullLabel) {
+                    <g class="hover-column">
+                      <title>{{ point.fullLabel }}: {{ point.visits }} appointments, {{ point.newPatients }} new patients</title>
+                      <rect
+                        class="hit-area"
+                        [attr.x]="point.x - trend.hitWidth / 2"
+                        [attr.y]="chart.top"
+                        [attr.width]="trend.hitWidth"
+                        [attr.height]="baseline - chart.top"
+                      />
+                      <circle class="dot series-one" r="4" [attr.cx]="point.x" [attr.cy]="point.visitsY" />
+                      <circle class="dot series-two" r="4" [attr.cx]="point.x" [attr.cy]="point.newPatientsY" />
+                    </g>
+                    <text
+                      class="axis-text"
+                      text-anchor="middle"
+                      [attr.x]="point.x"
+                      [attr.y]="chart.height - 8"
+                    >{{ point.label }}</text>
+                  }
+                </svg>
+              } @else {
+                <div class="chart-table">
+                  <table>
+                    <thead>
+                      <tr><th scope="col">Month</th><th scope="col">Appointments</th><th scope="col">New patients</th></tr>
+                    </thead>
+                    <tbody>
+                      @for (point of trend.points; track point.fullLabel) {
+                        <tr><td>{{ point.fullLabel }}</td><td>{{ point.visits }}</td><td>{{ point.newPatients }}</td></tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </section>
+          }
 
-          <a routerLink="/admin/appointments" class="nav-card">
-            <div class="nav-card-icon">
-              <i class="pi pi-calendar-plus"></i>
-            </div>
-            <div class="nav-card-content">
-              <h4>Appointments Master List</h4>
-              <p>Review consultation history, upcoming bookings, and patient attendance records.</p>
-            </div>
-            <i class="pi pi-arrow-right nav-card-arrow"></i>
-          </a>
-
-          <a routerLink="/admin/audit-logs" class="nav-card">
-            <div class="nav-card-icon">
-              <i class="pi pi-shield"></i>
-            </div>
-            <div class="nav-card-content">
-              <h4>Security & Audit Logs</h4>
-              <p>Inspect immutable record trails for authentication, status transitions, and actions.</p>
-            </div>
-            <i class="pi pi-arrow-right nav-card-arrow"></i>
-          </a>
+          @if (weekChart(); as week) {
+            <section class="chart-card" aria-labelledby="week-title">
+              <div class="chart-head">
+                <div>
+                  <h3 id="week-title">Weekly Appointments</h3>
+                  <p class="chart-subtitle">Scheduled vs completed appointments this week</p>
+                </div>
+                <div class="view-switch" role="group" aria-label="Weekly appointments view">
+                  <button
+                    type="button"
+                    [class.active]="weekView() === 'graph'"
+                    [attr.aria-pressed]="weekView() === 'graph'"
+                    (click)="weekView.set('graph')"
+                  >
+                    Graph
+                  </button>
+                  <button
+                    type="button"
+                    [class.active]="weekView() === 'table'"
+                    [attr.aria-pressed]="weekView() === 'table'"
+                    (click)="weekView.set('table')"
+                  >
+                    Table
+                  </button>
+                </div>
+              </div>
+              @if (weekView() === 'graph') {
+                <ul class="chart-legend">
+                  <li><span class="swatch series-one"></span>Scheduled</li>
+                  <li><span class="swatch series-two"></span>Completed</li>
+                </ul>
+                <svg
+                  class="chart"
+                  [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height"
+                  role="img"
+                  aria-label="Bar chart of scheduled and completed appointments this week"
+                >
+                  @for (tick of week.ticks; track tick.value) {
+                    <line
+                      class="grid-line"
+                      [attr.x1]="chart.left"
+                      [attr.x2]="chart.width - chart.right"
+                      [attr.y1]="tick.y"
+                      [attr.y2]="tick.y"
+                    />
+                    <text
+                      class="axis-text"
+                      text-anchor="end"
+                      [attr.x]="chart.left - 8"
+                      [attr.y]="tick.y + 4"
+                    >{{ tick.value }}</text>
+                  }
+                  @for (day of week.days; track day.label) {
+                    <g class="hover-column">
+                      <title>{{ day.label }}: {{ day.scheduled }} scheduled, {{ day.completed }} completed</title>
+                      <rect
+                        class="hit-area"
+                        [attr.x]="day.groupX"
+                        [attr.y]="chart.top"
+                        [attr.width]="week.groupWidth"
+                        [attr.height]="baseline - chart.top"
+                      />
+                      <path class="bar series-one" [attr.d]="day.scheduledPath" />
+                      <path class="bar series-two" [attr.d]="day.completedPath" />
+                    </g>
+                    <text
+                      class="axis-text"
+                      text-anchor="middle"
+                      [attr.x]="day.center"
+                      [attr.y]="chart.height - 8"
+                    >{{ day.label }}</text>
+                  }
+                </svg>
+              } @else {
+                <div class="chart-table">
+                  <table>
+                    <thead>
+                      <tr><th scope="col">Day</th><th scope="col">Scheduled</th><th scope="col">Completed</th></tr>
+                    </thead>
+                    <tbody>
+                      @for (day of week.days; track day.label) {
+                        <tr><td>{{ day.label }}</td><td>{{ day.scheduled }}</td><td>{{ day.completed }}</td></tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </section>
+          }
         </div>
-      </section>
+      }
     }
   }
 </div>

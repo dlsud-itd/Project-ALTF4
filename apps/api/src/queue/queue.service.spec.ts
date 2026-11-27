@@ -12,6 +12,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { QueueEventsService } from './queue-events.service';
 import { QueueLifecycleService } from './queue-lifecycle.service';
 import { QueueReadService } from './queue-read.service';
+import * as clinicHours from '../common/clinic-hours';
 import { QueueService } from './queue.service';
 
 const now = new Date('2026-11-06T00:00:00.000Z');
@@ -98,6 +99,7 @@ describe('QueueService', () => {
   let lifecycle: QueueLifecycleService;
 
   beforeEach(() => {
+    jest.spyOn(clinicHours, 'findClinicClosedReason').mockResolvedValue(null);
     for (const model of Object.values(tx)) {
       if (typeof model === 'object' && model !== null) {
         Object.values(model).forEach((mock) => mock.mockReset());

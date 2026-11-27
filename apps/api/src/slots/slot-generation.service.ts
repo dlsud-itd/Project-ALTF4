@@ -11,7 +11,7 @@ const ROLLING_DAYS = 14;
 // Philippine regular and special non-working days with no automatic slots.
 // Movable holidays change yearly, so each new year has to be added here and in
 // the web app's copy (core/utils/slot.util.ts).
-const HOLIDAYS: Readonly<Record<string, string>> = {
+export const HOLIDAYS: Readonly<Record<string, string>> = {
   '2026-01-01': "New Year's Day",
   '2026-02-17': 'Chinese New Year',
   '2026-03-20': "Eid'l Fitr",

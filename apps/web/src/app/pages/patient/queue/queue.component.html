@@ -72,36 +72,43 @@
                 </p>
               }
 
-              <dl class="stat-row">
-                <div class="stat">
-                  <dt>Position</dt>
-                  <dd class="position-value">{{ ticket.positionInQueue }}</dd>
-                  <span class="stat-hint">
-                    {{ peopleAheadFor(ticket) }}
-                    {{
-                      peopleAheadFor(ticket) === 1 ? "person" : "people"
-                    }}
-                    ahead
-                  </span>
-                </div>
-                <div class="stat">
-                  <dt>Estimated Wait</dt>
-                  @if (ticket.estimatedWaitMinutes === null) {
-                    <dd class="wait-value wait-pending">
-                      Pending
-                    </dd>
-                    <span class="stat-hint">Not enough consultations yet</span>
-                  } @else {
-                    <dd class="wait-value">
-                      ~{{ ticket.estimatedWaitMinutes }}
-                      <span class="unit">mins</span>
-                    </dd>
+              @if (isReservation(ticket)) {
+                <p class="terminal-note" role="status">
+                  Your ticket is reserved. Your queue position and estimated wait
+                  will show once the clinic opens on the day of your appointment.
+                </p>
+              } @else {
+                <dl class="stat-row">
+                  <div class="stat">
+                    <dt>Position</dt>
+                    <dd class="position-value">{{ ticket.positionInQueue }}</dd>
                     <span class="stat-hint">
-                      {{ ticket.isRunningLate ? 'Running late' : 'Approximate' }}
+                      {{ peopleAheadFor(ticket) }}
+                      {{
+                        peopleAheadFor(ticket) === 1 ? "person" : "people"
+                      }}
+                      ahead
                     </span>
-                  }
-                </div>
-              </dl>
+                  </div>
+                  <div class="stat">
+                    <dt>Estimated Wait</dt>
+                    @if (ticket.estimatedWaitMinutes === null) {
+                      <dd class="wait-value wait-pending">
+                        Pending
+                      </dd>
+                      <span class="stat-hint">Not enough consultations yet</span>
+                    } @else {
+                      <dd class="wait-value">
+                        ~{{ ticket.estimatedWaitMinutes }}
+                        <span class="unit">mins</span>
+                      </dd>
+                      <span class="stat-hint">
+                        {{ ticket.isRunningLate ? 'Running late' : 'Approximate' }}
+                      </span>
+                    }
+                  </div>
+                </dl>
+              }
 
               @if (isTerminalFor(ticket)) {
                 <p class="terminal-note" role="status">

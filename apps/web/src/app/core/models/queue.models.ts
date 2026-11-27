@@ -30,6 +30,8 @@ export type QueueStatusResponse = {
   total_no_shows_today?: number;
   grace_period_ms?: number;
   newly_no_show_ticket_numbers?: string[];
+  // Staff only: why patients cannot be called now, or null when open.
+  call_next_closed_reason?: string | null;
   avg_wait_time_minutes: number | null;
   server_time: string;
   last_updated: string;

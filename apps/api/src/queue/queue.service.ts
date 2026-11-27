@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationRecipientRole } from '../notifications/notification-events';
 import { ACTIVE_QUEUE_STATUSES } from '../common/clinic.constants';
+import { findClinicClosedReason } from '../common/clinic-hours';
 import { CallNextDto } from './dto/call-next.dto';
 import { UpdateEntryStatusDto } from './dto/update-entry-status.dto';
 import { WalkInDto } from './dto/walk-in.dto';
@@ -270,7 +271,12 @@ export class QueueService {
   }
 
   async getStaffQueueStatus(queueId: number) {
-    return this.queueRead.getQueueStatus(queueId, true);
+    const status = await this.queueRead.getQueueStatus(queueId, true);
+    return {
+      ...status,
+      // Lets the dashboard turn Call Next off and say why.
+      call_next_closed_reason: await findClinicClosedReason(this.prisma),
+    };
   }
 
   async callNext(queueId: number, dto: CallNextDto) {
@@ -287,6 +293,13 @@ export class QueueService {
       throw new BadRequestException({
         code: 'VALIDATION_ERROR',
         message: `Invalid fields: ${invalidFields.join(', ')}.`,
+      });
+    }
+    const closedReason = await findClinicClosedReason(this.prisma, calledAt);
+    if (closedReason) {
+      throw new ConflictException({
+        code: 'CLINIC_CLOSED',
+        message: closedReason,
       });
     }
     await this.queueRead.expireCalledEntries(queueId, calledAt);
